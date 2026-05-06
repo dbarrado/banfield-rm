@@ -1,10 +1,9 @@
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Users, Plus, MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 import { demoPlayers, demoPayments, demoCategories, getPlayerDebts, thisMonth } from '@/lib/demo-data'
-import { POSITION_LABELS, POSITION_COLORS } from '@/types'
+import { POSITION_LABELS, POSITION_COLORS, TIRA_LABELS, TIRA_COLORS } from '@/types'
 
 function getPaymentStatus(playerId: string) {
   const paid = demoPayments.filter(p => p.player_id === playerId && p.period === thisMonth && p.fee_type === 'actividad')
@@ -89,7 +88,10 @@ export default function SociosPage({ searchParams }: { searchParams: { filter?: 
                     ))}
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {cat?.name ?? '—'} · {player.shift === 'morning' ? 'Mañana' : 'Tarde'}
+                    Cat. <strong>{cat?.name ?? '—'}</strong> ·{' '}
+                    <span className="font-semibold" style={{ color: TIRA_COLORS[player.tira] }}>
+                      {TIRA_LABELS[player.tira]}
+                    </span>
                   </p>
                 </div>
 

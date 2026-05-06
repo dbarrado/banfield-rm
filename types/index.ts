@@ -2,6 +2,22 @@ export type UserRole = 'admin' | 'profe' | 'tesorero'
 
 export type Shift = 'morning' | 'afternoon'
 
+export type Tira = 'metro' | 'liga1' | 'liga2' | 'edefi'
+
+export const TIRA_LABELS: Record<Tira, string> = {
+  metro: 'Metro',
+  liga1: 'Liga 1',
+  liga2: 'Liga 2',
+  edefi: 'Edefi',
+}
+
+export const TIRA_COLORS: Record<Tira, string> = {
+  metro: '#1d4ed8',
+  liga1: '#00843D',
+  liga2: '#C9A84C',
+  edefi: '#7c3aed',
+}
+
 export type FeeType = 'actividad' | 'social' | 'matricula'
 
 export type PaymentMethod = 'cash' | 'transfer'
@@ -53,6 +69,7 @@ export interface Player {
   full_name: string
   birth_date: string
   category_id: string
+  tira: Tira
   shift: Shift
   photo_url: string | null
   tutor_name: string | null
@@ -63,6 +80,12 @@ export interface Player {
   convocation_count: number
   created_at: string
   category?: Category
+}
+
+export interface ProfeAssignment {
+  profe_id: string
+  category_id: string
+  tira: Tira
 }
 
 export interface FeeConfig {

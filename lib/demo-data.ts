@@ -1,4 +1,4 @@
-import type { Player, Category, Payment, Event, Attendance, CashSession, CashMovement, FinanceCategory, EligibilityConfig, Position } from '@/types'
+import type { Player, Category, Payment, Event, Attendance, CashSession, CashMovement, FinanceCategory, EligibilityConfig, Position, Tira } from '@/types'
 
 export const DEMO_MODE = true
 
@@ -58,17 +58,19 @@ function pick<T>(arr: T[]): T {
   return arr[Math.floor(rand() * arr.length)]
 }
 
-// Distribución total: 450 chicos
-const distribucion: Record<string, { count: number; tiras: number }> = {
-  'cat-2010': { count: 50, tiras: 2 }, // mañana + tarde
-  'cat-2011': { count: 52, tiras: 2 },
-  'cat-2012': { count: 55, tiras: 2 },
-  'cat-2013': { count: 25, tiras: 1 },
-  'cat-2014': { count: 55, tiras: 2 },
-  'cat-2015': { count: 53, tiras: 2 },
-  'cat-2016': { count: 55, tiras: 2 },
-  'cat-2017': { count: 53, tiras: 2 },
-  'cat-2018': { count: 52, tiras: 2 },
+// Distribución de tiras por categoría — los más grandes tienen 4 tiras, los chicos 2
+const distribucion: Record<string, { tiras: Tira[]; perTira: number[] }> = {
+  // 4 tiras × ~12-13 chicos = 50
+  'cat-2010': { tiras: ['metro', 'liga1', 'liga2', 'edefi'], perTira: [13, 13, 12, 12] },
+  'cat-2011': { tiras: ['metro', 'liga1', 'liga2', 'edefi'], perTira: [14, 13, 13, 12] },
+  'cat-2012': { tiras: ['metro', 'liga1', 'liga2', 'edefi'], perTira: [14, 14, 14, 13] },
+  'cat-2013': { tiras: ['metro'], perTira: [25] }, // sólo Metro = 25 chicos
+  'cat-2014': { tiras: ['metro', 'liga1', 'liga2', 'edefi'], perTira: [14, 14, 14, 13] },
+  'cat-2015': { tiras: ['metro', 'liga1', 'liga2', 'edefi'], perTira: [14, 13, 13, 13] },
+  // 2 tiras × ~25 chicos = 50
+  'cat-2016': { tiras: ['metro', 'edefi'], perTira: [28, 27] },
+  'cat-2017': { tiras: ['metro', 'edefi'], perTira: [27, 26] },
+  'cat-2018': { tiras: ['metro', 'edefi'], perTira: [26, 26] },
 }
 
 // Distribución realista de posiciones por equipo: ~8% arquero / 32% defensor / 36% medio / 24% delantero
@@ -103,37 +105,42 @@ function pickSecondaryPositions(primary: Position): Position[] {
 function generatePlayers(): Player[] {
   const players: Player[] = []
   let idCounter = 1
+  let positionIdx = 0
   for (const cat of demoCategories) {
     const dist = distribucion[cat.id]
     if (!dist) continue
-    for (let i = 0; i < dist.count; i++) {
-      const nombre = pick(NOMBRES)
-      const apellido = pick(APELLIDOS)
-      const tutorApellido = apellido
-      const tutorNombre = pick(TUTOR_NOMBRES)
-      const month = String(Math.floor(rand() * 12) + 1).padStart(2, '0')
-      const day = String(Math.floor(rand() * 28) + 1).padStart(2, '0')
-      const shift = i % 2 === 0 ? 'morning' : 'afternoon'
-      const phoneBase = 1100000000 + Math.floor(rand() * 99999999)
-      const primary = pickPrimaryPosition(i)
-      const secondary = pickSecondaryPositions(primary)
-      players.push({
-        id: `p-${idCounter}`,
-        full_name: `${nombre} ${apellido}`,
-        birth_date: `${cat.birth_year}-${month}-${day}`,
-        category_id: cat.id,
-        shift,
-        photo_url: null,
-        tutor_name: `${tutorNombre} ${tutorApellido}`,
-        tutor_whatsapp: String(phoneBase),
-        primary_position: primary,
-        secondary_positions: secondary,
-        is_active: true,
-        convocation_count: Math.floor(rand() * 12),
-        created_at: '2026-03-01',
-      })
-      idCounter++
-    }
+    dist.tiras.forEach((tira, tiraIdx) => {
+      const count = dist.perTira[tiraIdx]
+      for (let i = 0; i < count; i++) {
+        const nombre = pick(NOMBRES)
+        const apellido = pick(APELLIDOS)
+        const tutorApellido = apellido
+        const tutorNombre = pick(TUTOR_NOMBRES)
+        const month = String(Math.floor(rand() * 12) + 1).padStart(2, '0')
+        const day = String(Math.floor(rand() * 28) + 1).padStart(2, '0')
+        const shift = i % 2 === 0 ? 'morning' : 'afternoon'
+        const phoneBase = 1100000000 + Math.floor(rand() * 99999999)
+        const primary = pickPrimaryPosition(positionIdx++)
+        const secondary = pickSecondaryPositions(primary)
+        players.push({
+          id: `p-${idCounter}`,
+          full_name: `${nombre} ${apellido}`,
+          birth_date: `${cat.birth_year}-${month}-${day}`,
+          category_id: cat.id,
+          tira,
+          shift,
+          photo_url: null,
+          tutor_name: `${tutorNombre} ${tutorApellido}`,
+          tutor_whatsapp: String(phoneBase),
+          primary_position: primary,
+          secondary_positions: secondary,
+          is_active: true,
+          convocation_count: Math.floor(rand() * 12),
+          created_at: '2026-03-01',
+        })
+        idCounter++
+      }
+    })
   }
   return players
 }
@@ -350,7 +357,7 @@ export const demoCashMovements: CashMovement[] = [
 
 export const demoEligibilityConfig: EligibilityConfig = {
   id: 'ec-1',
-  min_attendance_percentage: 60,
+  min_attendance_percentage: 50,
   updated_at: '2026-03-01',
   updated_by: null,
 }
