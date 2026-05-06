@@ -4,8 +4,16 @@ import { updateSession } from '@/lib/supabase/middleware'
 export async function middleware(request: NextRequest) {
   if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
     const pathname = request.nextUrl.pathname
-    if (pathname === '/' || pathname === '/login') {
+    const authed = request.cookies.get('demo_auth')?.value === 'true'
+
+    if (pathname === '/') {
+      return NextResponse.redirect(new URL(authed ? '/dashboard' : '/login', request.url))
+    }
+    if (pathname === '/login' && authed) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+    if (pathname !== '/login' && !authed) {
+      return NextResponse.redirect(new URL('/login', request.url))
     }
     return NextResponse.next()
   }
