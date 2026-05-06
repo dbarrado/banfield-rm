@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
-import { ClipboardList, CheckCircle2, XCircle, AlertCircle, User } from 'lucide-react'
+import { ClipboardList, CheckCircle2, XCircle, AlertCircle, User, Lock, Unlock, Clock } from 'lucide-react'
 import { demoPlayers, demoCategories, demoProfes, getAssignmentsForProfe, getProfesForTira } from '@/lib/demo-data'
 import { TIRA_LABELS, TIRA_COLORS, type Tira } from '@/types'
 
@@ -22,6 +22,8 @@ export default function AsistenciaPage() {
   const [selectedCategory, setSelectedCategory] = useState(activeCategories[0].id)
   const [selectedTira, setSelectedTira] = useState<Tira>('metro')
   const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({})
+  const [closed, setClosed] = useState(false)
+  const [log, setLog] = useState<{ action: 'open' | 'close' | 'reopen'; user: string; at: string }[]>([])
 
   // Si hay profe seleccionado, limitar categorías y tiras a las que tiene asignadas
   const profeAssignments = selectedProfe ? getAssignmentsForProfe(selectedProfe) : []
@@ -167,7 +169,7 @@ export default function AsistenciaPage() {
           const status = getStatus(player.id)
           const { label, color, icon: Icon } = statusConfig[status]
           return (
-            <button key={player.id} onClick={() => cycleStatus(player.id)} className="w-full text-left">
+            <button key={player.id} onClick={() => !closed && cycleStatus(player.id)} disabled={closed} className="w-full text-left disabled:opacity-90">
               <Card className="border-0 shadow-sm transition-all active:scale-[0.99]" style={{ borderLeft: `4px solid ${color}` }}>
                 <CardContent className="p-2.5 flex items-center gap-2.5">
                   <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style={{ backgroundColor: color }}>
@@ -188,15 +190,72 @@ export default function AsistenciaPage() {
         })}
       </div>
 
+      {/* Log de aperturas/cierres */}
+      {log.length > 0 && (
+        <Card className="border-0 shadow-sm bg-gray-50">
+          <CardContent className="p-2.5">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1.5 flex items-center gap-1">
+              <Clock size={10} /> Historial de cierres
+            </p>
+            <div className="space-y-1">
+              {log.map((entry, idx) => (
+                <div key={idx} className="flex items-center gap-1.5 text-[11px]">
+                  {entry.action === 'close' && <Lock size={10} className="text-red-500" />}
+                  {entry.action === 'reopen' && <Unlock size={10} className="text-blue-500" />}
+                  {entry.action === 'open' && <CheckCircle2 size={10} className="text-green-500" />}
+                  <span className="font-semibold">
+                    {entry.action === 'close' ? 'Cerrada' : entry.action === 'reopen' ? 'Reabierta' : 'Abierta'}
+                  </span>
+                  <span className="text-muted-foreground">por</span>
+                  <span className="font-medium">{entry.user}</span>
+                  <span className="text-muted-foreground">·</span>
+                  <span className="text-muted-foreground">{entry.at}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {players.length > 0 && (
         <div className="sticky bottom-20 md:bottom-4 pt-2 space-y-2">
-          <button
-            className="w-full py-3 rounded-xl text-white font-bold text-sm shadow-lg"
-            style={{ backgroundColor: '#00843D' }}
-            onClick={() => alert(`✅ Asistencia guardada — ${presentCount}/${players.length} presentes (${livePercent}%)`)}
-          >
-            CERRAR Y GUARDAR ({presentCount}/{players.length})
-          </button>
+          {!closed ? (
+            <button
+              className="w-full py-3 rounded-xl text-white font-bold text-sm shadow-lg flex items-center justify-center gap-2"
+              style={{ backgroundColor: '#00843D' }}
+              onClick={() => {
+                const profeName = selectedProfe ? demoProfes.find(p => p.id === selectedProfe)?.full_name ?? 'Diego Barrado' : 'Diego Barrado'
+                const now = new Date().toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                setLog([...log, { action: log.length === 0 ? 'close' : 'close', user: profeName, at: now }])
+                setClosed(true)
+              }}
+            >
+              <Lock size={16} /> CERRAR Y FIRMAR ({presentCount}/{players.length})
+            </button>
+          ) : (
+            <>
+              <Card className="border-0 shadow-sm bg-gray-100">
+                <CardContent className="p-3 text-center">
+                  <Lock size={20} className="text-gray-500 mx-auto mb-1" />
+                  <p className="text-sm font-semibold text-gray-700">Asistencia cerrada</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {presentCount}/{players.length} presentes · {livePercent}%
+                  </p>
+                </CardContent>
+              </Card>
+              <button
+                className="w-full py-3 rounded-xl font-bold text-sm border-2 border-blue-200 text-blue-600 hover:bg-blue-50 flex items-center justify-center gap-2"
+                onClick={() => {
+                  const profeName = selectedProfe ? demoProfes.find(p => p.id === selectedProfe)?.full_name ?? 'Diego Barrado' : 'Diego Barrado'
+                  const now = new Date().toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                  setLog([...log, { action: 'reopen', user: profeName, at: now }])
+                  setClosed(false)
+                }}
+              >
+                <Unlock size={16} /> REABRIR (llegó alguien tarde)
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

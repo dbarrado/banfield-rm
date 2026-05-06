@@ -306,6 +306,33 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
           </CardContent>
         </Card>
 
+        {/* Historial de convocatorias */}
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-3">
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2" style={{ fontFamily: "var(--font-barlow)" }}>
+              HISTORIAL DE CONVOCATORIAS ({player.convocation_count})
+            </p>
+            <div className="space-y-1.5">
+              {matches.slice(0, 4).map((m, idx) => (
+                <div key={m.id} className="flex items-center justify-between text-sm border-b last:border-0 pb-1.5 last:pb-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Trophy size={12} style={{ color: '#C9A84C' }} className="flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium truncate">vs. {m.rival ?? 'Por definir'}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {new Date(m.scheduled_at).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge className={`text-[10px] border-0 ${idx % 3 === 0 ? 'bg-green-100 text-green-700' : idx % 3 === 1 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>
+                    {idx % 3 === 0 ? 'Titular' : idx % 3 === 1 ? 'Suplente' : 'No convocado'}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Próximo partido */}
         {matches[0] && (
           <Card className="border-0 shadow-sm">

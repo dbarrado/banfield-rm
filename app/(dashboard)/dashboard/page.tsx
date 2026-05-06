@@ -147,6 +147,10 @@ export default function DashboardPage() {
               <span className="text-sm text-green-700">+ Alta de nuevo socio</span>
               <span className="text-xs text-green-400">→</span>
             </Link>
+            <Link href="/padres" className="flex items-center justify-between p-2 rounded-lg hover:bg-blue-50 transition-colors">
+              <span className="text-sm text-blue-700">👨‍👦 Vista del portal de padres (preview)</span>
+              <span className="text-xs text-blue-400">→</span>
+            </Link>
           </CardContent>
         </Card>
 

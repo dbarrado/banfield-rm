@@ -10,6 +10,10 @@ export async function middleware(request: NextRequest) {
   if (pathname === '/login' && authed) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
+  // Portal de padres es accesible sin auth de admin (en demo)
+  if (pathname.startsWith('/padres')) {
+    return NextResponse.next()
+  }
   if (pathname !== '/login' && !authed) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
