@@ -1,4 +1,6 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+'use client'
+
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Wallet, TrendingUp, TrendingDown, Plus } from 'lucide-react'
 import { demoCashMovements, demoCashSession, demoFinanceCategories } from '@/lib/demo-data'
