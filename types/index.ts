@@ -67,15 +67,21 @@ export interface Category {
 export interface Player {
   id: string
   full_name: string
+  dni: string | null
   birth_date: string
   category_id: string
   tira: Tira
   shift: Shift
   photo_url: string | null
   tutor_name: string | null
+  tutor_dni: string | null
+  tutor_email: string | null
   tutor_whatsapp: string | null
   primary_position: Position
   secondary_positions: Position[]
+  apto_medico_ok: boolean
+  apto_medico_file_url: string | null
+  apto_medico_expires_at: string | null
   is_active: boolean
   convocation_count: number
   created_at: string

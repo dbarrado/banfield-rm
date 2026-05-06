@@ -1,17 +1,34 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Settings } from 'lucide-react'
-import { demoCategories, demoFinanceCategories, demoEligibilityConfig } from '@/lib/demo-data'
+import { Settings, Users, ChevronRight } from 'lucide-react'
+import Link from 'next/link'
+import { demoCategories, demoFinanceCategories, demoEligibilityConfig, demoProfes } from '@/lib/demo-data'
 
 export default function ConfigPage() {
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-4">
       <div className="flex items-center gap-2">
         <Settings size={22} style={{ color: '#00843D' }} />
-        <h1 className="text-2xl font-bold" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#00843D' }}>
+        <h1 className="text-2xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: '#00843D' }}>
           CONFIGURACIÓN
         </h1>
       </div>
+
+      {/* Profes */}
+      <Link href="/config/profes">
+        <Card className="border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+          <CardContent className="p-3 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#00843D' }}>
+              <Users size={18} className="text-white" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-sm">Profes</p>
+              <p className="text-xs text-muted-foreground">{demoProfes.length} activos · gestionar asignaciones a tiras</p>
+            </div>
+            <ChevronRight size={18} className="text-muted-foreground" />
+          </CardContent>
+        </Card>
+      </Link>
 
       {/* Elegibilidad */}
       <Card className="border-0 shadow-sm">

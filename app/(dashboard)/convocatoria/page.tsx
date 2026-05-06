@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Trophy, CheckCircle2, MessageCircle, Lock } from 'lucide-react'
+import { Trophy, CheckCircle2, MessageCircle, Lock, List, LayoutGrid } from 'lucide-react'
 import { demoPlayers, demoCategories, demoEvents, getAttendanceStats, demoEligibilityConfig } from '@/lib/demo-data'
 import { POSITION_LABELS, POSITION_COLORS, TIRA_LABELS, TIRA_COLORS, type Position, type Tira } from '@/types'
 
@@ -16,6 +16,7 @@ export default function ConvocatoriaPage() {
   const [selectedEvent, setSelectedEvent] = useState(demoEvents.filter(e => e.event_type === 'match')[0]?.id ?? '')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [threshold, setThreshold] = useState(demoEligibilityConfig.min_attendance_percentage)
+  const [view, setView] = useState<'list' | 'pitch'>('list')
 
   const activeCategories = demoCategories.filter(c => c.is_active)
   const matches = demoEvents.filter(e => e.event_type === 'match' && e.category_id === selectedCategory)
@@ -146,13 +147,23 @@ export default function ConvocatoriaPage() {
         </CardContent>
       </Card>
 
-      {/* Resumen de convocados por posición */}
+      {/* Resumen de convocados + toggle de vista */}
       {selected.size > 0 && (
         <Card className="border-0 shadow-sm" style={{ borderLeft: '4px solid #00843D' }}>
           <CardContent className="p-3">
-            <p className="text-xs font-bold mb-2" style={{ fontFamily: "var(--font-barlow)" }}>
-              CONVOCADOS ({selected.size})
-            </p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-bold" style={{ fontFamily: "var(--font-barlow)" }}>
+                CONVOCADOS ({selected.size})
+              </p>
+              <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
+                <button onClick={() => setView('list')} className={`px-2 py-1 rounded ${view === 'list' ? 'bg-white shadow-sm' : ''}`}>
+                  <List size={14} />
+                </button>
+                <button onClick={() => setView('pitch')} className={`px-2 py-1 rounded ${view === 'pitch' ? 'bg-white shadow-sm' : ''}`}>
+                  <LayoutGrid size={14} />
+                </button>
+              </div>
+            </div>
             <div className="flex flex-wrap gap-1.5">
               {selectedByPosition.map(({ position, count }) => (
                 <div
@@ -170,6 +181,72 @@ export default function ConvocatoriaPage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Vista de cancha */}
+      {view === 'pitch' && selected.size > 0 && (
+        <div className="relative w-full overflow-hidden rounded-xl shadow-lg" style={{ aspectRatio: '2/3' }}>
+          {/* Cancha de fútbol */}
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, #16a34a 0%, #15803d 100%)' }}>
+            {/* Líneas */}
+            <svg viewBox="0 0 200 300" className="w-full h-full">
+              <rect x="5" y="5" width="190" height="290" fill="none" stroke="white" strokeWidth="0.8" opacity="0.7" />
+              <line x1="5" y1="150" x2="195" y2="150" stroke="white" strokeWidth="0.8" opacity="0.7" />
+              <circle cx="100" cy="150" r="20" fill="none" stroke="white" strokeWidth="0.8" opacity="0.7" />
+              <circle cx="100" cy="150" r="1" fill="white" opacity="0.7" />
+              {/* Áreas */}
+              <rect x="50" y="5" width="100" height="35" fill="none" stroke="white" strokeWidth="0.8" opacity="0.7" />
+              <rect x="50" y="260" width="100" height="35" fill="none" stroke="white" strokeWidth="0.8" opacity="0.7" />
+              <rect x="75" y="5" width="50" height="15" fill="none" stroke="white" strokeWidth="0.8" opacity="0.7" />
+              <rect x="75" y="280" width="50" height="15" fill="none" stroke="white" strokeWidth="0.8" opacity="0.7" />
+            </svg>
+          </div>
+
+          {/* Jugadores posicionados */}
+          {(() => {
+            const ordered = [...selectedPlayers].sort(
+              (a, b) => POSITIONS.indexOf(a.primary_position) - POSITIONS.indexOf(b.primary_position)
+            )
+            const layouts: Record<string, { y: number; positions: number[] }> = {
+              arquero: { y: 92, positions: [50] },
+              defensor: { y: 70, positions: [] },
+              mediocampista: { y: 45, positions: [] },
+              delantero: { y: 18, positions: [] },
+            }
+            // Distribuir x entre los de cada posición
+            for (const pos of POSITIONS) {
+              const count = ordered.filter(p => p.primary_position === pos).length
+              const xs: number[] = []
+              for (let i = 0; i < count; i++) {
+                xs.push(((i + 1) / (count + 1)) * 100)
+              }
+              layouts[pos].positions = xs
+            }
+            const counters: Record<string, number> = { arquero: 0, defensor: 0, mediocampista: 0, delantero: 0 }
+            return ordered.map(p => {
+              const layout = layouts[p.primary_position]
+              const x = layout.positions[counters[p.primary_position]++]
+              const y = layout.y
+              return (
+                <div
+                  key={p.id}
+                  className="absolute -translate-x-1/2 -translate-y-1/2"
+                  style={{ left: `${x}%`, top: `${y}%` }}
+                >
+                  <div
+                    className="w-12 h-12 rounded-full bg-white border-2 shadow-lg flex items-center justify-center text-[10px] font-bold"
+                    style={{ borderColor: POSITION_COLORS[p.primary_position], color: POSITION_COLORS[p.primary_position] }}
+                  >
+                    {p.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                  </div>
+                  <p className="text-[9px] text-white text-center mt-0.5 font-bold leading-tight whitespace-nowrap drop-shadow-md">
+                    {p.full_name.split(' ').slice(-1)[0]}
+                  </p>
+                </div>
+              )
+            })
+          })()}
+        </div>
       )}
 
       {/* Listado por posición */}

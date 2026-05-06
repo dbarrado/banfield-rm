@@ -122,18 +122,27 @@ function generatePlayers(): Player[] {
         const phoneBase = 1100000000 + Math.floor(rand() * 99999999)
         const primary = pickPrimaryPosition(positionIdx++)
         const secondary = pickSecondaryPositions(primary)
+        const dniBase = 50000000 + Math.floor(rand() * 5000000)
+        const tutorDniBase = 20000000 + Math.floor(rand() * 25000000)
+        const aptoOk = rand() < 0.78
         players.push({
           id: `p-${idCounter}`,
           full_name: `${nombre} ${apellido}`,
+          dni: String(dniBase),
           birth_date: `${cat.birth_year}-${month}-${day}`,
           category_id: cat.id,
           tira,
           shift,
           photo_url: null,
           tutor_name: `${tutorNombre} ${tutorApellido}`,
+          tutor_dni: String(tutorDniBase),
+          tutor_email: `${tutorNombre.toLowerCase()}.${tutorApellido.toLowerCase()}@gmail.com`,
           tutor_whatsapp: String(phoneBase),
           primary_position: primary,
           secondary_positions: secondary,
+          apto_medico_ok: aptoOk,
+          apto_medico_file_url: aptoOk && rand() < 0.6 ? '/demo-apto.pdf' : null,
+          apto_medico_expires_at: aptoOk ? '2026-12-31' : null,
           is_active: true,
           convocation_count: Math.floor(rand() * 12),
           created_at: '2026-03-01',
