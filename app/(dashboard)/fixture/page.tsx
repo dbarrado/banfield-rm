@@ -96,12 +96,12 @@ export default function FixturePage() {
                 </div>
 
                 <div className="flex gap-1.5 pt-1 flex-wrap">
+                  <a href={`/partidos/${match.id}`} className="text-xs px-2.5 py-1 rounded-lg font-bold text-white" style={{ backgroundColor: '#00843D' }}>
+                    Abrir partido
+                  </a>
                   <button onClick={() => setReprogramming(match)} className="text-xs px-2.5 py-1 rounded-lg border font-medium hover:bg-gray-50 flex items-center gap-1">
                     <Edit2 size={11} /> Reprogramar
                   </button>
-                  <a href={`/convocatoria?event=${match.id}`} className="text-xs px-2.5 py-1 rounded-lg font-medium text-white" style={{ backgroundColor: '#00843D' }}>
-                    Convocatoria
-                  </a>
                   <button
                     onClick={() => setMatches(prev => prev.map(m => m.id === match.id ? { ...m, is_suspended: !m.is_suspended } : m))}
                     className={`text-xs px-2.5 py-1 rounded-lg font-medium border flex items-center gap-1 ${match.is_suspended ? 'border-green-300 text-green-700' : 'border-red-200 text-red-600'}`}

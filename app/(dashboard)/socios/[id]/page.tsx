@@ -3,11 +3,13 @@
 import { useState, useRef, use } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, MessageCircle, Camera, Plus, Trophy, AlertCircle, Star, Award, FileCheck, FileWarning, Upload, Mail } from 'lucide-react'
+import { ArrowLeft, MessageCircle, Camera, Plus, Trophy, AlertCircle, Star, Award, FileCheck, FileWarning, Upload, Mail, Edit2, X, Check } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { demoPlayers, demoCategories, demoPayments, demoEvents, demoAttendance, getAttendanceStats, thisMonth } from '@/lib/demo-data'
-import { POSITION_LABELS, POSITION_COLORS, TIRA_LABELS, TIRA_COLORS } from '@/types'
+import { POSITION_LABELS, POSITION_COLORS, TIRA_LABELS, TIRA_COLORS, type Position } from '@/types'
+
+const ALL_POSITIONS: Position[] = ['arquero', 'defensor', 'mediocampista', 'delantero']
 
 export default function PlayerProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -17,10 +19,22 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
   const [photo, setPhoto] = useState<string | null>(initialPlayer!.photo_url)
   const [aptoOk, setAptoOk] = useState(initialPlayer!.apto_medico_ok)
   const [aptoFile, setAptoFile] = useState<string | null>(initialPlayer!.apto_medico_file_url)
+  const [primaryPos, setPrimaryPos] = useState<Position>(initialPlayer!.primary_position)
+  const [secondaryPos, setSecondaryPos] = useState<Position[]>(initialPlayer!.secondary_positions)
+  const [editingPositions, setEditingPositions] = useState(false)
   const [showPaymentForm, setShowPaymentForm] = useState(false)
   const [showObservationForm, setShowObservationForm] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const aptoInputRef = useRef<HTMLInputElement>(null)
+
+  function toggleSecondary(pos: Position) {
+    if (pos === primaryPos) return
+    if (secondaryPos.includes(pos)) {
+      setSecondaryPos(secondaryPos.filter(p => p !== pos))
+    } else if (secondaryPos.length < 3) {
+      setSecondaryPos([...secondaryPos, pos])
+    }
+  }
 
   const player = initialPlayer!
   const cat = demoCategories.find(c => c.id === player.category_id)
@@ -95,8 +109,8 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
             <Badge className="text-white border-0 text-xs" style={{ backgroundColor: 'rgba(255,255,255,0.25)' }}>
               {TIRA_LABELS[player.tira]}
             </Badge>
-            <Badge className="text-white border-0 text-xs font-bold" style={{ backgroundColor: POSITION_COLORS[player.primary_position] }}>
-              {POSITION_LABELS[player.primary_position]}
+            <Badge className="text-white border-0 text-xs font-bold" style={{ backgroundColor: POSITION_COLORS[primaryPos] }}>
+              {POSITION_LABELS[primaryPos]}
             </Badge>
           </div>
         </div>
@@ -210,27 +224,107 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
           </CardContent>
         </Card>
 
-        {/* Posiciones secundarias */}
-        {player.secondary_positions.length > 0 && (
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-3">
-              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2" style={{ fontFamily: "var(--font-barlow)" }}>
-                POSICIONES SECUNDARIAS
+        {/* Posiciones */}
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground" style={{ fontFamily: "var(--font-barlow)" }}>
+                POSICIONES
               </p>
-              <div className="flex flex-wrap gap-1.5">
-                {player.secondary_positions.map(sp => (
+              {!editingPositions ? (
+                <button onClick={() => setEditingPositions(true)} className="text-xs px-2 py-1 rounded border text-muted-foreground hover:bg-gray-50 flex items-center gap-1">
+                  <Edit2 size={11} /> Editar
+                </button>
+              ) : (
+                <div className="flex gap-1">
+                  <button onClick={() => { setEditingPositions(false); alert('✅ Posiciones actualizadas (demo)') }} className="p-1 rounded text-green-600 hover:bg-green-50">
+                    <Check size={14} />
+                  </button>
+                  <button onClick={() => {
+                    setPrimaryPos(player.primary_position)
+                    setSecondaryPos(player.secondary_positions)
+                    setEditingPositions(false)
+                  }} className="p-1 rounded text-gray-400 hover:bg-gray-50">
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {!editingPositions ? (
+              <div className="space-y-2">
+                <div>
+                  <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1">Principal</p>
                   <span
-                    key={sp}
-                    className="text-xs px-2 py-1 rounded font-semibold"
-                    style={{ backgroundColor: `${POSITION_COLORS[sp]}20`, color: POSITION_COLORS[sp] }}
+                    className="text-xs px-2 py-1 rounded font-bold uppercase text-white"
+                    style={{ backgroundColor: POSITION_COLORS[primaryPos] }}
                   >
-                    {POSITION_LABELS[sp]}
+                    {POSITION_LABELS[primaryPos]}
                   </span>
-                ))}
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1">Secundarias</p>
+                  {secondaryPos.length === 0 ? (
+                    <p className="text-[11px] text-muted-foreground italic">Ninguna</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {secondaryPos.map(sp => (
+                        <span key={sp} className="text-xs px-2 py-1 rounded font-semibold" style={{ backgroundColor: `${POSITION_COLORS[sp]}20`, color: POSITION_COLORS[sp] }}>
+                          {POSITION_LABELS[sp]}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1.5">Principal *</p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {ALL_POSITIONS.map(p => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => {
+                          setPrimaryPos(p)
+                          setSecondaryPos(secondaryPos.filter(sp => sp !== p))
+                        }}
+                        className={`py-2 rounded-lg text-xs font-semibold border ${primaryPos === p ? 'text-white border-transparent' : 'border-gray-200'}`}
+                        style={primaryPos === p ? { backgroundColor: POSITION_COLORS[p] } : {}}
+                      >
+                        {POSITION_LABELS[p]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1.5">
+                    Secundarias (hasta 3) — {secondaryPos.length}/3
+                  </p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {ALL_POSITIONS.filter(p => p !== primaryPos).map(p => {
+                      const sel = secondaryPos.includes(p)
+                      const disabled = !sel && secondaryPos.length >= 3
+                      return (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => toggleSecondary(p)}
+                          disabled={disabled}
+                          className={`py-2 rounded-lg text-xs font-semibold border ${sel ? 'text-white border-transparent' : 'border-gray-200'} ${disabled ? 'opacity-30' : ''}`}
+                          style={sel ? { backgroundColor: POSITION_COLORS[p] } : {}}
+                        >
+                          {POSITION_LABELS[p]}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Datos personales */}
         <Card className="border-0 shadow-sm">
