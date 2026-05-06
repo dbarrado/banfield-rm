@@ -12,8 +12,6 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import Image from 'next/image'
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
-const DEMO_EMAIL = 'dbarrado@gmail.com'
-const DEMO_PASSWORD = 'Banfield2026!'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -28,14 +26,10 @@ export default function LoginPage() {
     setError('')
 
     if (DEMO_MODE) {
-      if (email.trim().toLowerCase() === DEMO_EMAIL && password === DEMO_PASSWORD) {
-        document.cookie = `demo_auth=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`
-        router.push('/dashboard')
-        router.refresh()
-        return
-      }
-      setError('Email o contraseña incorrectos')
-      setLoading(false)
+      // En modo demo aceptamos cualquier email/contraseña
+      document.cookie = `demo_auth=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`
+      router.push('/dashboard')
+      router.refresh()
       return
     }
 
