@@ -1,0 +1,22 @@
+{
+  "name": "BanfieldRM",
+  "short_name": "BanfieldRM",
+  "description": "Sistema de gestión — Filial Banfield Ramos Mejía",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#00843D",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/escudo-banfield.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/escudo-banfield.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

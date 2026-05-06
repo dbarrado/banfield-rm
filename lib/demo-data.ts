@@ -1,0 +1,355 @@
+import type { Player, Category, Payment, Event, Attendance, CashSession, CashMovement, FinanceCategory, EligibilityConfig } from '@/types'
+
+export const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
+
+// ──────────────────────────────────────────────────────────────────────────
+// CATEGORÍAS — años 2010 a 2018 (todas activas)
+// ──────────────────────────────────────────────────────────────────────────
+export const demoCategories: Category[] = [
+  { id: 'cat-2010', name: '2010', birth_year: 2010, is_active: true, created_at: '2025-01-01' },
+  { id: 'cat-2011', name: '2011', birth_year: 2011, is_active: true, created_at: '2025-01-01' },
+  { id: 'cat-2012', name: '2012', birth_year: 2012, is_active: true, created_at: '2025-01-01' },
+  { id: 'cat-2013', name: '2013', birth_year: 2013, is_active: true, created_at: '2025-01-01' },
+  { id: 'cat-2014', name: '2014', birth_year: 2014, is_active: true, created_at: '2025-01-01' },
+  { id: 'cat-2015', name: '2015', birth_year: 2015, is_active: true, created_at: '2025-01-01' },
+  { id: 'cat-2016', name: '2016', birth_year: 2016, is_active: true, created_at: '2025-01-01' },
+  { id: 'cat-2017', name: '2017', birth_year: 2017, is_active: true, created_at: '2025-01-01' },
+  { id: 'cat-2018', name: '2018', birth_year: 2018, is_active: true, created_at: '2025-01-01' },
+]
+
+// ──────────────────────────────────────────────────────────────────────────
+// GENERADOR DE JUGADORES (~450 chicos)
+// ──────────────────────────────────────────────────────────────────────────
+const NOMBRES = [
+  'Lucas','Tomás','Mateo','Santiago','Benjamín','Agustín','Felipe','Ignacio','Valentín','Axel',
+  'Lautaro','Thiago','Nicolás','Rodrigo','Bruno','Joaquín','Bautista','Lorenzo','Franco','Juan',
+  'Martín','Pedro','Diego','Gonzalo','Manuel','Emiliano','Julián','Facundo','Maximiliano','Sebastián',
+  'Gabriel','Cristian','Federico','Alejo','Ezequiel','Iván','Marcos','Nahuel','Ramiro','Tadeo',
+  'Mateo','Dylan','Kevin','Brian','Gianluca','Luca','Renzo','Simón','Salvador','León',
+  'Vicente','Joaquín','Pablo','Andrés','Hugo','Damián','Esteban','Leandro','Mariano','Matías',
+]
+
+const APELLIDOS = [
+  'Fernández','García','López','Martínez','Rodríguez','Sánchez','Pérez','Torres','Romero','Díaz',
+  'Vargas','Castro','Herrera','Morales','Jiménez','Ruiz','Álvarez','Moreno','Gutiérrez','Acosta',
+  'Rojas','Silva','Aguirre','Domínguez','Peralta','Sosa','Méndez','Ortega','Cabrera','Suárez',
+  'Quiroga','Núñez','Molina','Flores','Vega','Navarro','Reyes','Cruz','Ortiz','Ríos',
+  'Ferrari','Bianchi','Russo','Marino','Costa','Romano','Greco','Ferrara','Esposito','Conti',
+]
+
+const TUTOR_NOMBRES = [
+  'Carlos','Ana','Jorge','Laura','Silvia','Roberto','Mónica','Diego','Patricia','Marcelo',
+  'Claudia','Gabriel','Sandra','Fernando','Valeria','Adrián','Mariela','Pablo','Andrea','Gustavo',
+  'Verónica','Daniel','Karina','Hugo','Elena','Walter','Susana','Ricardo','Beatriz','Oscar',
+]
+
+// PRNG determinístico para que los datos no cambien entre renders
+function mulberry32(seed: number) {
+  return function () {
+    let t = (seed += 0x6d2b79f5)
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+const rand = mulberry32(42)
+
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(rand() * arr.length)]
+}
+
+// Distribución total: 450 chicos
+const distribucion: Record<string, { count: number; tiras: number }> = {
+  'cat-2010': { count: 50, tiras: 2 }, // mañana + tarde
+  'cat-2011': { count: 52, tiras: 2 },
+  'cat-2012': { count: 55, tiras: 2 },
+  'cat-2013': { count: 25, tiras: 1 },
+  'cat-2014': { count: 55, tiras: 2 },
+  'cat-2015': { count: 53, tiras: 2 },
+  'cat-2016': { count: 55, tiras: 2 },
+  'cat-2017': { count: 53, tiras: 2 },
+  'cat-2018': { count: 52, tiras: 2 },
+}
+
+function generatePlayers(): Player[] {
+  const players: Player[] = []
+  let idCounter = 1
+  for (const cat of demoCategories) {
+    const dist = distribucion[cat.id]
+    if (!dist) continue
+    for (let i = 0; i < dist.count; i++) {
+      const nombre = pick(NOMBRES)
+      const apellido = pick(APELLIDOS)
+      const tutorApellido = apellido
+      const tutorNombre = pick(TUTOR_NOMBRES)
+      const month = String(Math.floor(rand() * 12) + 1).padStart(2, '0')
+      const day = String(Math.floor(rand() * 28) + 1).padStart(2, '0')
+      const shift = i % 2 === 0 ? 'morning' : 'afternoon'
+      const phoneBase = 1100000000 + Math.floor(rand() * 99999999)
+      players.push({
+        id: `p-${idCounter}`,
+        full_name: `${nombre} ${apellido}`,
+        birth_date: `${cat.birth_year}-${month}-${day}`,
+        category_id: cat.id,
+        shift,
+        photo_url: null,
+        tutor_name: `${tutorNombre} ${tutorApellido}`,
+        tutor_whatsapp: String(phoneBase),
+        is_active: true,
+        convocation_count: Math.floor(rand() * 12),
+        created_at: '2026-03-01',
+      })
+      idCounter++
+    }
+  }
+  return players
+}
+
+export const demoPlayers: Player[] = generatePlayers()
+
+// ──────────────────────────────────────────────────────────────────────────
+// EVENTOS — prácticas del último mes + partidos próximos
+// Calendario: lunes/miércoles/viernes para todas las categorías
+// ──────────────────────────────────────────────────────────────────────────
+function generateEvents(): Event[] {
+  const events: Event[] = []
+  let evId = 1
+  const today = new Date('2026-05-05')
+
+  for (const cat of demoCategories) {
+    // Prácticas del último mes (12 prácticas, 3 por semana × 4 semanas)
+    for (let weeksBack = 4; weeksBack >= 0; weeksBack--) {
+      // Lunes, miércoles, viernes de cada semana
+      for (const dayOffset of [0, 2, 4]) {
+        const d = new Date(today)
+        d.setDate(today.getDate() - weeksBack * 7 - (today.getDay() === 0 ? 6 : today.getDay() - 1) + dayOffset - 7 * weeksBack)
+        // Recalcular más simple: tomar fecha base hace N días
+        const daysBack = weeksBack * 7 + (4 - dayOffset)
+        const eventDate = new Date(today)
+        eventDate.setDate(today.getDate() - daysBack)
+        if (eventDate > today) continue
+
+        // 1 de cada 8 prácticas suspendida por lluvia
+        const suspended = (evId * 7) % 8 === 0
+        events.push({
+          id: `ev-${evId++}`,
+          category_id: cat.id,
+          event_type: 'practice',
+          scheduled_at: `${eventDate.toISOString().split('T')[0]}T${dayOffset === 0 ? '17:00' : dayOffset === 2 ? '17:30' : '18:00'}:00`,
+          is_suspended: suspended,
+          suspension_reason: suspended ? 'Lluvia' : null,
+          rival: null,
+          venue: 'Predio Banfield Ramos Mejía',
+          is_home: null,
+          created_by: null,
+          created_at: '2026-04-01',
+        })
+      }
+    }
+
+    // Próximo partido (sábado o domingo siguiente)
+    const matchDate = new Date(today)
+    matchDate.setDate(today.getDate() + (6 - today.getDay()) + (cat.birth_year % 2 === 0 ? 0 : 1))
+    const rivales = ['Deportivo Norte','Atlético San Justo','Club Italiano','Vélez Junior','Boca Ramos','River Sub','Lanús Niño','Independiente Mini']
+    events.push({
+      id: `ev-${evId++}`,
+      category_id: cat.id,
+      event_type: 'match',
+      scheduled_at: `${matchDate.toISOString().split('T')[0]}T${cat.birth_year % 2 === 0 ? '10:00' : '11:30'}:00`,
+      is_suspended: false,
+      suspension_reason: null,
+      rival: rivales[(cat.birth_year - 2010) % rivales.length],
+      venue: cat.birth_year % 2 === 0 ? 'Predio Banfield Ramos Mejía' : 'Cancha del rival',
+      is_home: cat.birth_year % 2 === 0,
+      created_by: null,
+      created_at: '2026-04-25',
+    })
+  }
+  return events
+}
+
+export const demoEvents: Event[] = generateEvents()
+
+// ──────────────────────────────────────────────────────────────────────────
+// ASISTENCIAS — generadas para todo el mes con patrones realistas
+// ──────────────────────────────────────────────────────────────────────────
+function generateAttendance(): Attendance[] {
+  const attendance: Attendance[] = []
+  let attId = 1
+  const practices = demoEvents.filter(e => e.event_type === 'practice' && !e.is_suspended)
+
+  for (const player of demoPlayers) {
+    // Cada jugador tiene un "perfil de asistencia": alto, medio, bajo
+    const profile = rand()
+    const baseAttendanceRate =
+      profile > 0.75 ? 0.95 :         // 25% son cumplidores top
+      profile > 0.45 ? 0.75 :         // 30% asistencia media-alta
+      profile > 0.20 ? 0.55 :         // 25% asistencia media
+                       0.30           // 20% baja asistencia
+
+    const playerPractices = practices.filter(p => p.category_id === player.category_id)
+    for (const practice of playerPractices) {
+      const r = rand()
+      let status: 'present' | 'absent_justified' | 'absent_unjustified'
+      let justified_reason: string | null = null
+      if (r < baseAttendanceRate) {
+        status = 'present'
+      } else if (r < baseAttendanceRate + 0.10) {
+        status = 'absent_justified'
+        justified_reason = pick(['Colegio','Examen','Médico','Familia'])
+      } else {
+        status = 'absent_unjustified'
+      }
+      attendance.push({
+        id: `att-${attId++}`,
+        event_id: practice.id,
+        player_id: player.id,
+        status,
+        justified_reason,
+        registered_by: null,
+        created_at: practice.scheduled_at.split('T')[0],
+      })
+    }
+  }
+  return attendance
+}
+
+export const demoAttendance: Attendance[] = generateAttendance()
+
+// ──────────────────────────────────────────────────────────────────────────
+// PAGOS — cuota actividad mes en curso
+// ──────────────────────────────────────────────────────────────────────────
+const today = new Date('2026-05-05')
+const thisMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+const lastMonth = `${today.getFullYear()}-${String(today.getMonth()).padStart(2, '0')}`
+
+function generatePayments(): Payment[] {
+  const payments: Payment[] = []
+  let payId = 1
+  for (const player of demoPlayers) {
+    // 78% pagó la cuota de este mes; el resto deudor
+    const r = rand()
+    if (r < 0.78) {
+      const day = Math.floor(rand() * 5) + 1
+      payments.push({
+        id: `pay-${payId++}`,
+        player_id: player.id,
+        fee_type: 'actividad',
+        period: thisMonth,
+        amount: 62000,
+        paid_at: `2026-05-${String(day).padStart(2, '0')}`,
+        payment_method: r < 0.5 ? 'cash' : 'transfer',
+        transfer_reference: r < 0.5 ? null : `MP-${Math.floor(rand() * 100000)}`,
+        registered_by: null,
+        created_at: `2026-05-${String(day).padStart(2, '0')}`,
+      })
+    }
+    // Mes pasado: 95% pagó
+    if (rand() < 0.95) {
+      const day = Math.floor(rand() * 28) + 1
+      payments.push({
+        id: `pay-${payId++}`,
+        player_id: player.id,
+        fee_type: 'actividad',
+        period: lastMonth,
+        amount: 62000,
+        paid_at: `2026-04-${String(day).padStart(2, '0')}`,
+        payment_method: rand() < 0.5 ? 'cash' : 'transfer',
+        transfer_reference: rand() < 0.5 ? null : `MP-${Math.floor(rand() * 100000)}`,
+        registered_by: null,
+        created_at: `2026-04-${String(day).padStart(2, '0')}`,
+      })
+    }
+    // Matrícula 2026: 90% pagó
+    if (rand() < 0.90) {
+      payments.push({
+        id: `pay-${payId++}`,
+        player_id: player.id,
+        fee_type: 'matricula',
+        period: '2026',
+        amount: 35000,
+        paid_at: '2026-03-15',
+        payment_method: 'transfer',
+        transfer_reference: `MP-MATR-${Math.floor(rand() * 100000)}`,
+        registered_by: null,
+        created_at: '2026-03-15',
+      })
+    }
+  }
+  return payments
+}
+
+export const demoPayments: Payment[] = generatePayments()
+
+// ──────────────────────────────────────────────────────────────────────────
+// CAJA Y FINANZAS
+// ──────────────────────────────────────────────────────────────────────────
+export const demoFinanceCategories: FinanceCategory[] = [
+  { id: 'fc-1', name: 'Cuotas cobradas',        movement_type: 'income',  is_active: true, created_at: '2025-01-01' },
+  { id: 'fc-2', name: 'Matrículas cobradas',     movement_type: 'income',  is_active: true, created_at: '2025-01-01' },
+  { id: 'fc-3', name: 'Donaciones',              movement_type: 'income',  is_active: true, created_at: '2025-01-01' },
+  { id: 'fc-4', name: 'Alquiler de cancha',      movement_type: 'expense', is_active: true, created_at: '2025-01-01' },
+  { id: 'fc-5', name: 'Materiales deportivos',   movement_type: 'expense', is_active: true, created_at: '2025-01-01' },
+  { id: 'fc-6', name: 'Arbitraje',               movement_type: 'expense', is_active: true, created_at: '2025-01-01' },
+  { id: 'fc-7', name: 'Inscripciones a torneos', movement_type: 'expense', is_active: true, created_at: '2025-01-01' },
+  { id: 'fc-8', name: 'Indumentaria',             movement_type: 'expense', is_active: true, created_at: '2025-01-01' },
+]
+
+export const demoCashSession: CashSession = {
+  id: 'cs-1',
+  date: '2026-05-05',
+  opening_amount: 25000,
+  closing_amount: null,
+  opened_by: null,
+  closed_by: null,
+  created_at: '2026-05-05T08:00:00',
+}
+
+export const demoCashMovements: CashMovement[] = [
+  { id: 'cm-1', session_id: 'cs-1', movement_type: 'income',  amount: 62000, finance_category_id: 'fc-1', description: 'Cuota mayo — Lucas Fernández',   payment_method: 'cash',     transfer_reference: null,           registered_by: null, created_at: '2026-05-05T10:00:00' },
+  { id: 'cm-2', session_id: 'cs-1', movement_type: 'income',  amount: 62000, finance_category_id: 'fc-1', description: 'Cuota mayo — Bruno Jiménez',     payment_method: 'transfer', transfer_reference: 'MP-88420',     registered_by: null, created_at: '2026-05-05T10:30:00' },
+  { id: 'cm-3', session_id: 'cs-1', movement_type: 'income',  amount: 62000, finance_category_id: 'fc-1', description: 'Cuota mayo — Tomás García',     payment_method: 'cash',     transfer_reference: null,           registered_by: null, created_at: '2026-05-05T11:00:00' },
+  { id: 'cm-4', session_id: 'cs-1', movement_type: 'expense', amount: 18500, finance_category_id: 'fc-6', description: 'Arbitraje partido Sub-12',       payment_method: 'cash',     transfer_reference: null,           registered_by: null, created_at: '2026-05-05T11:30:00' },
+  { id: 'cm-5', session_id: 'cs-1', movement_type: 'income',  amount: 62000, finance_category_id: 'fc-1', description: 'Cuota mayo — Mateo López',      payment_method: 'transfer', transfer_reference: 'MP-88533',     registered_by: null, created_at: '2026-05-05T12:00:00' },
+  { id: 'cm-6', session_id: 'cs-1', movement_type: 'expense', amount: 35000, finance_category_id: 'fc-5', description: 'Pelotas y conos',                payment_method: 'transfer', transfer_reference: 'TR-001234',    registered_by: null, created_at: '2026-05-05T13:00:00' },
+  { id: 'cm-7', session_id: 'cs-1', movement_type: 'income',  amount: 35000, finance_category_id: 'fc-2', description: 'Matrícula — Felipe Pérez',       payment_method: 'transfer', transfer_reference: 'MP-MATR-883', registered_by: null, created_at: '2026-05-05T14:00:00' },
+]
+
+export const demoEligibilityConfig: EligibilityConfig = {
+  id: 'ec-1',
+  min_attendance_percentage: 60,
+  updated_at: '2026-03-01',
+  updated_by: null,
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ──────────────────────────────────────────────────────────────────────────
+export function getPlayersByCategory(categoryId: string, shift?: string) {
+  return demoPlayers.filter(p =>
+    p.category_id === categoryId && (shift ? p.shift === shift : true)
+  )
+}
+
+export function getPlayerDebts(players: Player[], payments: Payment[]): Player[] {
+  const paidThisMonth = new Set(
+    payments
+      .filter(p => p.period === thisMonth && p.fee_type === 'actividad')
+      .map(p => p.player_id)
+  )
+  return players.filter(p => !paidThisMonth.has(p.id))
+}
+
+export function getAttendanceStats(playerId: string, categoryId: string) {
+  const practices = demoEvents.filter(
+    e => e.category_id === categoryId && e.event_type === 'practice' && !e.is_suspended
+  )
+  const playerAttendance = demoAttendance.filter(a => a.player_id === playerId)
+  const attended = playerAttendance.filter(a => a.status === 'present').length
+  const justified = playerAttendance.filter(a => a.status === 'absent_justified').length
+  const denominator = Math.max(practices.length - justified, 1)
+  const percentage = Math.round((attended / denominator) * 100)
+  return { attended, justified, total: practices.length, percentage }
+}
+
+export { thisMonth, lastMonth }
