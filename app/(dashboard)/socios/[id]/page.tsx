@@ -407,22 +407,48 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
               HISTORIAL DE CONVOCATORIAS ({player.convocation_count})
             </p>
             <div className="space-y-1.5">
-              {matches.slice(0, 4).map((m, idx) => (
-                <div key={m.id} className="flex items-center justify-between text-sm border-b last:border-0 pb-1.5 last:pb-0">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Trophy size={12} style={{ color: '#C9A84C' }} className="flex-shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium truncate">vs. {m.rival ?? 'Por definir'}</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {new Date(m.scheduled_at).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
-                      </p>
+              {(() => {
+                // Generar histórico simulado: convocation_count partidos pasados
+                const pastRivales = ['Deportivo Norte','Atlético San Justo','Club Italiano','Vélez Junior','Boca Ramos','River Sub','Lanús Niño','Independiente Mini','Argentinos Mini','Acassuso','Ferro Carril','Almagro Junior']
+                const today = new Date('2026-05-06')
+                const past = Array.from({ length: player.convocation_count }, (_, i) => {
+                  const d = new Date(today)
+                  d.setDate(today.getDate() - (i + 1) * 7) // un partido por semana hacia atrás
+                  // Determinar rol: 70% titular, 20% suplente, 10% no jugó
+                  const seed = (player.id.charCodeAt(2) ?? 0) + i
+                  const role = (seed * 13) % 10
+                  const status = role < 7 ? 'titular' : role < 9 ? 'suplente' : 'no_jugo'
+                  return {
+                    id: `past-${player.id}-${i}`,
+                    rival: pastRivales[i % pastRivales.length],
+                    date: d,
+                    status,
+                  }
+                })
+                if (past.length === 0) {
+                  return <p className="text-xs text-muted-foreground italic">Sin convocatorias todavía.</p>
+                }
+                return past.map(c => (
+                  <div key={c.id} className="flex items-center justify-between text-sm border-b last:border-0 pb-1.5 last:pb-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Trophy size={12} style={{ color: '#C9A84C' }} className="flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium truncate">vs. {c.rival}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {c.date.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: '2-digit' })}
+                        </p>
+                      </div>
                     </div>
+                    <Badge className={`text-[10px] border-0 ${
+                      c.status === 'titular' ? 'bg-green-100 text-green-700' :
+                      c.status === 'suplente' ? 'bg-amber-100 text-amber-700' :
+                      'bg-gray-100 text-gray-500'
+                    }`}>
+                      {c.status === 'titular' ? 'Titular' : c.status === 'suplente' ? 'Suplente' : 'No jugó'}
+                    </Badge>
                   </div>
-                  <Badge className={`text-[10px] border-0 ${idx % 3 === 0 ? 'bg-green-100 text-green-700' : idx % 3 === 1 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>
-                    {idx % 3 === 0 ? 'Titular' : idx % 3 === 1 ? 'Suplente' : 'No convocado'}
-                  </Badge>
-                </div>
-              ))}
+                ))
+              })()}
             </div>
           </CardContent>
         </Card>

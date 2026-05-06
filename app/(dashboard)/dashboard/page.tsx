@@ -17,11 +17,17 @@ export default function DashboardPage() {
   const cuotaActividad = 62000
   const target = cuotaActividad * totalSocios
   const incomePercent = Math.round((monthlyIncome / target) * 100)
-  const upcoming = demoEvents
+  // Próximos partidos: el más próximo de cada categoría/tira (hasta 6)
+  const allUpcoming = demoEvents
     .filter(e => e.event_type === 'match' && !e.is_suspended && new Date(e.scheduled_at) > new Date('2026-05-05'))
-    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())[0]
-  const cat = upcoming ? demoCategories.find(c => c.id === upcoming.category_id) : null
-  const nextMatchData = upcoming ? { scheduled_at: upcoming.scheduled_at, rival: upcoming.rival, category: cat ? { name: cat.name } : null } : null
+    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
+  const upcomingMatches = allUpcoming.slice(0, 6).map(m => ({
+    id: m.id,
+    scheduled_at: m.scheduled_at,
+    rival: m.rival,
+    is_home: m.is_home,
+    category: demoCategories.find(c => c.id === m.category_id),
+  }))
   const deudoresCount = getPlayerDebts(demoPlayers, demoPayments).length
 
   const quickActions = [
@@ -107,26 +113,53 @@ export default function DashboardPage() {
 
         <Card className="border-0 shadow-sm">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm text-muted-foreground font-medium">Próximo partido</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground font-medium">Próximos partidos</CardTitle>
             <Calendar size={18} style={{ color: '#1d4ed8' }} />
           </CardHeader>
           <CardContent>
-            {nextMatchData ? (
-              <>
-                <p className="text-lg font-bold" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
-                  vs. {nextMatchData.rival ?? 'Por definir'}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {new Date(nextMatchData.scheduled_at).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })}
-                  {nextMatchData.category && ` · ${nextMatchData.category.name}`}
-                </p>
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">Sin partidos próximos</p>
-            )}
+            <p className="text-3xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: '#1d4ed8' }}>
+              {upcomingMatches.length}
+            </p>
+            <p className="text-xs text-muted-foreground">programados</p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Próximos partidos detalle */}
+      {upcomingMatches.length > 0 && (
+        <div>
+          <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-2" style={{ fontFamily: "var(--font-barlow)" }}>
+            PRÓXIMOS PARTIDOS
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+            {upcomingMatches.map(m => {
+              const date = new Date(m.scheduled_at)
+              return (
+                <Link key={m.id} href={`/partidos/${m.id}`}>
+                  <Card className="border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: '#00843D20', color: '#00843D' }}>
+                          Cat. {m.category?.name ?? '—'}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {m.is_home ? '🏠 Local' : '✈️ Visitante'}
+                        </span>
+                      </div>
+                      <p className="text-sm font-bold truncate" style={{ fontFamily: "var(--font-barlow)" }}>
+                        vs. {m.rival ?? 'Por definir'}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        📅 {date.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })} — {date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Acceso rápido a módulos */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
