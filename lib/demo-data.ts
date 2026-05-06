@@ -1,4 +1,4 @@
-import type { Player, Category, Payment, Event, Attendance, CashSession, CashMovement, FinanceCategory, EligibilityConfig } from '@/types'
+import type { Player, Category, Payment, Event, Attendance, CashSession, CashMovement, FinanceCategory, EligibilityConfig, Position } from '@/types'
 
 export const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
 
@@ -71,6 +71,35 @@ const distribucion: Record<string, { count: number; tiras: number }> = {
   'cat-2018': { count: 52, tiras: 2 },
 }
 
+// Distribución realista de posiciones por equipo: ~8% arquero / 32% defensor / 36% medio / 24% delantero
+function pickPrimaryPosition(idx: number): Position {
+  const r = ((idx * 7919) % 100) + (rand() - 0.5) * 5
+  if (r < 8) return 'arquero'
+  if (r < 40) return 'defensor'
+  if (r < 76) return 'mediocampista'
+  return 'delantero'
+}
+
+function pickSecondaryPositions(primary: Position): Position[] {
+  const all: Position[] = ['arquero', 'defensor', 'mediocampista', 'delantero']
+  const others = all.filter(p => p !== primary)
+  // Arqueros casi nunca tienen segundas posiciones
+  if (primary === 'arquero') {
+    return rand() > 0.85 ? [pick(others)] : []
+  }
+  // El resto puede tener 0 a 2 segundas posiciones (raro hasta 3)
+  const n = rand() < 0.4 ? 0 : rand() < 0.85 ? 1 : rand() < 0.97 ? 2 : 3
+  // Excluir arquero como secundaria salvo en raros casos
+  const pool = others.filter(p => p !== 'arquero' || rand() > 0.95)
+  const result: Position[] = []
+  for (let i = 0; i < n && pool.length > 0; i++) {
+    const choice = pick(pool)
+    result.push(choice)
+    pool.splice(pool.indexOf(choice), 1)
+  }
+  return result
+}
+
 function generatePlayers(): Player[] {
   const players: Player[] = []
   let idCounter = 1
@@ -86,6 +115,8 @@ function generatePlayers(): Player[] {
       const day = String(Math.floor(rand() * 28) + 1).padStart(2, '0')
       const shift = i % 2 === 0 ? 'morning' : 'afternoon'
       const phoneBase = 1100000000 + Math.floor(rand() * 99999999)
+      const primary = pickPrimaryPosition(i)
+      const secondary = pickSecondaryPositions(primary)
       players.push({
         id: `p-${idCounter}`,
         full_name: `${nombre} ${apellido}`,
@@ -95,6 +126,8 @@ function generatePlayers(): Player[] {
         photo_url: null,
         tutor_name: `${tutorNombre} ${tutorApellido}`,
         tutor_whatsapp: String(phoneBase),
+        primary_position: primary,
+        secondary_positions: secondary,
         is_active: true,
         convocation_count: Math.floor(rand() * 12),
         created_at: '2026-03-01',

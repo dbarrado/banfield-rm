@@ -12,6 +12,22 @@ export type AttendanceStatus = 'present' | 'absent_justified' | 'absent_unjustif
 
 export type ObservationType = 'highlight' | 'warning' | 'sanction'
 
+export type Position = 'arquero' | 'defensor' | 'mediocampista' | 'delantero'
+
+export const POSITION_LABELS: Record<Position, string> = {
+  arquero: 'Arquero',
+  defensor: 'Defensor',
+  mediocampista: 'Mediocampista',
+  delantero: 'Delantero',
+}
+
+export const POSITION_COLORS: Record<Position, string> = {
+  arquero: '#F59E0B',
+  defensor: '#1d4ed8',
+  mediocampista: '#00843D',
+  delantero: '#DC2626',
+}
+
 export type MovementType = 'income' | 'expense'
 
 export type FinanceCategoryMovementType = 'income' | 'expense' | 'both'
@@ -41,6 +57,8 @@ export interface Player {
   photo_url: string | null
   tutor_name: string | null
   tutor_whatsapp: string | null
+  primary_position: Position
+  secondary_positions: Position[]
   is_active: boolean
   convocation_count: number
   created_at: string

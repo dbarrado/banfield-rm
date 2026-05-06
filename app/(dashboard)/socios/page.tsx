@@ -1,9 +1,10 @@
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Users, Search, Plus, MessageCircle } from 'lucide-react'
+import { Users, Plus, MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 import { demoPlayers, demoPayments, demoCategories, getPlayerDebts, thisMonth } from '@/lib/demo-data'
+import { POSITION_LABELS, POSITION_COLORS } from '@/types'
 
 function getPaymentStatus(playerId: string) {
   const paid = demoPayments.filter(p => p.player_id === playerId && p.period === thisMonth && p.fee_type === 'actividad')
@@ -70,12 +71,26 @@ export default function SociosPage({ searchParams }: { searchParams: { filter?: 
                   <Link href={`/socios/${player.id}`}>
                     <p className="font-semibold text-sm truncate hover:underline">{player.full_name}</p>
                   </Link>
-                  <p className="text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                    <span
+                      className="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wide text-white"
+                      style={{ backgroundColor: POSITION_COLORS[player.primary_position] }}
+                    >
+                      {POSITION_LABELS[player.primary_position]}
+                    </span>
+                    {player.secondary_positions.map(sp => (
+                      <span
+                        key={sp}
+                        className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                        style={{ backgroundColor: `${POSITION_COLORS[sp]}20`, color: POSITION_COLORS[sp] }}
+                      >
+                        {POSITION_LABELS[sp]}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     {cat?.name ?? '—'} · {player.shift === 'morning' ? 'Mañana' : 'Tarde'}
                   </p>
-                  {player.tutor_name && (
-                    <p className="text-xs text-muted-foreground truncate">Tutor: {player.tutor_name}</p>
-                  )}
                 </div>
 
                 {/* Estado + WhatsApp */}
