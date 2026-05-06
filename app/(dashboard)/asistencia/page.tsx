@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
-import { ClipboardList, CheckCircle2, XCircle, AlertCircle } from 'lucide-react'
-import { demoPlayers, demoCategories } from '@/lib/demo-data'
+import { ClipboardList, CheckCircle2, XCircle, AlertCircle, User } from 'lucide-react'
+import { demoPlayers, demoCategories, demoProfes, getAssignmentsForProfe, getProfesForTira } from '@/lib/demo-data'
 import { TIRA_LABELS, TIRA_COLORS, type Tira } from '@/types'
 
 type AttendanceStatus = 'present' | 'absent_unjustified' | 'absent_justified'
@@ -18,20 +18,35 @@ const ALL_TIRAS: Tira[] = ['metro', 'liga1', 'liga2', 'edefi']
 
 export default function AsistenciaPage() {
   const activeCategories = demoCategories.filter(c => c.is_active)
+  const [selectedProfe, setSelectedProfe] = useState<string>('')
   const [selectedCategory, setSelectedCategory] = useState(activeCategories[0].id)
   const [selectedTira, setSelectedTira] = useState<Tira>('metro')
   const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({})
 
-  const tirasInCategory = ALL_TIRAS.filter(t =>
-    demoPlayers.some(p => p.category_id === selectedCategory && p.tira === t)
-  )
+  // Si hay profe seleccionado, limitar categorías y tiras a las que tiene asignadas
+  const profeAssignments = selectedProfe ? getAssignmentsForProfe(selectedProfe) : []
+  const allowedCategoryIds = selectedProfe
+    ? Array.from(new Set(profeAssignments.map(a => a.category_id)))
+    : activeCategories.map(c => c.id)
+  const filteredCategories = activeCategories.filter(c => allowedCategoryIds.includes(c.id))
+  const effectiveCategory = filteredCategories.some(c => c.id === selectedCategory)
+    ? selectedCategory
+    : (filteredCategories[0]?.id ?? activeCategories[0].id)
 
-  // Si la tira seleccionada no existe en esta categoría, usar la primera disponible
+  const tirasInCategory = ALL_TIRAS.filter(t => {
+    const hasPlayers = demoPlayers.some(p => p.category_id === effectiveCategory && p.tira === t)
+    if (!hasPlayers) return false
+    if (!selectedProfe) return true
+    return profeAssignments.some(a => a.category_id === effectiveCategory && a.tira === t)
+  })
+
   const effectiveTira = tirasInCategory.includes(selectedTira) ? selectedTira : (tirasInCategory[0] ?? 'metro')
 
   const players = demoPlayers.filter(p =>
-    p.category_id === selectedCategory && p.tira === effectiveTira && p.is_active
+    p.category_id === effectiveCategory && p.tira === effectiveTira && p.is_active
   )
+
+  const profesAsignados = getProfesForTira(effectiveCategory, effectiveTira)
 
   const today = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })
 
@@ -63,14 +78,26 @@ export default function AsistenciaPage() {
 
       <p className="text-xs text-muted-foreground capitalize">{today}</p>
 
+      {/* Selector profe */}
+      <select
+        value={selectedProfe}
+        onChange={e => { setSelectedProfe(e.target.value); setAttendance({}); }}
+        className="w-full px-3 py-2 rounded-lg border text-sm font-medium bg-white"
+      >
+        <option value="">Todos los profes</option>
+        {demoProfes.filter(p => p.is_active).map(p => (
+          <option key={p.id} value={p.id}>👤 {p.full_name}</option>
+        ))}
+      </select>
+
       {/* Selector categoría */}
       <select
-        value={selectedCategory}
+        value={effectiveCategory}
         onChange={e => { setSelectedCategory(e.target.value); setAttendance({}); }}
         className="w-full px-3 py-2 rounded-lg border text-sm font-medium bg-white"
         style={{ borderColor: '#00843D', color: '#00843D' }}
       >
-        {activeCategories.map(c => <option key={c.id} value={c.id}>Categoría {c.name}</option>)}
+        {filteredCategories.map(c => <option key={c.id} value={c.id}>Categoría {c.name}</option>)}
       </select>
 
       {/* Selector tira */}
@@ -88,6 +115,19 @@ export default function AsistenciaPage() {
           </button>
         ))}
       </div>
+
+      {/* Profes asignados a esta tira */}
+      {profesAsignados.length > 0 && (
+        <div className="flex items-center gap-1.5 text-xs flex-wrap">
+          <User size={12} className="text-muted-foreground flex-shrink-0" />
+          <span className="text-muted-foreground">A cargo:</span>
+          {profesAsignados.map((p, i) => (
+            <span key={p.id} className="font-semibold" style={{ color: TIRA_COLORS[effectiveTira] }}>
+              {p.full_name}{i < profesAsignados.length - 1 ? ',' : ''}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* % vivo de asistencia */}
       <Card className="border-0 shadow-sm" style={{ borderLeft: `4px solid ${TIRA_COLORS[effectiveTira]}` }}>

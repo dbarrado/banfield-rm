@@ -82,6 +82,13 @@ export interface Player {
   category?: Category
 }
 
+export interface Profe {
+  id: string
+  full_name: string
+  whatsapp: string | null
+  is_active: boolean
+}
+
 export interface ProfeAssignment {
   profe_id: string
   category_id: string

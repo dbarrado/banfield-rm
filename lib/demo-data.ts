@@ -1,4 +1,4 @@
-import type { Player, Category, Payment, Event, Attendance, CashSession, CashMovement, FinanceCategory, EligibilityConfig, Position, Tira } from '@/types'
+import type { Player, Category, Payment, Event, Attendance, CashSession, CashMovement, FinanceCategory, EligibilityConfig, Position, Tira, Profe, ProfeAssignment } from '@/types'
 
 export const DEMO_MODE = true
 
@@ -354,6 +354,78 @@ export const demoCashMovements: CashMovement[] = [
   { id: 'cm-6', session_id: 'cs-1', movement_type: 'expense', amount: 35000, finance_category_id: 'fc-5', description: 'Pelotas y conos',                payment_method: 'transfer', transfer_reference: 'TR-001234',    registered_by: null, created_at: '2026-05-05T13:00:00' },
   { id: 'cm-7', session_id: 'cs-1', movement_type: 'income',  amount: 35000, finance_category_id: 'fc-2', description: 'Matrícula — Felipe Pérez',       payment_method: 'transfer', transfer_reference: 'MP-MATR-883', registered_by: null, created_at: '2026-05-05T14:00:00' },
 ]
+
+// ──────────────────────────────────────────────────────────────────────────
+// PROFES Y ASIGNACIONES — cada profe puede coachear varias tiras
+// ──────────────────────────────────────────────────────────────────────────
+export const demoProfes: Profe[] = [
+  { id: 'pf-1',  full_name: 'Martín Olivera',     whatsapp: '1145001111', is_active: true },
+  { id: 'pf-2',  full_name: 'Pablo Quintana',     whatsapp: '1145002222', is_active: true },
+  { id: 'pf-3',  full_name: 'Diego Salinas',      whatsapp: '1145003333', is_active: true },
+  { id: 'pf-4',  full_name: 'Hernán Ledesma',     whatsapp: '1145004444', is_active: true },
+  { id: 'pf-5',  full_name: 'Marcos Cabezas',     whatsapp: '1145005555', is_active: true },
+  { id: 'pf-6',  full_name: 'Ariel Vázquez',      whatsapp: '1145006666', is_active: true },
+  { id: 'pf-7',  full_name: 'Cristian Mendoza',   whatsapp: '1145007777', is_active: true },
+  { id: 'pf-8',  full_name: 'Gustavo Maldonado',  whatsapp: '1145008888', is_active: true },
+  { id: 'pf-9',  full_name: 'Sergio Aguilar',     whatsapp: '1145009999', is_active: true },
+  { id: 'pf-10', full_name: 'Ezequiel Cabrera',   whatsapp: '1145010101', is_active: true },
+  { id: 'pf-11', full_name: 'Damián Roldán',      whatsapp: '1145011111', is_active: true },
+  { id: 'pf-12', full_name: 'Lucas Iturralde',    whatsapp: '1145012121', is_active: true },
+]
+
+// Asignaciones: cada (categoría, tira) puede tener 1-2 profes; un profe puede estar en varias
+export const demoProfeAssignments: ProfeAssignment[] = [
+  // Martín Olivera — 2010 Metro/Liga1, 2011 Metro
+  { profe_id: 'pf-1', category_id: 'cat-2010', tira: 'metro' },
+  { profe_id: 'pf-1', category_id: 'cat-2010', tira: 'liga1' },
+  { profe_id: 'pf-1', category_id: 'cat-2011', tira: 'metro' },
+  // Pablo Quintana — 2010 Liga2/Edefi
+  { profe_id: 'pf-2', category_id: 'cat-2010', tira: 'liga2' },
+  { profe_id: 'pf-2', category_id: 'cat-2010', tira: 'edefi' },
+  // Diego Salinas — 2011 Liga1/Liga2, 2012 Metro
+  { profe_id: 'pf-3', category_id: 'cat-2011', tira: 'liga1' },
+  { profe_id: 'pf-3', category_id: 'cat-2011', tira: 'liga2' },
+  { profe_id: 'pf-3', category_id: 'cat-2012', tira: 'metro' },
+  // Hernán Ledesma — 2011 Edefi, 2012 Liga1
+  { profe_id: 'pf-4', category_id: 'cat-2011', tira: 'edefi' },
+  { profe_id: 'pf-4', category_id: 'cat-2012', tira: 'liga1' },
+  // Marcos Cabezas — 2012 Liga2/Edefi
+  { profe_id: 'pf-5', category_id: 'cat-2012', tira: 'liga2' },
+  { profe_id: 'pf-5', category_id: 'cat-2012', tira: 'edefi' },
+  // Ariel Vázquez — 2013 Metro, 2014 Metro
+  { profe_id: 'pf-6', category_id: 'cat-2013', tira: 'metro' },
+  { profe_id: 'pf-6', category_id: 'cat-2014', tira: 'metro' },
+  // Cristian Mendoza — 2014 Liga1/Liga2
+  { profe_id: 'pf-7', category_id: 'cat-2014', tira: 'liga1' },
+  { profe_id: 'pf-7', category_id: 'cat-2014', tira: 'liga2' },
+  // Gustavo Maldonado — 2014 Edefi, 2015 Metro
+  { profe_id: 'pf-8', category_id: 'cat-2014', tira: 'edefi' },
+  { profe_id: 'pf-8', category_id: 'cat-2015', tira: 'metro' },
+  // Sergio Aguilar — 2015 Liga1/Liga2/Edefi
+  { profe_id: 'pf-9', category_id: 'cat-2015', tira: 'liga1' },
+  { profe_id: 'pf-9', category_id: 'cat-2015', tira: 'liga2' },
+  { profe_id: 'pf-9', category_id: 'cat-2015', tira: 'edefi' },
+  // Ezequiel Cabrera — 2016 Metro, 2017 Metro
+  { profe_id: 'pf-10', category_id: 'cat-2016', tira: 'metro' },
+  { profe_id: 'pf-10', category_id: 'cat-2017', tira: 'metro' },
+  // Damián Roldán — 2016 Edefi, 2017 Edefi
+  { profe_id: 'pf-11', category_id: 'cat-2016', tira: 'edefi' },
+  { profe_id: 'pf-11', category_id: 'cat-2017', tira: 'edefi' },
+  // Lucas Iturralde — 2018 Metro/Edefi
+  { profe_id: 'pf-12', category_id: 'cat-2018', tira: 'metro' },
+  { profe_id: 'pf-12', category_id: 'cat-2018', tira: 'edefi' },
+]
+
+export function getProfesForTira(categoryId: string, tira: Tira): Profe[] {
+  const profeIds = demoProfeAssignments
+    .filter(a => a.category_id === categoryId && a.tira === tira)
+    .map(a => a.profe_id)
+  return demoProfes.filter(p => profeIds.includes(p.id))
+}
+
+export function getAssignmentsForProfe(profeId: string): ProfeAssignment[] {
+  return demoProfeAssignments.filter(a => a.profe_id === profeId)
+}
 
 export const demoEligibilityConfig: EligibilityConfig = {
   id: 'ec-1',
