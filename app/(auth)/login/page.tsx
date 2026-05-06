@@ -4,42 +4,23 @@ export const dynamic = 'force-dynamic'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import Image from 'next/image'
 
-const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
-
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
   const router = useRouter()
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-    setError('')
-
-    if (DEMO_MODE) {
-      // En modo demo aceptamos cualquier email/contraseña
-      document.cookie = `demo_auth=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`
-      router.push('/dashboard')
-      router.refresh()
-      return
-    }
-
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      setError('Email o contraseña incorrectos')
-      setLoading(false)
-      return
-    }
+    // Demo: cualquier credencial es válida
+    document.cookie = `demo_auth=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`
     router.push('/dashboard')
     router.refresh()
   }
@@ -95,9 +76,9 @@ export default function LoginPage() {
                 autoComplete="current-password"
               />
             </div>
-            {error && (
-              <p className="text-sm text-destructive text-center">{error}</p>
-            )}
+            <p className="text-xs text-center text-muted-foreground">
+              Modo demo · Ingresá con cualquier credencial
+            </p>
             <Button
               type="submit"
               className="w-full font-bold text-base h-11"
