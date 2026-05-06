@@ -11,12 +11,14 @@ import { POSITION_LABELS, TIRA_LABELS, type Position, type Tira } from '@/types'
 const POSITIONS: Position[] = ['arquero', 'defensor', 'mediocampista', 'delantero']
 const ALL_TIRAS: Tira[] = ['metro', 'liga1', 'liga2', 'edefi']
 
+type PositionState = 'none' | 'primary' | 'secondary'
+
 type ChildForm = {
   full_name: string
   birth_date: string
   category_id: string
   tira: Tira
-  primary_position: Position
+  positions: Record<Position, PositionState>
   photo: string | null
 }
 
@@ -26,9 +28,37 @@ function emptyChild(): ChildForm {
     birth_date: '',
     category_id: demoCategories[0].id,
     tira: 'metro',
-    primary_position: 'mediocampista',
+    positions: { arquero: 'none', defensor: 'none', mediocampista: 'none', delantero: 'none' },
     photo: null,
   }
+}
+
+function cyclePosition(child: ChildForm, pos: Position): ChildForm {
+  const current = child.positions[pos]
+  const newPositions = { ...child.positions }
+  // Reglas: solo puede haber 1 principal. Hasta 3 secundarias.
+  if (current === 'none') {
+    // Si no hay principal, esta pasa a principal. Si ya hay, va directo a secundaria
+    const hasPrimary = Object.values(child.positions).some(s => s === 'primary')
+    newPositions[pos] = hasPrimary ? 'secondary' : 'primary'
+  } else if (current === 'primary') {
+    newPositions[pos] = 'secondary'
+  } else {
+    newPositions[pos] = 'none'
+  }
+  // Validar que solo haya 1 principal
+  const primaries = Object.entries(newPositions).filter(([, s]) => s === 'primary')
+  if (primaries.length > 1) {
+    primaries.forEach(([k]) => { if (k !== pos) newPositions[k as Position] = 'secondary' })
+  }
+  // Validar máximo 3 secundarias
+  const secondaries = Object.entries(newPositions).filter(([, s]) => s === 'secondary')
+  if (secondaries.length > 3) {
+    // Quitar la más vieja (la primera que no sea la actual)
+    const toRemove = secondaries.find(([k]) => k !== pos)
+    if (toRemove) newPositions[toRemove[0] as Position] = 'none'
+  }
+  return { ...child, positions: newPositions }
 }
 
 export default function NuevoSocioPage() {
@@ -47,6 +77,14 @@ export default function NuevoSocioPage() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    // Validar que cada hijo tenga al menos una posición principal
+    for (const c of children) {
+      const hasPrimary = Object.values(c.positions).some(s => s === 'primary')
+      if (!hasPrimary) {
+        alert(`Falta marcar la posición principal de ${c.full_name || 'algún hijo'}.`)
+        return
+      }
+    }
     const summary = children.map(c => `• ${c.full_name} — Cat. ${demoCategories.find(d => d.id === c.category_id)?.name} ${TIRA_LABELS[c.tira]}`).join('\n')
     alert(`✅ ${children.length} socio${children.length > 1 ? 's' : ''} creado${children.length > 1 ? 's' : ''} (demo):\n\nTutor: ${tutor.name}\n\n${summary}`)
     router.push('/socios')
@@ -116,6 +154,7 @@ export default function NuevoSocioPage() {
             index={idx}
             canDelete={children.length > 1}
             onUpdate={(patch) => updateChild(idx, patch)}
+            onCyclePosition={(pos) => setChildren(prev => prev.map((c, i) => i === idx ? cyclePosition(c, pos) : c))}
             onRemove={() => setChildren(children.filter((_, i) => i !== idx))}
           />
         ))}
@@ -128,11 +167,12 @@ export default function NuevoSocioPage() {
   )
 }
 
-function ChildFormCard({ child, index, canDelete, onUpdate, onRemove }: {
+function ChildFormCard({ child, index, canDelete, onUpdate, onCyclePosition, onRemove }: {
   child: ChildForm
   index: number
   canDelete: boolean
   onUpdate: (p: Partial<ChildForm>) => void
+  onCyclePosition: (pos: Position) => void
   onRemove: () => void
 }) {
   function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -203,15 +243,35 @@ function ChildFormCard({ child, index, canDelete, onUpdate, onRemove }: {
         </div>
 
         <div>
-          <label className="text-xs font-semibold mb-1 block">Posición principal *</label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-xs font-semibold">Posiciones *</label>
+            <p className="text-[10px] text-muted-foreground">1 tap: principal · 2: secundaria · 3: quitar</p>
+          </div>
           <div className="grid grid-cols-4 gap-1.5">
-            {POSITIONS.map(p => (
-              <button key={p} type="button" onClick={() => onUpdate({ primary_position: p })}
-                className={`py-2 rounded-lg text-[11px] font-semibold border ${child.primary_position === p ? 'text-white border-transparent' : 'border-gray-200'}`}
-                style={child.primary_position === p ? { backgroundColor: '#00843D' } : {}}>
-                {POSITION_LABELS[p]}
-              </button>
-            ))}
+            {POSITIONS.map(p => {
+              const state = child.positions[p]
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => onCyclePosition(p)}
+                  className={`py-2 rounded-lg text-[11px] font-semibold border-2 transition-all ${
+                    state === 'primary' ? 'text-white border-transparent shadow-md' :
+                    state === 'secondary' ? '' :
+                    'border-gray-200 text-gray-500'
+                  }`}
+                  style={
+                    state === 'primary' ? { backgroundColor: '#00843D' } :
+                    state === 'secondary' ? { borderColor: '#00843D', color: '#00843D', backgroundColor: '#f0fdf4' } :
+                    {}
+                  }
+                >
+                  {POSITION_LABELS[p]}
+                  {state === 'primary' && <span className="block text-[8px] font-bold opacity-80 mt-0.5">PRINCIPAL</span>}
+                  {state === 'secondary' && <span className="block text-[8px] font-bold opacity-80 mt-0.5">SECUNDARIA</span>}
+                </button>
+              )
+            })}
           </div>
         </div>
       </CardContent>
