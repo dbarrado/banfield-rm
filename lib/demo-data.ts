@@ -1,6 +1,6 @@
 import type { Player, Category, Payment, Event, Attendance, CashSession, CashMovement, FinanceCategory, EligibilityConfig, Position } from '@/types'
 
-export const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
+export const DEMO_MODE = true
 
 // ──────────────────────────────────────────────────────────────────────────
 // CATEGORÍAS — años 2010 a 2018 (todas activas)

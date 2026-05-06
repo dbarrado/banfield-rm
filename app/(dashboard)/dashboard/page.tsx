@@ -2,7 +2,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Users, TrendingUp, AlertTriangle, Calendar } from 'lucide-react'
 import Link from 'next/link'
 import {
-  DEMO_MODE,
   demoPlayers,
   demoPayments,
   demoEvents,
@@ -11,41 +10,19 @@ import {
   thisMonth,
 } from '@/lib/demo-data'
 
-export default async function DashboardPage() {
-  let totalSocios = 0
-  let monthlyIncome = 0
-  let incomePercent = 0
-  let nextMatchData: { scheduled_at: string; rival: string | null; category: { name: string } | null } | null = null
-  let deudoresCount = 0
-
-  if (DEMO_MODE) {
-    totalSocios = demoPlayers.filter(p => p.is_active).length
-    // Solo cuota actividad del mes corriente (no matrículas, no meses pasados)
-    const thisMonthPayments = demoPayments.filter(p => p.period === thisMonth && p.fee_type === 'actividad')
-    monthlyIncome = thisMonthPayments.reduce((s, p) => s + p.amount, 0)
-    const cuotaActividad = 62000
-    const target = cuotaActividad * totalSocios
-    incomePercent = Math.round((monthlyIncome / target) * 100)
-    const upcoming = demoEvents
-      .filter(e => e.event_type === 'match' && !e.is_suspended && new Date(e.scheduled_at) > new Date())
-      .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())[0]
-    if (upcoming) {
-      const cat = demoCategories.find(c => c.id === upcoming.category_id)
-      nextMatchData = { scheduled_at: upcoming.scheduled_at, rival: upcoming.rival, category: cat ? { name: cat.name } : null }
-    }
-    deudoresCount = getPlayerDebts(demoPlayers, demoPayments).length
-  } else {
-    const { createClient } = await import('@/lib/supabase/server')
-    const supabase = await createClient()
-    const [{ count }, { data: payments }, { data: nextMatch }] = await Promise.all([
-      supabase.from('players').select('*', { count: 'exact', head: true }).eq('is_active', true),
-      supabase.from('payments').select('amount').gte('paid_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]),
-      supabase.from('events').select('*, category:categories(name)').eq('event_type', 'match').eq('is_suspended', false).gte('scheduled_at', new Date().toISOString()).order('scheduled_at', { ascending: true }).limit(1).maybeSingle(),
-    ])
-    totalSocios = count ?? 0
-    monthlyIncome = payments?.reduce((s, p) => s + Number(p.amount), 0) ?? 0
-    nextMatchData = nextMatch as typeof nextMatchData
-  }
+export default function DashboardPage() {
+  const totalSocios = demoPlayers.filter(p => p.is_active).length
+  const thisMonthPayments = demoPayments.filter(p => p.period === thisMonth && p.fee_type === 'actividad')
+  const monthlyIncome = thisMonthPayments.reduce((s, p) => s + p.amount, 0)
+  const cuotaActividad = 62000
+  const target = cuotaActividad * totalSocios
+  const incomePercent = Math.round((monthlyIncome / target) * 100)
+  const upcoming = demoEvents
+    .filter(e => e.event_type === 'match' && !e.is_suspended && new Date(e.scheduled_at) > new Date('2026-05-05'))
+    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())[0]
+  const cat = upcoming ? demoCategories.find(c => c.id === upcoming.category_id) : null
+  const nextMatchData = upcoming ? { scheduled_at: upcoming.scheduled_at, rival: upcoming.rival, category: cat ? { name: cat.name } : null } : null
+  const deudoresCount = getPlayerDebts(demoPlayers, demoPayments).length
 
   const quickActions = [
     { label: 'Tomar asistencia', href: '/asistencia', color: '#00843D' },
