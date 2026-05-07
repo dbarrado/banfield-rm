@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, MessageCircle, Camera, Plus, Trophy, AlertCircle, Star, Award, FileCheck, FileWarning, Upload, Mail, Edit2, X, Check } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { demoPlayers, demoCategories, demoPayments, demoEvents, demoAttendance, getAttendanceStats, thisMonth } from '@/lib/demo-data'
+import { demoPlayers, demoCategories, demoPayments, demoEvents, demoAttendance, getDetailedAttendanceStats, thisMonth } from '@/lib/demo-data'
 import { POSITION_LABELS, POSITION_COLORS, TIRA_LABELS, TIRA_COLORS, type Position } from '@/types'
 import { getAvatarUrl } from '@/lib/avatars'
 
@@ -39,7 +39,8 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
 
   const player = initialPlayer!
   const cat = demoCategories.find(c => c.id === player.category_id)
-  const stats = getAttendanceStats(player.id, player.category_id)
+  const stats = getDetailedAttendanceStats(player.id, player.category_id)
+  const WEEKDAY_NAMES = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
   const payments = demoPayments.filter(p => p.player_id === player.id).sort((a, b) => b.paid_at.localeCompare(a.paid_at))
   const matches = demoEvents.filter(e => e.event_type === 'match' && e.category_id === player.category_id)
   const initials = player.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)
@@ -116,34 +117,96 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
       </div>
 
       <div className="p-3 md:p-4 space-y-3 -mt-3">
-        {/* KPIs */}
-        <div className="grid grid-cols-3 gap-2">
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-2.5 text-center">
-              <p className="text-[10px] uppercase font-semibold text-muted-foreground">Asistencia</p>
-              <p className="text-2xl font-bold mt-0.5" style={{ fontFamily: "var(--font-barlow)", color: TIRA_COLORS[player.tira] }}>
-                {stats.percentage}%
-              </p>
-            </CardContent>
-          </Card>
+        {/* KPIs principales */}
+        <div className="grid grid-cols-2 gap-2">
           <Card className="border-0 shadow-sm">
             <CardContent className="p-2.5 text-center">
               <p className="text-[10px] uppercase font-semibold text-muted-foreground">Convocado</p>
               <p className="text-2xl font-bold mt-0.5" style={{ fontFamily: "var(--font-barlow)" }}>
                 {player.convocation_count}
               </p>
-              <p className="text-[10px] text-muted-foreground">veces</p>
+              <p className="text-[10px] text-muted-foreground">veces este año</p>
             </CardContent>
           </Card>
           <Card className="border-0 shadow-sm">
             <CardContent className="p-2.5 text-center">
               <p className="text-[10px] uppercase font-semibold text-muted-foreground">Cuota</p>
-              <p className="text-sm font-bold mt-1" style={{ fontFamily: "var(--font-barlow)", color: statusColor }}>
+              <p className="text-base font-bold mt-1" style={{ fontFamily: "var(--font-barlow)", color: statusColor }}>
                 {statusLabel}
               </p>
             </CardContent>
           </Card>
         </div>
+
+        {/* Asistencia detallada: año y semana */}
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-3 space-y-2.5">
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground" style={{ fontFamily: "var(--font-barlow)" }}>
+              ASISTENCIA A PRÁCTICAS
+            </p>
+
+            {/* Año */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold">📅 Año (acumulado)</span>
+                <span className="text-xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: TIRA_COLORS[player.tira] }}>
+                  {stats.year.percentage}%
+                </span>
+              </div>
+              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-full rounded-full" style={{ width: `${stats.year.percentage}%`, backgroundColor: TIRA_COLORS[player.tira] }} />
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {stats.year.presentes} presentes / {stats.year.total} elegibles
+                {stats.year.totalRaw > stats.year.total && ` (${stats.year.totalRaw - stats.year.total} con permiso descontados)`}
+              </p>
+            </div>
+
+            {/* Semana */}
+            <div className="pt-2 border-t">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold">🗓️ Esta semana (lun-vie)</span>
+                <span className="text-xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: '#1d4ed8' }}>
+                  {stats.week.percentage}%
+                </span>
+              </div>
+              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-full rounded-full bg-blue-700" style={{ width: `${stats.week.percentage}%` }} />
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {stats.week.presentes} presentes / {stats.week.total} elegibles
+                {stats.week.totalRaw > stats.week.total && ` (${stats.week.totalRaw - stats.week.total} con permiso)`}
+              </p>
+            </div>
+
+            {/* Permisos */}
+            <div className="pt-2 border-t">
+              <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1.5">
+                Permisos del profesor ({stats.permits.length})
+              </p>
+              {stats.permits.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">Sin permisos. Debe asistir a todas las prácticas.</p>
+              ) : (
+                <div className="space-y-1">
+                  {stats.permits.map(perm => (
+                    <div key={perm.id} className="flex items-center justify-between p-1.5 rounded bg-amber-50 border border-amber-200">
+                      <div>
+                        <p className="text-xs font-semibold text-amber-800">{WEEKDAY_NAMES[perm.weekday]}</p>
+                        <p className="text-[10px] text-amber-700">"{perm.reason}"</p>
+                      </div>
+                      <Badge className="text-[10px] bg-amber-200 text-amber-800 border-0">
+                        Autorizado
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button className="mt-2 w-full py-1.5 rounded text-xs font-semibold border-2 border-dashed border-gray-300 text-muted-foreground hover:bg-gray-50">
+                + Agregar permiso
+              </button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Apto médico */}
         <Card className="border-0 shadow-sm" style={{ borderLeft: `4px solid ${aptoOk ? '#00843D' : '#DC2626'}` }}>

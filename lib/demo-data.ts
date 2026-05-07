@@ -485,6 +485,83 @@ export function getAssignmentsForProfe(profeId: string): ProfeAssignment[] {
 }
 
 // ──────────────────────────────────────────────────────────────────────────
+// PERMISOS DE AUSENCIA — días de la semana que un jugador tiene autorizado faltar
+// ──────────────────────────────────────────────────────────────────────────
+export type AttendancePermit = {
+  id: string
+  player_id: string
+  weekday: number  // 1=lunes, 2=martes, 3=miércoles, 4=jueves, 5=viernes
+  reason: string
+  approved_by_profe?: string | null
+  active_from: string
+  active_to?: string | null
+}
+
+// Demo: algunos chicos tienen permisos para faltar ciertos días
+export const demoAttendancePermits: AttendancePermit[] = [
+  { id: 'perm-1', player_id: 'p-1',  weekday: 1, reason: 'Colegio (clases extendidas)', approved_by_profe: 'pf-1', active_from: '2026-03-01' },
+  { id: 'perm-2', player_id: 'p-1',  weekday: 5, reason: 'Apoyo escolar',                 approved_by_profe: 'pf-1', active_from: '2026-03-01' },
+  { id: 'perm-3', player_id: 'p-3',  weekday: 4, reason: 'Catequesis',                    approved_by_profe: 'pf-1', active_from: '2026-03-01' },
+  { id: 'perm-4', player_id: 'p-7',  weekday: 1, reason: 'Inglés',                        approved_by_profe: 'pf-3', active_from: '2026-03-01' },
+  { id: 'perm-5', player_id: 'p-15', weekday: 3, reason: 'Médico',                        approved_by_profe: 'pf-1', active_from: '2026-03-01', active_to: '2026-06-30' },
+]
+
+export function getPermitsForPlayer(playerId: string): AttendancePermit[] {
+  return demoAttendancePermits.filter(p => p.player_id === playerId)
+}
+
+// Cálculo de asistencia ANUAL y SEMANAL considerando suspensiones y permisos
+export function getDetailedAttendanceStats(playerId: string, categoryId: string) {
+  const permits = getPermitsForPlayer(playerId)
+  const permittedDays = new Set(permits.map(p => p.weekday))
+
+  // Eventos del año (prácticas)
+  const allPractices = demoEvents.filter(e =>
+    e.category_id === categoryId && e.event_type === 'practice'
+  )
+
+  // Anual
+  const yearPractices = allPractices.filter(e => !e.is_suspended)
+  // Quitar las que caen en día con permiso
+  const eligibleYear = yearPractices.filter(e => {
+    const wd = new Date(e.scheduled_at).getDay()
+    return !permittedDays.has(wd)
+  })
+  const playerAtt = demoAttendance.filter(a => a.player_id === playerId)
+  const yearPresentes = playerAtt.filter(a => a.status === 'present').length
+  const yearJustificadas = playerAtt.filter(a => a.status === 'absent_justified').length
+  const yearDenom = Math.max(eligibleYear.length, 1)
+  const yearPct = Math.min(100, Math.round((yearPresentes / yearDenom) * 100))
+
+  // Semanal (lunes-viernes de esta semana)
+  const today = new Date('2026-05-07') // demo: 2026-05-07 jueves
+  const dayOfWeek = today.getDay() // 4 = jueves
+  const monday = new Date(today)
+  monday.setDate(today.getDate() - (dayOfWeek - 1))
+  const friday = new Date(monday)
+  friday.setDate(monday.getDate() + 4)
+
+  const weekPractices = allPractices.filter(e => {
+    const d = new Date(e.scheduled_at)
+    return d >= monday && d <= friday && !e.is_suspended
+  })
+  const eligibleWeek = weekPractices.filter(e => {
+    const wd = new Date(e.scheduled_at).getDay()
+    return !permittedDays.has(wd)
+  })
+  const weekAttIds = new Set(weekPractices.map(e => e.id))
+  const weekPresentes = playerAtt.filter(a => weekAttIds.has(a.event_id) && a.status === 'present').length
+  const weekDenom = Math.max(eligibleWeek.length, 1)
+  const weekPct = Math.min(100, Math.round((weekPresentes / weekDenom) * 100))
+
+  return {
+    year: { presentes: yearPresentes, justificadas: yearJustificadas, total: eligibleYear.length, totalRaw: yearPractices.length, percentage: yearPct },
+    week:  { presentes: weekPresentes, total: eligibleWeek.length, totalRaw: weekPractices.length, percentage: weekPct },
+    permits,
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
 // VISITANTES / NO ANOTADOS — chicos que participaron en clases pero no son socios todavía
 // (a prueba, hermanos, invitados, o control para que empiecen a abonar)
 // ──────────────────────────────────────────────────────────────────────────
