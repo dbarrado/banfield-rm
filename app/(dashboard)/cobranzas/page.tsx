@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Wallet, AlertCircle, MessageCircle, RefreshCw, Settings } from 'lucide-react'
+import { Wallet, AlertCircle, MessageCircle, RefreshCw, Settings, Mail } from 'lucide-react'
 import Link from 'next/link'
 import { demoPlayers, demoCategories } from '@/lib/demo-data'
 import {
@@ -72,13 +72,13 @@ export default function CobranzasPage() {
     alert(`✅ Recargo aplicado a ${overdueCount} cuotas vencidas (demo)\n\nRecargo: ${cfg.late_fee_pct}%\nTotal recargos: $${counts.total_late_fees.toLocaleString('es-AR')}`)
   }
 
-  function reminderToOverdue() {
+  function emailToOverdue() {
     const overdues = billings.filter(b => b.status !== 'paid')
     if (overdues.length === 0) {
       alert('No hay deudores para notificar.')
       return
     }
-    alert(`📱 Mensaje WhatsApp masivo enviado a ${overdues.length} familias deudoras (demo)\n\nMonto total a recuperar: $${counts.total_pending.toLocaleString('es-AR')}`)
+    alert(`✉️ Email masivo encolado a ${overdues.length} familias deudoras (demo)\n\nMonto total a recuperar: $${counts.total_pending.toLocaleString('es-AR')}\n\nWhatsApp individual disponible en cada fila.`)
   }
 
   function saveConfig(newCfg: typeof cfg) {
@@ -151,8 +151,8 @@ export default function CobranzasPage() {
         <button onClick={applyLateFees} className="py-2 rounded-lg text-[11px] font-bold text-white flex items-center justify-center gap-1" style={{ backgroundColor: '#dc2626' }}>
           <AlertCircle size={12} /> Aplicar recargo
         </button>
-        <button onClick={reminderToOverdue} className="py-2 rounded-lg text-[11px] font-bold text-white flex items-center justify-center gap-1" style={{ backgroundColor: '#16a34a' }}>
-          <MessageCircle size={12} /> Recordar deuda
+        <button onClick={emailToOverdue} className="py-2 rounded-lg text-[11px] font-bold text-white flex items-center justify-center gap-1" style={{ backgroundColor: '#1d4ed8' }}>
+          <Mail size={12} /> Email a deudores
         </button>
       </div>
 
