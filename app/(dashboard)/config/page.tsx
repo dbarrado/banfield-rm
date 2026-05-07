@@ -70,8 +70,8 @@ export default function ConfigPage() {
   return (
     <div className="p-3 md:p-6 space-y-3 pb-8">
       <div className="flex items-center gap-2">
-        <Settings size={22} style={{ color: '#00843D' }} />
-        <h1 className="text-2xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: '#00843D' }}>
+        <Settings size={20} style={{ color: 'var(--club-primary, #00843D)' }} className="flex-shrink-0" />
+        <h1 className="text-2xl font-bold truncate" style={{ fontFamily: "var(--font-barlow)", color: 'var(--club-primary, #00843D)' }}>
           CONFIGURACIÓN
         </h1>
       </div>
@@ -80,7 +80,7 @@ export default function ConfigPage() {
       <Link href="/config/profes">
         <Card className="border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
           <CardContent className="p-3 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#00843D' }}>
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--club-primary, #00843D)' }}>
               <Users size={18} className="text-white" />
             </div>
             <div className="flex-1">
@@ -123,7 +123,7 @@ export default function ConfigPage() {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: '#00843D' }}>
+                <span className="text-2xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: 'var(--club-primary, #00843D)' }}>
                   {threshold}%
                 </span>
                 <button onClick={() => setEditingThreshold(true)} className="text-xs px-2 py-1 rounded border text-muted-foreground hover:bg-gray-50 flex items-center gap-1">
@@ -191,7 +191,7 @@ export default function ConfigPage() {
             <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground" style={{ fontFamily: "var(--font-barlow)" }}>
               CATEGORÍAS
             </CardTitle>
-            <button onClick={() => setShowCatForm(!showCatForm)} className="text-xs font-semibold px-2 py-1 rounded text-white flex items-center gap-1" style={{ backgroundColor: '#00843D' }}>
+            <button onClick={() => setShowCatForm(!showCatForm)} className="text-xs font-semibold px-2 py-1 rounded text-white flex items-center gap-1" style={{ backgroundColor: 'var(--club-primary, #00843D)' }}>
               <Plus size={12} /> Agregar
             </button>
           </div>
@@ -203,7 +203,7 @@ export default function ConfigPage() {
                 className="flex-1 px-2 py-1.5 border rounded text-sm" />
               <input type="number" placeholder="Año" value={newCat.birth_year} onChange={e => setNewCat({ ...newCat, birth_year: Number(e.target.value) })}
                 className="w-20 px-2 py-1.5 border rounded text-sm" />
-              <button onClick={addCategory} className="px-3 py-1.5 rounded text-white text-sm font-semibold" style={{ backgroundColor: '#00843D' }}>
+              <button onClick={addCategory} className="px-3 py-1.5 rounded text-white text-sm font-semibold" style={{ backgroundColor: 'var(--club-primary, #00843D)' }}>
                 <Check size={14} />
               </button>
             </div>
@@ -231,7 +231,7 @@ export default function ConfigPage() {
             <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground" style={{ fontFamily: "var(--font-barlow)" }}>
               CAUSALES DE APERCIBIMIENTO
             </CardTitle>
-            <button onClick={() => setShowCausalForm(!showCausalForm)} className="text-xs font-semibold px-2 py-1 rounded text-white flex items-center gap-1" style={{ backgroundColor: '#00843D' }}>
+            <button onClick={() => setShowCausalForm(!showCausalForm)} className="text-xs font-semibold px-2 py-1 rounded text-white flex items-center gap-1" style={{ backgroundColor: 'var(--club-primary, #00843D)' }}>
               <Plus size={12} /> Agregar
             </button>
           </div>
@@ -243,7 +243,7 @@ export default function ConfigPage() {
                 className="flex-1 px-2 py-1.5 border rounded text-sm" />
               <button
                 onClick={() => { if (newCausal.trim()) { setCausales([...causales, newCausal]); setNewCausal(''); setShowCausalForm(false); } }}
-                className="px-3 py-1.5 rounded text-white text-sm font-semibold" style={{ backgroundColor: '#00843D' }}>
+                className="px-3 py-1.5 rounded text-white text-sm font-semibold" style={{ backgroundColor: 'var(--club-primary, #00843D)' }}>
                 <Check size={14} />
               </button>
             </div>
@@ -269,7 +269,7 @@ export default function ConfigPage() {
             <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground" style={{ fontFamily: "var(--font-barlow)" }}>
               CATEGORÍAS DE CAJA
             </CardTitle>
-            <button onClick={() => setShowFinanceForm(!showFinanceForm)} className="text-xs font-semibold px-2 py-1 rounded text-white flex items-center gap-1" style={{ backgroundColor: '#00843D' }}>
+            <button onClick={() => setShowFinanceForm(!showFinanceForm)} className="text-xs font-semibold px-2 py-1 rounded text-white flex items-center gap-1" style={{ backgroundColor: 'var(--club-primary, #00843D)' }}>
               <Plus size={12} /> Agregar
             </button>
           </div>
@@ -292,7 +292,7 @@ export default function ConfigPage() {
                     setShowFinanceForm(false)
                   }
                 }}
-                className="px-3 py-1.5 rounded text-white text-sm font-semibold" style={{ backgroundColor: '#00843D' }}>
+                className="px-3 py-1.5 rounded text-white text-sm font-semibold" style={{ backgroundColor: 'var(--club-primary, #00843D)' }}>
                 <Check size={14} />
               </button>
             </div>

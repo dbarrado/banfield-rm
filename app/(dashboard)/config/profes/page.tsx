@@ -18,12 +18,12 @@ export default function ProfesPage() {
           <Link href="/config" className="p-2 rounded-full hover:bg-gray-100">
             <ArrowLeft size={18} />
           </Link>
-          <h1 className="text-2xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: '#00843D' }}>
+          <h1 className="text-2xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: 'var(--club-primary, #00843D)' }}>
             PROFES
           </h1>
           <Badge variant="outline">{demoProfes.length}</Badge>
         </div>
-        <button onClick={() => setShowForm(true)} className="flex items-center gap-1 text-sm font-semibold px-3 py-2 rounded-lg text-white" style={{ backgroundColor: '#00843D' }}>
+        <button onClick={() => setShowForm(true)} className="flex items-center gap-1 text-sm font-semibold px-3 py-2 rounded-lg text-white" style={{ backgroundColor: 'var(--club-primary, #00843D)' }}>
           <Plus size={16} /> Nuevo
         </button>
       </div>
@@ -41,7 +41,7 @@ export default function ProfesPage() {
             <Card key={p.id} className="border-0 shadow-sm">
               <CardContent className="p-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style={{ backgroundColor: '#00843D' }}>
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style={{ backgroundColor: 'var(--club-primary, #00843D)' }}>
                     {p.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -94,7 +94,7 @@ export default function ProfesPage() {
                 <input type="tel" placeholder="11 4500 1111" className="w-full px-3 py-2.5 border rounded-lg text-sm" />
               </div>
               <p className="text-xs text-muted-foreground">Las asignaciones a categorías y tiras se hacen después de crear el profe.</p>
-              <button type="submit" className="w-full py-3 rounded-xl text-white font-bold text-sm" style={{ backgroundColor: '#00843D' }}>
+              <button type="submit" className="w-full py-3 rounded-xl text-white font-bold text-sm" style={{ backgroundColor: 'var(--club-primary, #00843D)' }}>
                 CREAR PROFE
               </button>
             </form>
