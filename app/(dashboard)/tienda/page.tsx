@@ -69,7 +69,7 @@ export default function TiendaPage() {
             <div className="bg-purple-100 rounded-lg p-3">
               <p className="text-xs text-purple-700 uppercase font-bold tracking-wider">Precio</p>
               <p className="text-2xl font-bold text-purple-900" style={{ fontFamily: "var(--font-barlow)" }}>
-                + USD 20/mes
+                + USD 25/mes
               </p>
               <p className="text-[11px] text-purple-700">Sumado al Plan Pro · cancelable cuando quieras</p>
             </div>

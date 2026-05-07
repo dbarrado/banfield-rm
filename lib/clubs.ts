@@ -12,13 +12,14 @@ export const demoClubs: (Club & { referral_code: string; first_payment_at: strin
     secondary_color: '#C9A84C',
     city: 'Ramos Mejía',
     is_active: true,
-    plan: 'club',
+    plan: 'pro',
     default_sport_code: 'football_11',
     total_socios: 450,
     created_at: '2025-03-01',
     referral_code: 'BANFIELD-RM-A3X',
     first_payment_at: '2026-03-15', // ~50 días atrás → ya activo
     successful_referrals: 2,
+    has_shop_addon: true, // Banfield tiene tienda activa
   },
   {
     id: 'club-brisas',
