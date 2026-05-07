@@ -55,7 +55,7 @@ export default function ReportesPage() {
       featured: true,
     },
     {
-      href: '#',
+      href: '/reportes/estado-resultados',
       icon: TrendingUp,
       title: 'Estado de resultados',
       description: 'Ingresos vs egresos por categoría jerárquica',
