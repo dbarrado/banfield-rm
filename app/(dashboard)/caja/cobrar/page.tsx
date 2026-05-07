@@ -4,9 +4,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Search, Users, MessageCircle, Plus, X, Check, CreditCard, Banknote, UserPlus, Clock, Smartphone, Camera, Sparkles, Image as ImageIcon, Loader2, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Search, Users, MessageCircle, Plus, X, Check, CreditCard, Banknote, UserPlus, Clock, Smartphone, Camera, Sparkles, Image as ImageIcon, Loader2, AlertCircle, QrCode } from 'lucide-react'
 import { demoPlayers, demoCategories, getSiblings } from '@/lib/demo-data'
 import { generateBillingsForPeriod, loadBillingConfig, getOutstandingAmount, type Billing } from '@/lib/billings'
+import dynamic from 'next/dynamic'
+const QrScanner = dynamic(() => import('@/components/qr-scanner').then(m => m.QrScanner), { ssr: false })
 import { getAvatarUrl } from '@/lib/avatars'
 
 type Step = 'search' | 'select_fees' | 'payment' | 'done'
@@ -39,6 +41,8 @@ export default function CobrarPage() {
   const [newContact, setNewContact] = useState({ name: '', whatsapp: '', relation: '' })
   const [extraContacts, setExtraContacts] = useState<Record<string, Contact[]>>({}) // playerId → contacts persistidos durante la sesión
   const [recent, setRecent] = useState<{ at: string; players: string[]; total: number }[]>([])
+  const [showScanner, setShowScanner] = useState(false)
+  const [scanError, setScanError] = useState<string | null>(null)
   const [doneInfo, setDoneInfo] = useState<{ contact: Contact | null; total: number; players: string[]; baseTotal: number; mpSurcharge: number; method: 'cash' | 'transfer' | 'mercadopago' } | null>(null)
 
   const searchRef = useRef<HTMLInputElement>(null)
@@ -67,6 +71,24 @@ export default function CobrarPage() {
       })
       .slice(0, 8)
   }, [query])
+
+  // Parsea el QR del carnet → "PLANTEL|<player_id>|<dni>|..."
+  function handleQrScan(decodedText: string) {
+    setScanError(null)
+    const parts = decodedText.split('|')
+    if (parts[0] !== 'PLANTEL' || !parts[1]) {
+      setScanError('QR no válido. Esperaba un carnet de Plantel.')
+      return
+    }
+    const playerId = parts[1]
+    const player = demoPlayers.find(p => p.id === playerId)
+    if (!player) {
+      setScanError(`No se encontró el socio (ID: ${playerId})`)
+      return
+    }
+    setShowScanner(false)
+    selectPlayer(playerId)
+  }
 
   function selectPlayer(playerId: string) {
     const siblings = includeSiblings ? getSiblings(playerId).map((s: any) => s.id) : []
@@ -241,21 +263,34 @@ export default function CobrarPage() {
         <>
           <Card className="border-0 shadow-sm">
             <CardContent className="p-3 space-y-2">
-              <div className="relative">
-                <Search size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  ref={searchRef}
-                  value={query}
-                  onChange={e => setQuery(e.target.value)}
-                  placeholder="Buscar por nombre, apellido o DNI…"
-                  className="w-full pl-8 pr-3 py-3 border-2 rounded-lg text-base font-medium focus:outline-none focus:border-[#00843D]"
-                  autoFocus
-                />
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    ref={searchRef}
+                    value={query}
+                    onChange={e => setQuery(e.target.value)}
+                    placeholder="Nombre, apellido o DNI…"
+                    className="w-full pl-8 pr-3 py-3 border-2 rounded-lg text-base font-medium focus:outline-none focus:border-[#00843D]"
+                    autoFocus
+                  />
+                </div>
+                <button onClick={() => { setScanError(null); setShowScanner(true) }}
+                  className="px-3 py-3 rounded-lg text-white font-bold flex flex-col items-center justify-center gap-0.5 flex-shrink-0"
+                  style={{ backgroundColor: '#1d4ed8' }}
+                  title="Escanear carnet"
+                >
+                  <QrCode size={18} />
+                  <span className="text-[9px] uppercase">QR</span>
+                </button>
               </div>
               <label className="flex items-center gap-2 text-xs text-muted-foreground">
                 <input type="checkbox" checked={includeSiblings} onChange={e => setIncludeSiblings(e.target.checked)} />
                 Cobrar a toda la familia si tiene hermanos
               </label>
+              {scanError && (
+                <p className="text-[11px] text-red-600 bg-red-50 rounded p-1.5">{scanError}</p>
+              )}
             </CardContent>
           </Card>
 
@@ -656,6 +691,14 @@ export default function CobrarPage() {
             COBRAR AL SIGUIENTE →
           </button>
         </>
+      )}
+
+      {/* Scanner QR del carnet */}
+      {showScanner && (
+        <QrScanner
+          onScan={handleQrScan}
+          onClose={() => setShowScanner(false)}
+        />
       )}
     </div>
   )
