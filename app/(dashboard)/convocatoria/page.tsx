@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Trophy, CheckCircle2, MessageCircle, Lock, List, LayoutGrid } from 'lucide-react'
+import { Trophy, CheckCircle2, MessageCircle, Lock, List, LayoutGrid, ExternalLink } from 'lucide-react'
+import Link from 'next/link'
 import { demoPlayers, demoCategories, demoEvents, getAttendanceStats, demoEligibilityConfig } from '@/lib/demo-data'
 import { POSITION_LABELS, POSITION_COLORS, TIRA_LABELS, TIRA_COLORS, type Position, type Tira } from '@/types'
 
@@ -267,15 +268,19 @@ export default function ConvocatoriaPage() {
             {eligibleOfPos.map(p => {
               const isSelected = selected.has(p.id)
               return (
-                <button key={p.id} onClick={() => togglePlayer(p.id)} className="w-full text-left">
-                  <Card
-                    className="border-0 shadow-sm transition-all"
-                    style={{
-                      borderLeft: `4px solid ${isSelected ? POSITION_COLORS[pos] : '#e5e7eb'}`,
-                      backgroundColor: isSelected ? '#f0fdf4' : 'white',
-                    }}
-                  >
-                    <CardContent className="p-2.5 flex items-center gap-2.5">
+                <Card
+                  key={p.id}
+                  className="border-0 shadow-sm transition-all"
+                  style={{
+                    borderLeft: `4px solid ${isSelected ? POSITION_COLORS[pos] : '#e5e7eb'}`,
+                    backgroundColor: isSelected ? '#f0fdf4' : 'white',
+                  }}
+                >
+                  <CardContent className="p-2.5 flex items-center gap-2.5">
+                    <button
+                      onClick={() => togglePlayer(p.id)}
+                      className="flex items-center gap-2.5 flex-1 min-w-0 text-left"
+                    >
                       <div
                         className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
                         style={{ backgroundColor: isSelected ? POSITION_COLORS[pos] : '#9ca3af' }}
@@ -297,9 +302,12 @@ export default function ConvocatoriaPage() {
                         </div>
                       </div>
                       {isSelected && <CheckCircle2 size={18} style={{ color: POSITION_COLORS[pos] }} className="flex-shrink-0" />}
-                    </CardContent>
-                  </Card>
-                </button>
+                    </button>
+                    <Link href={`/socios/${p.id}`} className="p-1.5 rounded hover:bg-gray-100 text-muted-foreground" title="Ver/editar ficha">
+                      <ExternalLink size={14} />
+                    </Link>
+                  </CardContent>
+                </Card>
               )
             })}
 

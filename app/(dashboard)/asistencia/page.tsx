@@ -2,9 +2,11 @@
 
 import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
-import { ClipboardList, CheckCircle2, XCircle, AlertCircle, User, Lock, Unlock, Clock } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { ClipboardList, CheckCircle2, XCircle, AlertCircle, User, Lock, Unlock, Clock, Radio } from 'lucide-react'
 import { demoPlayers, demoCategories, demoProfes, getAssignmentsForProfe, getProfesForTira } from '@/lib/demo-data'
 import { TIRA_LABELS, TIRA_COLORS, type Tira } from '@/types'
+import { getSessionsForDay, TIRA_GROUPS, tiraGroupOf } from '@/lib/training-schedule'
 
 type AttendanceStatus = 'present' | 'absent_unjustified' | 'absent_justified'
 
@@ -18,12 +20,27 @@ const ALL_TIRAS: Tira[] = ['metro', 'liga1', 'liga2', 'edefi']
 
 export default function AsistenciaPage() {
   const activeCategories = demoCategories.filter(c => c.is_active)
+
+  // Sesiones del día actual (hoy)
+  const now = new Date()
+  const sessionsToday = getSessionsForDay(now, activeCategories.map(c => ({ id: c.id, name: c.name })))
+  const liveSession = sessionsToday.find(s => s.status === 'live')
+  const upcomingSession = sessionsToday.find(s => s.status === 'upcoming')
+
+  const initialCategory = liveSession?.category_id ?? upcomingSession?.category_id ?? activeCategories[0].id
+  const initialGroup = liveSession?.group ?? upcomingSession?.group ?? 'group-a'
+  const initialTira = (TIRA_GROUPS.find(g => g.id === initialGroup)?.tiras[0]) ?? 'metro'
+
   const [selectedProfe, setSelectedProfe] = useState<string>('')
-  const [selectedCategory, setSelectedCategory] = useState(activeCategories[0].id)
-  const [selectedTira, setSelectedTira] = useState<Tira>('metro')
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory)
+  const [selectedGroup, setSelectedGroup] = useState(initialGroup)
+  const [selectedTira, setSelectedTira] = useState<Tira>(initialTira)
   const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({})
   const [closed, setClosed] = useState(false)
   const [log, setLog] = useState<{ action: 'open' | 'close' | 'reopen'; user: string; at: string }[]>([])
+
+  const dayLabels = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
+  const todayLabel = dayLabels[now.getDay()]
 
   // Si hay profe seleccionado, limitar categorías y tiras a las que tiene asignadas
   const profeAssignments = selectedProfe ? getAssignmentsForProfe(selectedProfe) : []
@@ -35,20 +52,25 @@ export default function AsistenciaPage() {
     ? selectedCategory
     : (filteredCategories[0]?.id ?? activeCategories[0].id)
 
+  // Tiras del grupo seleccionado (Metro+Liga1 o Liga2+Edefi)
+  const groupTiras = TIRA_GROUPS.find(g => g.id === selectedGroup)?.tiras ?? []
   const tirasInCategory = ALL_TIRAS.filter(t => {
+    if (!groupTiras.includes(t)) return false
     const hasPlayers = demoPlayers.some(p => p.category_id === effectiveCategory && p.tira === t)
     if (!hasPlayers) return false
     if (!selectedProfe) return true
     return profeAssignments.some(a => a.category_id === effectiveCategory && a.tira === t)
   })
 
-  const effectiveTira = tirasInCategory.includes(selectedTira) ? selectedTira : (tirasInCategory[0] ?? 'metro')
-
+  // Jugadores de TODAS las tiras del grupo (entrenan juntos)
   const players = demoPlayers.filter(p =>
-    p.category_id === effectiveCategory && p.tira === effectiveTira && p.is_active
+    p.category_id === effectiveCategory && groupTiras.includes(p.tira) && p.is_active
   )
 
-  const profesAsignados = getProfesForTira(effectiveCategory, effectiveTira)
+  // Profes asignados a cualquiera de las tiras del grupo
+  const profesAsignados = Array.from(new Set(
+    groupTiras.flatMap(t => getProfesForTira(effectiveCategory, t).map(p => p.id))
+  )).map(id => demoProfes.find(p => p.id === id)!).filter(Boolean)
 
   const today = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })
 
@@ -80,6 +102,60 @@ export default function AsistenciaPage() {
 
       <p className="text-xs text-muted-foreground capitalize">{today}</p>
 
+      {/* Clases del día */}
+      {sessionsToday.length > 0 && (
+        <Card className="border-0 shadow-sm" style={{ borderLeft: '4px solid #00843D' }}>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Radio size={14} className="text-green-600" />
+              <p className="text-xs font-bold uppercase text-muted-foreground capitalize" style={{ fontFamily: "var(--font-barlow)" }}>
+                Clases de hoy ({todayLabel}) — {sessionsToday.length}
+              </p>
+            </div>
+            <div className="space-y-1.5 max-h-44 overflow-y-auto">
+              {sessionsToday.map((s, idx) => {
+                const isSelected = effectiveCategory === s.category_id && selectedGroup === s.group
+                return (
+                  <button
+                    key={`${s.category_id}-${s.group}-${idx}`}
+                    onClick={() => {
+                      setSelectedCategory(s.category_id)
+                      setSelectedGroup(s.group)
+                      setSelectedTira(TIRA_GROUPS.find(g => g.id === s.group)!.tiras[0])
+                      setAttendance({})
+                      setClosed(false)
+                    }}
+                    className={`w-full flex items-center gap-2 p-2 rounded-lg border transition-all ${isSelected ? 'shadow-md' : ''}`}
+                    style={isSelected ? { backgroundColor: `${s.group_color}10`, borderColor: s.group_color } : { borderColor: '#e5e7eb' }}
+                  >
+                    {s.status === 'live' && (
+                      <span className="flex-shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-100 text-green-700 text-[9px] font-bold uppercase animate-pulse">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-600" /> EN VIVO
+                      </span>
+                    )}
+                    {s.status === 'upcoming' && (
+                      <span className="flex-shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-bold uppercase">
+                        En {Math.floor(s.starts_in_min! / 60) > 0 ? `${Math.floor(s.starts_in_min! / 60)}h ` : ''}{s.starts_in_min! % 60}m
+                      </span>
+                    )}
+                    {s.status === 'past' && (
+                      <span className="flex-shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 font-bold uppercase">
+                        Terminó
+                      </span>
+                    )}
+                    <span className="text-[11px] font-bold flex-shrink-0">{s.start}–{s.end}</span>
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="text-xs font-semibold truncate">Cat. {s.category_name}</p>
+                      <p className="text-[10px] truncate" style={{ color: s.group_color }}>{s.group_name}</p>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Selector profe */}
       <select
         value={selectedProfe}
@@ -102,18 +178,18 @@ export default function AsistenciaPage() {
         {filteredCategories.map(c => <option key={c.id} value={c.id}>Categoría {c.name}</option>)}
       </select>
 
-      {/* Selector tira */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-3 px-3">
-        {tirasInCategory.map(tira => (
+      {/* Selector grupo (Metro+Liga1 o Liga2+Edefi) */}
+      <div className="flex gap-1.5">
+        {TIRA_GROUPS.map(g => (
           <button
-            key={tira}
-            onClick={() => { setSelectedTira(tira); setAttendance({}); }}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${
-              effectiveTira === tira ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'
+            key={g.id}
+            onClick={() => { setSelectedGroup(g.id); setSelectedTira(g.tiras[0]); setAttendance({}); }}
+            className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold border transition-colors ${
+              selectedGroup === g.id ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'
             }`}
-            style={effectiveTira === tira ? { backgroundColor: TIRA_COLORS[tira] } : {}}
+            style={selectedGroup === g.id ? { backgroundColor: g.color } : {}}
           >
-            {TIRA_LABELS[tira]}
+            {g.name}
           </button>
         ))}
       </div>
@@ -124,7 +200,7 @@ export default function AsistenciaPage() {
           <User size={12} className="text-muted-foreground flex-shrink-0" />
           <span className="text-muted-foreground">A cargo:</span>
           {profesAsignados.map((p, i) => (
-            <span key={p.id} className="font-semibold" style={{ color: TIRA_COLORS[effectiveTira] }}>
+            <span key={p.id} className="font-semibold" style={{ color: (TIRA_GROUPS.find(g => g.id === selectedGroup)?.color ?? '#00843D') }}>
               {p.full_name}{i < profesAsignados.length - 1 ? ',' : ''}
             </span>
           ))}
@@ -132,18 +208,18 @@ export default function AsistenciaPage() {
       )}
 
       {/* % vivo de asistencia */}
-      <Card className="border-0 shadow-sm" style={{ borderLeft: `4px solid ${TIRA_COLORS[effectiveTira]}` }}>
+      <Card className="border-0 shadow-sm" style={{ borderLeft: `4px solid ${(TIRA_GROUPS.find(g => g.id === selectedGroup)?.color ?? '#00843D')}` }}>
         <CardContent className="p-3">
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs font-semibold text-muted-foreground">Asistencia en vivo</p>
-            <p className="text-2xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: TIRA_COLORS[effectiveTira] }}>
+            <p className="text-2xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: (TIRA_GROUPS.find(g => g.id === selectedGroup)?.color ?? '#00843D') }}>
               {livePercent}%
             </p>
           </div>
           <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
             <div
               className="h-full rounded-full transition-all"
-              style={{ width: `${livePercent}%`, backgroundColor: TIRA_COLORS[effectiveTira] }}
+              style={{ width: `${livePercent}%`, backgroundColor: (TIRA_GROUPS.find(g => g.id === selectedGroup)?.color ?? '#00843D') }}
             />
           </div>
           <div className="flex gap-2 text-xs">
@@ -177,7 +253,12 @@ export default function AsistenciaPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm truncate">{player.full_name}</p>
-                    <p className="text-[10px] text-muted-foreground">Conv. año: {player.convocation_count}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase text-white" style={{ backgroundColor: TIRA_COLORS[player.tira] }}>
+                        {TIRA_LABELS[player.tira]}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">Conv: {player.convocation_count}</span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <Icon size={18} style={{ color }} />
