@@ -46,7 +46,6 @@ const allItems: NavItem[] = [
   { href: '/finanzas', icon: TrendingUp, label: 'Finanzas' },
   { href: '/reportes', icon: BarChart3, label: 'Reportes', proOnly: true },
   { href: '/tienda', icon: ShoppingBag, label: 'Tienda', proOnly: true },
-  { href: '/deportes', icon: Volleyball, label: 'Deportes' },
   { href: '/invitar', icon: Gift, label: 'Invitar' },
   { href: '/config', icon: Settings, label: 'Config' },
 ]

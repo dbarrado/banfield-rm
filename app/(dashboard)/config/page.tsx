@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Settings, Users, ChevronRight, Edit2, Plus, X, Check, Trash2, History } from 'lucide-react'
+import { Settings, Users, ChevronRight, Edit2, Plus, X, Check, Trash2, History, Volleyball } from 'lucide-react'
 import Link from 'next/link'
 import { demoCategories, demoFinanceCategories, demoEligibilityConfig, demoEligibilityLog, demoProfes } from '@/lib/demo-data'
 
@@ -74,6 +74,22 @@ export default function ConfigPage() {
           CONFIGURACIÓN
         </h1>
       </div>
+
+      {/* Deportes y formatos */}
+      <Link href="/deportes">
+        <Card className="border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+          <CardContent className="p-3 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#1d4ed8' }}>
+              <Volleyball size={18} className="text-white" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-sm">Deportes y formatos</p>
+              <p className="text-xs text-muted-foreground">Catálogo soportado, asignar formato por categoría</p>
+            </div>
+            <ChevronRight size={18} className="text-muted-foreground" />
+          </CardContent>
+        </Card>
+      </Link>
 
       {/* Profes */}
       <Link href="/config/profes">
