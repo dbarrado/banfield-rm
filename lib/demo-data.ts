@@ -521,4 +521,18 @@ export function getAttendanceStats(playerId: string, categoryId: string) {
   return { attended, justified, total: practices.length, percentage }
 }
 
+// Asistencia a partidos (simulada): basada en convocation_count vs total de partidos jugados
+export function getMatchAttendanceStats(playerId: string) {
+  const player = demoPlayers.find(p => p.id === playerId)
+  if (!player) return { played: 0, total: 0, percentage: 0 }
+  // Suponemos que se jugaron 12 partidos en lo que va del año
+  const totalMatches = 12
+  const played = Math.min(player.convocation_count, totalMatches)
+  // Variabilidad: el porcentaje de partidos jugados de los convocados es alto (85-100%)
+  const seed = (player.id.charCodeAt(2) ?? 0) + (player.id.charCodeAt(3) ?? 0)
+  const matchAttendanceRate = 0.85 + ((seed * 7) % 15) / 100
+  const percentage = Math.round((played / totalMatches) * 100)
+  return { played, total: totalMatches, percentage }
+}
+
 export { thisMonth, lastMonth }

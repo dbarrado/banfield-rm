@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Trophy, CheckCircle2, MessageCircle, Lock, List, LayoutGrid, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
-import { demoPlayers, demoCategories, demoEvents, getAttendanceStats, demoEligibilityConfig } from '@/lib/demo-data'
+import { demoPlayers, demoCategories, demoEvents, getAttendanceStats, getMatchAttendanceStats, demoEligibilityConfig } from '@/lib/demo-data'
 import { POSITION_LABELS, POSITION_COLORS, TIRA_LABELS, TIRA_COLORS, type Position, type Tira } from '@/types'
 
 const POSITIONS: Position[] = ['arquero', 'defensor', 'mediocampista', 'delantero']
@@ -16,7 +16,8 @@ export default function ConvocatoriaPage() {
   const [selectedTira, setSelectedTira] = useState<Tira | null>(null)
   const [selectedEvent, setSelectedEvent] = useState(demoEvents.filter(e => e.event_type === 'match')[0]?.id ?? '')
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [threshold, setThreshold] = useState(demoEligibilityConfig.min_attendance_percentage)
+  const [practiceThreshold, setPracticeThreshold] = useState(demoEligibilityConfig.min_attendance_percentage)
+  const [matchThreshold, setMatchThreshold] = useState(50)
   const [view, setView] = useState<'list' | 'pitch'>('list')
 
   const activeCategories = demoCategories.filter(c => c.is_active)
@@ -32,8 +33,12 @@ export default function ConvocatoriaPage() {
   )
 
   const playersWithStats = players.map(p => {
-    const stats = getAttendanceStats(p.id, selectedCategory)
-    return { ...p, stats, eligible: stats.percentage >= threshold || stats.total === 0 }
+    const practiceStats = getAttendanceStats(p.id, selectedCategory)
+    const matchStats = getMatchAttendanceStats(p.id)
+    const meetsPractice = practiceStats.percentage >= practiceThreshold || practiceStats.total === 0
+    const meetsMatch = matchStats.percentage >= matchThreshold || matchStats.total === 0
+    const eligible = meetsPractice && meetsMatch
+    return { ...p, practiceStats, matchStats, meetsPractice, meetsMatch, eligible }
   })
 
   function togglePlayer(id: string) {
@@ -124,26 +129,50 @@ export default function ConvocatoriaPage() {
         </div>
       </div>
 
-      {/* Slider de umbral */}
+      {/* Sliders dobles: prácticas y partidos */}
       <Card className="border-0 shadow-sm">
-        <CardContent className="p-3 space-y-1.5">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-muted-foreground">Asistencia mínima para ser convocado</p>
-            <p className="text-lg font-bold" style={{ fontFamily: "var(--font-barlow)", color: '#00843D' }}>
-              {threshold}%
-            </p>
+        <CardContent className="p-3 space-y-3">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold flex items-center gap-1">
+                🏃 Mínimo en <strong>prácticas</strong>
+              </p>
+              <p className="text-lg font-bold" style={{ fontFamily: "var(--font-barlow)", color: '#00843D' }}>
+                {practiceThreshold}%
+              </p>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              value={practiceThreshold}
+              onChange={e => setPracticeThreshold(Number(e.target.value))}
+              className="w-full accent-[#00843D]"
+            />
           </div>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            step="5"
-            value={threshold}
-            onChange={e => setThreshold(Number(e.target.value))}
-            className="w-full accent-[#00843D]"
-          />
+
+          <div className="space-y-1.5 pt-2 border-t">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold flex items-center gap-1">
+                ⚽ Mínimo en <strong>partidos</strong>
+              </p>
+              <p className="text-lg font-bold" style={{ fontFamily: "var(--font-barlow)", color: '#1d4ed8' }}>
+                {matchThreshold}%
+              </p>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              value={matchThreshold}
+              onChange={e => setMatchThreshold(Number(e.target.value))}
+              className="w-full accent-blue-700"
+            />
+          </div>
           <p className="text-[10px] text-muted-foreground">
-            Default: {demoEligibilityConfig.min_attendance_percentage}% · Modificable para esta convocatoria.
+            Default global: {demoEligibilityConfig.min_attendance_percentage}% · Un jugador es elegible si cumple <strong>ambos</strong>.
           </p>
         </CardContent>
       </Card>
@@ -296,8 +325,13 @@ export default function ConvocatoriaPage() {
                           >
                             {TIRA_LABELS[p.tira]}
                           </span>
-                          <span className="text-[10px] text-muted-foreground">
-                            Asist: <strong>{p.stats.percentage}%</strong> · {p.convocation_count} conv.
+                          <span className="text-[10px] flex items-center gap-1.5">
+                            <span style={{ color: p.meetsPractice ? '#00843D' : '#DC2626' }}>
+                              🏃 <strong>{p.practiceStats.percentage}%</strong>
+                            </span>
+                            <span style={{ color: p.meetsMatch ? '#1d4ed8' : '#DC2626' }}>
+                              ⚽ <strong>{p.matchStats.percentage}%</strong>
+                            </span>
                           </span>
                         </div>
                       </div>
@@ -325,10 +359,15 @@ export default function ConvocatoriaPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-semibold text-gray-500 truncate">{p.full_name}</p>
-                          <p className="text-[10px] text-gray-400">
+                          <div className="flex items-center gap-1.5 text-[10px]">
                             <span style={{ color: TIRA_COLORS[p.tira] }}>{TIRA_LABELS[p.tira]}</span>
-                            {' · '}Asist: {p.stats.percentage}%
-                          </p>
+                            <span style={{ color: p.meetsPractice ? '#00843D' : '#DC2626' }}>
+                              🏃 {p.practiceStats.percentage}%
+                            </span>
+                            <span style={{ color: p.meetsMatch ? '#1d4ed8' : '#DC2626' }}>
+                              ⚽ {p.matchStats.percentage}%
+                            </span>
+                          </div>
                         </div>
                         <button
                           onClick={() => togglePlayer(p.id)}
