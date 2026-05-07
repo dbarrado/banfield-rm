@@ -76,6 +76,7 @@ export interface Category {
   id: string
   name: string
   birth_year: number
+  sport_format_code?: string  // ej: 'football_11', 'baby_5', 'baby_6', 'futsal'
   is_active: boolean
   created_at: string
 }

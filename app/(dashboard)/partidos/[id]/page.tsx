@@ -8,8 +8,7 @@ import { notFound } from 'next/navigation'
 import { demoEvents, demoCategories, demoPlayers } from '@/lib/demo-data'
 import { POSITION_LABELS, POSITION_COLORS, type Position } from '@/types'
 import { getAvatarUrl } from '@/lib/avatars'
-
-const POSITIONS: Position[] = ['arquero', 'defensor', 'mediocampista', 'delantero']
+import { getSportFormat, type SportCode } from '@/lib/sports'
 
 type CardStatus = 'none' | 'yellow' | 'red'
 
@@ -19,15 +18,36 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
   if (!event) notFound()
 
   const cat = demoCategories.find(c => c.id === event!.category_id)
+  // Formato de juego de la categoría (cada cat puede tener distinto)
+  const sportCode = (cat?.sport_format_code ?? 'football_11') as SportCode
+  const format = getSportFormat(sportCode)
+  const POSITIONS: Position[] = ['arquero', 'defensor', 'mediocampista', 'delantero']
   const allOfCat = demoPlayers.filter(p => p.category_id === event!.category_id)
+
+  // Estructura de titulares según el formato:
+  // football_11: 1 arq + 4 def + 4 med + 2 del = 11
+  // baby_6:      1 arq + 2 def + 2 med + 1 del = 6
+  // baby_5:      1 arq + 1 def + 1 med + 2 del = 5  (variable)
+  // futsal:      1 arq + 1 def + 2 med + 1 del = 5
+  const slotsByPos = sportCode === 'football_11' ? { arquero: 1, defensor: 4, mediocampista: 4, delantero: 2 }
+                   : sportCode === 'baby_6'      ? { arquero: 1, defensor: 2, mediocampista: 2, delantero: 1 }
+                   : sportCode === 'baby_5'      ? { arquero: 1, defensor: 1, mediocampista: 1, delantero: 2 }
+                   : sportCode === 'futsal'      ? { arquero: 1, defensor: 1, mediocampista: 2, delantero: 1 }
+                   :                                 { arquero: 1, defensor: 4, mediocampista: 4, delantero: 2 }
 
   const arq = allOfCat.filter(p => p.primary_position === 'arquero')
   const def = allOfCat.filter(p => p.primary_position === 'defensor')
   const med = allOfCat.filter(p => p.primary_position === 'mediocampista')
   const del = allOfCat.filter(p => p.primary_position === 'delantero')
 
-  const initialTitulares = [...arq.slice(0, 1), ...def.slice(0, 4), ...med.slice(0, 4), ...del.slice(0, 2)]
-  const initialSuplentes = allOfCat.filter(p => !initialTitulares.includes(p)).slice(0, 5)
+  const initialTitulares = [
+    ...arq.slice(0, slotsByPos.arquero),
+    ...def.slice(0, slotsByPos.defensor),
+    ...med.slice(0, slotsByPos.mediocampista),
+    ...del.slice(0, slotsByPos.delantero),
+  ]
+  const maxSubs = format.players_on_field > 9 ? 5 : 3
+  const initialSuplentes = allOfCat.filter(p => !initialTitulares.includes(p)).slice(0, maxSubs)
 
   const [titularesIds, setTitularesIds] = useState<string[]>(initialTitulares.map(p => p.id))
   const [suplentesIds, setSuplentesIds] = useState<string[]>(initialSuplentes.map(p => p.id))

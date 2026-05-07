@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useCurrentClub } from '@/lib/use-current-club'
+import { useActiveRole, ROLE_NAV_ITEMS } from '@/lib/use-role'
 import {
   LayoutDashboard,
   Users,
@@ -52,8 +53,18 @@ export function Sidebar() {
   const router = useRouter()
   const supabase = createClient()
   const club = useCurrentClub()
+  const [activeRole] = useActiveRole()
   const [sheetOpen, setSheetOpen] = useState(false)
   const initials = club.short_name.split(' ').map(w => w[0]).join('').slice(0, 3).toUpperCase()
+
+  // Filtrar items según el rol activo
+  const allowedPaths = new Set([
+    ...ROLE_NAV_ITEMS[activeRole].primary,
+    ...ROLE_NAV_ITEMS[activeRole].secondary,
+  ])
+  const filteredPrimary = primaryItems.filter(i => ROLE_NAV_ITEMS[activeRole].primary.includes(i.href))
+  const filteredSecondary = secondaryItems.filter(i => ROLE_NAV_ITEMS[activeRole].secondary.includes(i.href))
+  const filteredAll = allItems.filter(i => allowedPaths.has(i.href))
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -74,7 +85,7 @@ export function Sidebar() {
         </div>
 
         <nav className="flex flex-col gap-1 flex-1">
-          {allItems.map(({ href, icon: Icon, label }) => {
+          {filteredAll.map(({ href, icon: Icon, label }) => {
             const active = pathname === href || pathname.startsWith(href + '/')
             return (
               <Link
@@ -104,7 +115,7 @@ export function Sidebar() {
 
       {/* Mobile bottom nav: 4 ítems primarios + Más */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t flex justify-around py-2">
-        {primaryItems.map(({ href, icon: Icon, label }) => {
+        {filteredPrimary.map(({ href, icon: Icon, label }) => {
           const active = pathname === href || pathname.startsWith(href + '/')
           return (
             <Link
@@ -149,7 +160,7 @@ export function Sidebar() {
               </button>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              {secondaryItems.map(({ href, icon: Icon, label, proOnly }) => {
+              {filteredSecondary.map(({ href, icon: Icon, label, proOnly }) => {
                 const active = pathname === href || pathname.startsWith(href + '/')
                 const isProClub = club.plan === 'pro'
                 return (

@@ -6,15 +6,15 @@ export const DEMO_MODE = true
 // CATEGORÍAS — años 2010 a 2018 (todas activas)
 // ──────────────────────────────────────────────────────────────────────────
 export const demoCategories: Category[] = [
-  { id: 'cat-2010', name: '2010', birth_year: 2010, is_active: true, created_at: '2025-01-01' },
-  { id: 'cat-2011', name: '2011', birth_year: 2011, is_active: true, created_at: '2025-01-01' },
-  { id: 'cat-2012', name: '2012', birth_year: 2012, is_active: true, created_at: '2025-01-01' },
-  { id: 'cat-2013', name: '2013', birth_year: 2013, is_active: true, created_at: '2025-01-01' },
-  { id: 'cat-2014', name: '2014', birth_year: 2014, is_active: true, created_at: '2025-01-01' },
-  { id: 'cat-2015', name: '2015', birth_year: 2015, is_active: true, created_at: '2025-01-01' },
-  { id: 'cat-2016', name: '2016', birth_year: 2016, is_active: true, created_at: '2025-01-01' },
-  { id: 'cat-2017', name: '2017', birth_year: 2017, is_active: true, created_at: '2025-01-01' },
-  { id: 'cat-2018', name: '2018', birth_year: 2018, is_active: true, created_at: '2025-01-01' },
+  { id: 'cat-2010', name: '2010', birth_year: 2010, sport_format_code: 'football_11', is_active: true, created_at: '2025-01-01' },
+  { id: 'cat-2011', name: '2011', birth_year: 2011, sport_format_code: 'football_11', is_active: true, created_at: '2025-01-01' },
+  { id: 'cat-2012', name: '2012', birth_year: 2012, sport_format_code: 'football_11', is_active: true, created_at: '2025-01-01' },
+  { id: 'cat-2013', name: '2013', birth_year: 2013, sport_format_code: 'football_11', is_active: true, created_at: '2025-01-01' },
+  { id: 'cat-2014', name: '2014', birth_year: 2014, sport_format_code: 'baby_6', is_active: true, created_at: '2025-01-01' },
+  { id: 'cat-2015', name: '2015', birth_year: 2015, sport_format_code: 'baby_6', is_active: true, created_at: '2025-01-01' },
+  { id: 'cat-2016', name: '2016', birth_year: 2016, sport_format_code: 'baby_5', is_active: true, created_at: '2025-01-01' },
+  { id: 'cat-2017', name: '2017', birth_year: 2017, sport_format_code: 'baby_5', is_active: true, created_at: '2025-01-01' },
+  { id: 'cat-2018', name: '2018', birth_year: 2018, sport_format_code: 'baby_5', is_active: true, created_at: '2025-01-01' },
 ]
 
 // ──────────────────────────────────────────────────────────────────────────
