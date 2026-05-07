@@ -2,13 +2,13 @@
 
 import { use, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
-import { ArrowLeft, Trophy, MapPin, Calendar, ClipboardList, Star, Edit2, ArrowUpDown, AlertTriangle, Ban, MessageSquare, X } from 'lucide-react'
+import { ArrowLeft, Trophy, MapPin, Calendar, ClipboardList, Star, Edit2, ArrowUpDown, AlertTriangle, Ban, MessageSquare, X, UserPlus, Search, Move } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { demoEvents, demoCategories, demoPlayers } from '@/lib/demo-data'
 import { POSITION_LABELS, POSITION_COLORS, type Position } from '@/types'
 import { getAvatarUrl } from '@/lib/avatars'
-import { getSportFormat, type SportCode } from '@/lib/sports'
+import { getSportFormat, FORMATIONS, getDefaultFormation, type SportCode, type Formation } from '@/lib/sports'
 
 type CardStatus = 'none' | 'yellow' | 'red'
 
@@ -54,6 +54,70 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
   const [cards, setCards] = useState<Record<string, CardStatus>>({})
   const [matchComment, setMatchComment] = useState('')
   const [swap, setSwap] = useState<{ titularId?: string; suplenteId?: string } | null>(null)
+  const [showAddPlayer, setShowAddPlayer] = useState(false)
+  const [lateCallNotes, setLateCallNotes] = useState<Record<string, string>>({})
+  const formations = FORMATIONS[sportCode] ?? []
+  const [currentFormation, setCurrentFormation] = useState<Formation>(formations[0] ?? getDefaultFormation(sportCode))
+  // Drag & drop
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+
+  function handleDrop(targetPlayerId: string) {
+    if (!draggingId || draggingId === targetPlayerId) {
+      setDraggingId(null)
+      return
+    }
+    // Determinar si origen y destino son titulares o suplentes
+    const draggingIsTitular = titularesIds.includes(draggingId)
+    const targetIsTitular = titularesIds.includes(targetPlayerId)
+    const draggingIsSuplente = suplentesIds.includes(draggingId)
+    const targetIsSuplente = suplentesIds.includes(targetPlayerId)
+
+    if (draggingIsTitular && targetIsTitular) {
+      // Reordenar titulares (swap visual)
+      const newTit = [...titularesIds]
+      const i = newTit.indexOf(draggingId)
+      const j = newTit.indexOf(targetPlayerId)
+      ;[newTit[i], newTit[j]] = [newTit[j], newTit[i]]
+      setTitularesIds(newTit)
+    } else if (draggingIsTitular && targetIsSuplente) {
+      // Cambio: titular sale, suplente entra
+      setTitularesIds(prev => prev.map(id => id === draggingId ? targetPlayerId : id))
+      setSuplentesIds(prev => prev.map(id => id === targetPlayerId ? draggingId : id))
+    } else if (draggingIsSuplente && targetIsTitular) {
+      // Inverso: suplente sube, titular baja
+      setSuplentesIds(prev => prev.map(id => id === draggingId ? targetPlayerId : id))
+      setTitularesIds(prev => prev.map(id => id === targetPlayerId ? draggingId : id))
+    } else if (draggingIsSuplente && targetIsSuplente) {
+      // Reordenar suplentes
+      const newSup = [...suplentesIds]
+      const i = newSup.indexOf(draggingId)
+      const j = newSup.indexOf(targetPlayerId)
+      ;[newSup[i], newSup[j]] = [newSup[j], newSup[i]]
+      setSuplentesIds(newSup)
+    }
+    setDraggingId(null)
+  }
+
+  function applyFormation(f: Formation) {
+    // Reasignar titulares de acuerdo a slots
+    const newTit: string[] = []
+    for (const [posCode, count] of Object.entries(f.slots)) {
+      const candidates = allOfCat
+        .filter(p => p.primary_position === posCode)
+        .filter(p => !newTit.includes(p.id))
+        .slice(0, count)
+      newTit.push(...candidates.map(p => p.id))
+    }
+    setTitularesIds(newTit)
+    setSuplentesIds(allOfCat.filter(p => !newTit.includes(p.id)).slice(0, maxSubs).map(p => p.id))
+    setCurrentFormation(f)
+  }
+
+  function addLateCallPlayer(playerId: string, reason: string) {
+    setSuplentesIds(prev => [...prev, playerId])
+    setLateCallNotes(prev => ({ ...prev, [playerId]: reason }))
+    setShowAddPlayer(false)
+  }
 
   const titulares = titularesIds.map(id => allOfCat.find(p => p.id === id)!).filter(Boolean)
   const suplentes = suplentesIds.map(id => allOfCat.find(p => p.id === id)!).filter(Boolean)
@@ -123,10 +187,43 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
         </div>
 
         {/* Formación visual */}
-        <h2 className="font-bold text-sm uppercase tracking-wider text-muted-foreground" style={{ fontFamily: "var(--font-barlow)" }}>
-          FORMACIÓN
-        </h2>
-        <p className="text-[10px] text-muted-foreground -mt-2">Tap en un jugador para hacer cambio o marcar tarjeta</p>
+        <div className="flex items-center justify-between mt-3">
+          <h2 className="font-bold text-sm uppercase tracking-wider text-muted-foreground" style={{ fontFamily: "var(--font-barlow)" }}>
+            FORMACIÓN
+          </h2>
+          <button
+            onClick={() => setShowAddPlayer(true)}
+            className="text-xs font-semibold px-2 py-1 rounded text-white flex items-center gap-1"
+            style={{ backgroundColor: '#7c3aed' }}
+          >
+            <UserPlus size={12} /> Llamada tardía
+          </button>
+        </div>
+
+        {/* Selector de formación táctica */}
+        {formations.length > 1 && (
+          <div className="flex gap-1 overflow-x-auto pb-1 -mx-3 px-3">
+            <span className="text-[10px] font-bold uppercase text-muted-foreground self-center mr-1 flex-shrink-0">Sistema:</span>
+            {formations.map(f => {
+              const sel = currentFormation.code === f.code
+              return (
+                <button
+                  key={f.code}
+                  onClick={() => applyFormation(f)}
+                  title={f.description}
+                  className={`px-2.5 py-1 rounded-full text-xs font-bold border-2 whitespace-nowrap transition-colors ${sel ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`}
+                  style={sel ? { backgroundColor: 'var(--club-primary, #00843D)' } : {}}
+                >
+                  {f.code}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        <p className="text-[10px] text-muted-foreground -mt-1 flex items-center gap-1">
+          <Move size={10} /> Arrastrá un jugador para cambiar posición o intercambiar con suplente
+        </p>
 
         <div className="relative w-full overflow-hidden rounded-xl shadow-lg" style={{ aspectRatio: '2/3', maxWidth: 480, margin: '0 auto' }}>
           <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, #16a34a 0%, #15803d 100%)' }}>
@@ -154,25 +251,31 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
               return players.map((p, i) => {
                 const x = ((i + 1) / (players.length + 1)) * 100
                 const card = cards[p.id]
+                const isDragging = draggingId === p.id
                 return (
-                  <button
+                  <div
                     key={p.id}
-                    onClick={() => setSwap({ titularId: p.id })}
                     className="absolute -translate-x-1/2 -translate-y-1/2"
                     style={{ left: `${x}%`, top: `${layouts[pos].y}%` }}
+                    draggable
+                    onDragStart={() => setDraggingId(p.id)}
+                    onDragEnd={() => setDraggingId(null)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => handleDrop(p.id)}
+                    onClick={() => setSwap({ titularId: p.id })}
                   >
                     <div
-                      className="w-12 h-12 rounded-full bg-white border-2 shadow-lg overflow-hidden relative"
+                      className={`w-12 h-12 rounded-full bg-white border-2 shadow-lg overflow-hidden relative cursor-grab active:cursor-grabbing transition-transform ${isDragging ? 'opacity-40 scale-110' : 'hover:scale-105'}`}
                       style={{ borderColor: POSITION_COLORS[p.primary_position] }}
                     >
-                      <img src={getAvatarUrl(p)} alt={p.full_name} className="w-full h-full object-cover" />
+                      <img src={getAvatarUrl(p)} alt={p.full_name} className="w-full h-full object-cover" draggable={false} />
                       {card === 'yellow' && <span className="absolute -top-1 -right-1 w-4 h-5 rounded-sm bg-yellow-400 border border-yellow-600 z-10" />}
                       {card === 'red' && <span className="absolute -top-1 -right-1 w-4 h-5 rounded-sm bg-red-600 border border-red-800 z-10" />}
                     </div>
-                    <p className="text-[9px] text-white text-center mt-0.5 font-bold leading-tight whitespace-nowrap drop-shadow-md">
+                    <p className="text-[9px] text-white text-center mt-0.5 font-bold leading-tight whitespace-nowrap drop-shadow-md pointer-events-none">
                       {p.full_name.split(' ').slice(-1)[0]}
                     </p>
-                  </button>
+                  </div>
                 )
               })
             })
@@ -186,19 +289,36 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
         <div className="space-y-1.5">
           {suplentes.map(p => {
             const card = cards[p.id]
+            const isLateCall = lateCallNotes[p.id] !== undefined
             return (
-              <Card key={p.id} className="border-0 shadow-sm bg-amber-50">
-                <CardContent className="p-2 flex items-center gap-2.5">
+              <Card
+                key={p.id}
+                className={`border-0 shadow-sm ${isLateCall ? 'bg-purple-50' : 'bg-amber-50'} ${draggingId === p.id ? 'opacity-40' : ''}`}
+                draggable
+                onDragStart={() => setDraggingId(p.id)}
+                onDragEnd={() => setDraggingId(null)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => handleDrop(p.id)}
+              >
+                <CardContent className="p-2 flex items-center gap-2.5 cursor-grab active:cursor-grabbing">
                   <div className="w-9 h-9 rounded-full overflow-hidden border-2 flex-shrink-0 relative bg-white" style={{ borderColor: POSITION_COLORS[p.primary_position] }}>
                     <img src={getAvatarUrl(p)} alt={p.full_name} className="w-full h-full object-cover" />
                     {card === 'yellow' && <span className="absolute -top-1 -right-1 w-3 h-4 rounded-sm bg-yellow-400 border border-yellow-600 z-10" />}
                     {card === 'red' && <span className="absolute -top-1 -right-1 w-3 h-4 rounded-sm bg-red-600 border border-red-800 z-10" />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{p.full_name}</p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-sm font-medium truncate">{p.full_name}</p>
+                      {isLateCall && (
+                        <span className="text-[8px] px-1 py-0.5 rounded bg-purple-200 text-purple-800 font-bold uppercase flex-shrink-0">Llamada tardía</span>
+                      )}
+                    </div>
                     <span className="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase text-white" style={{ backgroundColor: POSITION_COLORS[p.primary_position] }}>
                       {POSITION_LABELS[p.primary_position]}
                     </span>
+                    {isLateCall && lateCallNotes[p.id] && (
+                      <p className="text-[10px] text-purple-700 italic mt-0.5">"{lateCallNotes[p.id]}"</p>
+                    )}
                   </div>
                   <button
                     onClick={() => setSwap({ suplenteId: p.id })}
@@ -269,6 +389,16 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
       </div>
 
       {/* Modal de cambio */}
+      {/* Modal llamada tardía */}
+      {showAddPlayer && (
+        <LateCallModal
+          allOfCat={allOfCat}
+          alreadyConvocadosIds={[...titularesIds, ...suplentesIds]}
+          onClose={() => setShowAddPlayer(false)}
+          onAdd={addLateCallPlayer}
+        />
+      )}
+
       {swap && (
         <SwapModal
           titulares={titulares}
@@ -322,6 +452,73 @@ function SwapModal({ titulares, suplentes, initialTitularId, initialSuplenteId, 
           style={{ backgroundColor: '#00843D' }}
         >
           CONFIRMAR CAMBIO
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function LateCallModal({ allOfCat, alreadyConvocadosIds, onClose, onAdd }: {
+  allOfCat: { id: string; full_name: string; primary_position: Position }[]
+  alreadyConvocadosIds: string[]
+  onClose: () => void
+  onAdd: (playerId: string, reason: string) => void
+}) {
+  const [search, setSearch] = useState('')
+  const [reason, setReason] = useState('')
+  const [selectedId, setSelectedId] = useState<string>('')
+
+  const available = allOfCat.filter(p => !alreadyConvocadosIds.includes(p.id))
+  const matches = search.trim()
+    ? available.filter(p => p.full_name.toLowerCase().includes(search.toLowerCase())).slice(0, 8)
+    : available.slice(0, 8)
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-3" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="bg-white rounded-t-2xl md:rounded-2xl w-full max-w-md p-4 space-y-3 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold" style={{ fontFamily: "var(--font-barlow)" }}>LLAMADA TARDÍA</h3>
+          <button onClick={onClose}><X size={20} /></button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Sumá un jugador que no estaba en la convocatoria original. Útil cuando hay bajas de último momento.
+        </p>
+
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar por nombre" className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm" />
+        </div>
+
+        <div className="space-y-1 max-h-60 overflow-y-auto">
+          {matches.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Sin resultados</p>}
+          {matches.map(p => {
+            const sel = selectedId === p.id
+            return (
+              <button key={p.id} onClick={() => setSelectedId(p.id)}
+                className={`w-full text-left p-2 rounded-lg border-2 ${sel ? 'border-purple-500 bg-purple-50' : 'border-gray-200'}`}>
+                <p className="text-sm font-semibold">{p.full_name}</p>
+                <span className="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase text-white" style={{ backgroundColor: POSITION_COLORS[p.primary_position] }}>
+                  {POSITION_LABELS[p.primary_position]}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold mb-1 block">Motivo del llamado *</label>
+          <input type="text" required value={reason} onChange={e => setReason(e.target.value)}
+            placeholder="Ej: baja de Tomás por enfermedad" className="w-full px-3 py-2 border rounded-lg text-sm" />
+        </div>
+
+        <button
+          onClick={() => selectedId && reason && onAdd(selectedId, reason)}
+          disabled={!selectedId || !reason}
+          className="w-full py-3 rounded-xl text-white font-bold text-sm disabled:opacity-40"
+          style={{ backgroundColor: '#7c3aed' }}
+        >
+          AGREGAR A CONVOCATORIA
         </button>
       </div>
     </div>

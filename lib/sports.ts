@@ -276,3 +276,70 @@ export const ALL_SPORT_FORMATS = Object.values(SPORT_FORMATS)
 export function getSportFormat(code: SportCode): SportFormat {
   return SPORT_FORMATS[code]
 }
+
+// ──────────────────────────────────────────────────────────────────────────
+// FORMACIONES TÁCTICAS por deporte (las más usadas hoy)
+// ──────────────────────────────────────────────────────────────────────────
+export type Formation = {
+  code: string
+  label: string
+  description?: string
+  // Slots por código de posición
+  slots: Record<string, number>
+}
+
+export const FORMATIONS: Record<SportCode, Formation[]> = {
+  football_11: [
+    { code: '4-4-2',   label: '4-4-2 clásico', description: 'Equilibrio defensa/ataque', slots: { arquero: 1, defensor: 4, mediocampista: 4, delantero: 2 } },
+    { code: '4-3-3',   label: '4-3-3 ofensivo', description: 'Más presencia adelante', slots: { arquero: 1, defensor: 4, mediocampista: 3, delantero: 3 } },
+    { code: '3-5-2',   label: '3-5-2 con carrileros', description: 'Domina el medio', slots: { arquero: 1, defensor: 3, mediocampista: 5, delantero: 2 } },
+    { code: '4-5-1',   label: '4-5-1 defensivo', description: 'Control y orden', slots: { arquero: 1, defensor: 4, mediocampista: 5, delantero: 1 } },
+    { code: '5-3-2',   label: '5-3-2 ultra defensivo', description: 'Bloque bajo', slots: { arquero: 1, defensor: 5, mediocampista: 3, delantero: 2 } },
+    { code: '4-2-3-1', label: '4-2-3-1 moderno', description: 'Doble pivote + enganche', slots: { arquero: 1, defensor: 4, mediocampista: 5, delantero: 1 } },
+  ],
+  baby_5: [
+    { code: '1-1-2', label: '1-1-2 ofensivo', slots: { arquero: 1, defensor: 1, mediocampista: 1, delantero: 2 } },
+    { code: '2-1-1', label: '2-1-1 defensivo', slots: { arquero: 1, defensor: 2, mediocampista: 1, delantero: 1 } },
+    { code: '1-2-1', label: '1-2-1 medio', slots: { arquero: 1, defensor: 1, mediocampista: 2, delantero: 1 } },
+  ],
+  baby_6: [
+    { code: '2-2-1', label: '2-2-1 clásico', slots: { arquero: 1, defensor: 2, mediocampista: 2, delantero: 1 } },
+    { code: '2-1-2', label: '2-1-2 ofensivo', slots: { arquero: 1, defensor: 2, mediocampista: 1, delantero: 2 } },
+    { code: '1-3-1', label: '1-3-1 con líbero', slots: { arquero: 1, defensor: 1, mediocampista: 3, delantero: 1 } },
+  ],
+  futsal: [
+    { code: '1-2-1',   label: 'Diamante 1-2-1', slots: { arquero: 1, fijo: 1, ala: 2, pivot: 1 } },
+    { code: '2-2',     label: 'Cuadrado 2-2',    slots: { arquero: 1, fijo: 1, ala: 2, pivot: 0 } },
+    { code: '3-1',     label: '3-1 con pivote',  slots: { arquero: 1, fijo: 1, ala: 1, pivot: 1 } },
+  ],
+  hockey_field: [
+    { code: '4-3-3',  label: '4-3-3 ofensivo', slots: { arquera: 1, defensora: 4, volante: 3, delantera: 3 } },
+    { code: '4-4-2',  label: '4-4-2',           slots: { arquera: 1, defensora: 4, volante: 4, delantera: 2 } },
+    { code: '5-3-2',  label: '5-3-2 defensivo', slots: { arquera: 1, defensora: 5, volante: 3, delantera: 2 } },
+  ],
+  volleyball: [
+    { code: '5-1', label: '5-1 (1 armador)',   description: 'Sistema más usado profesional', slots: { zona_1: 1, zona_2: 1, zona_3: 1, zona_4: 1, zona_5: 1, zona_6: 1 } },
+    { code: '6-2', label: '6-2 (2 armadores)', description: 'Más opciones de ataque',         slots: { zona_1: 1, zona_2: 1, zona_3: 1, zona_4: 1, zona_5: 1, zona_6: 1 } },
+    { code: '4-2', label: '4-2 (formativas)',  description: 'Sistema simple para iniciación', slots: { zona_1: 1, zona_2: 1, zona_3: 1, zona_4: 1, zona_5: 1, zona_6: 1 } },
+  ],
+  basketball: [
+    { code: 'standard',    label: 'Estándar',           description: '1 base, 1 escolta, 1 alero, 1 ala-pívot, 1 pívot', slots: { base: 1, escolta: 1, alero: 1, ala_pivot: 1, pivot: 1 } },
+    { code: 'small_ball',  label: 'Small ball',         description: 'Sin pívot — quinteto rápido',                       slots: { base: 1, escolta: 1, alero: 2, ala_pivot: 1, pivot: 0 } },
+    { code: 'two_bigs',    label: '2 bigs',             description: 'Dos altos en la pintura',                            slots: { base: 1, escolta: 1, alero: 1, ala_pivot: 1, pivot: 1 } },
+  ],
+  rugby_7: [
+    { code: '3-1-3', label: 'Estándar 7s', slots: { forward: 3, medio: 1, back: 3 } },
+  ],
+  rugby_15: [
+    { code: 'estandar', label: 'Estándar 15', slots: { pilar: 3, segunda_linea: 2, tercera_linea: 3, medio_apertura: 2, centro: 2, wing_fullback: 3 } },
+  ],
+  handball_7: [
+    { code: '3-3', label: '3-3 ataque', slots: { arquero: 1, central: 1, lateral: 2, extremo: 2, pivote: 1 } },
+    { code: '5-1', label: '5-1 defensa', slots: { arquero: 1, central: 1, lateral: 2, extremo: 2, pivote: 1 } },
+  ],
+}
+
+export function getDefaultFormation(code: SportCode): Formation {
+  return FORMATIONS[code][0]
+}
+
