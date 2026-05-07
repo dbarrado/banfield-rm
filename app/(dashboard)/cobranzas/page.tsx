@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Wallet, AlertCircle, MessageCircle, RefreshCw, Settings, Mail } from 'lucide-react'
 import Link from 'next/link'
 import { demoPlayers, demoCategories } from '@/lib/demo-data'
+import { useCurrentClub } from '@/lib/use-current-club'
 import {
   generateBillingsForPeriod,
   loadBillingConfig,
@@ -23,8 +24,17 @@ const FILTERS: { key: 'all' | BillingStatus; label: string }[] = [
 ]
 
 export default function CobranzasPage() {
+  const club = useCurrentClub()
   const today = new Date()
   const period = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+
+  function buildReminderMessage(playerName: string, debt: number, deadlineDay: number) {
+    return `Hola, nos comunicamos desde ${club.name} para informarle que el jugador/a ${playerName} tiene una deuda pendiente de $${debt.toLocaleString('es-AR')}.
+
+Le recordamos que la fecha límite para abonar es hasta el día ${deadlineDay} de cada mes. Le agradecemos que pase a abonarlo a la brevedad.
+
+Muchas gracias.`
+  }
 
   const [cfg, setCfg] = useState(() => loadBillingConfig())
   const [billings, setBillings] = useState<Billing[]>([])
@@ -215,7 +225,7 @@ export default function CobranzasPage() {
                 </div>
                 {b.status !== 'paid' && (
                   <a
-                    href={`https://wa.me/?text=${encodeURIComponent(`Hola ${player?.tutor_name ?? ''}, recordatorio de cuota ${period} pendiente: $${(b.amount_final + b.late_fee_amount).toLocaleString('es-AR')}.`)}`}
+                    href={`https://wa.me/${(player?.tutor_whatsapp ?? '').replace(/\D/g, '')}?text=${encodeURIComponent(buildReminderMessage(player?.full_name ?? '', b.amount_final + b.late_fee_amount, cfg.overdue_day - 1))}`}
                     target="_blank" rel="noreferrer"
                     className="p-1.5 rounded-lg text-green-600 hover:bg-green-50 flex-shrink-0"
                     title="WhatsApp"
