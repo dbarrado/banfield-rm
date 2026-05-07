@@ -2,11 +2,12 @@
 
 import { useState } from 'react'
 import { ClubSwitcher } from './club-switcher'
-import { useActiveRole, ROLE_LABELS, type ActiveRole } from '@/lib/use-role'
+import { useActiveRole, useUserRoles, ROLE_LABELS, type ActiveRole } from '@/lib/use-role'
 import { ChevronDown, Check } from 'lucide-react'
 
 export function TopBar() {
   const [activeRole, setActiveRole] = useActiveRole()
+  const userRoles = useUserRoles()
   const [open, setOpen] = useState(false)
   const role = ROLE_LABELS[activeRole]
 
@@ -32,7 +33,8 @@ export function TopBar() {
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Cambiar rol</p>
               </div>
               <div>
-                {(Object.entries(ROLE_LABELS) as [ActiveRole, typeof role][]).map(([key, info]) => {
+                {userRoles.map(key => {
+                  const info = ROLE_LABELS[key]
                   const isCurrent = key === activeRole
                   return (
                     <button

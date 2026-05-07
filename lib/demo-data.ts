@@ -324,9 +324,9 @@ function generatePayments(): Payment[] {
   const payments: Payment[] = []
   let payId = 1
   for (const player of demoPlayers) {
-    // 78% pagó la cuota de este mes; el resto deudor
+    // 72% pagó la cuota de este mes (~20M); el resto deudor
     const r = rand()
-    if (r < 0.78) {
+    if (r < 0.72) {
       const day = Math.floor(rand() * 5) + 1
       payments.push({
         id: `pay-${payId++}`,
@@ -341,8 +341,8 @@ function generatePayments(): Payment[] {
         created_at: `2026-05-${String(day).padStart(2, '0')}`,
       })
     }
-    // Mes pasado: 95% pagó
-    if (rand() < 0.95) {
+    // Mes pasado: 88% pagó (~24.5M, comparativo con caída -18%)
+    if (rand() < 0.88) {
       const day = Math.floor(rand() * 28) + 1
       payments.push({
         id: `pay-${payId++}`,

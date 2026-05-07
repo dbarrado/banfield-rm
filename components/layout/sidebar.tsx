@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useCurrentClub } from '@/lib/use-current-club'
-import { useActiveRole, ROLE_NAV_ITEMS } from '@/lib/use-role'
+import { useActiveRole, getRoleNavItems } from '@/lib/use-role'
 import {
   LayoutDashboard,
   Users,
@@ -26,18 +26,23 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 
-// Items principales (siempre en bottom-nav mobile)
-const primaryItems = [
+type NavItem = {
+  href: string
+  icon: typeof LayoutDashboard
+  label: string
+  proOnly?: boolean
+}
+
+const allItems: NavItem[] = [
+  // Primarios
   { href: '/dashboard', icon: LayoutDashboard, label: 'Inicio' },
   { href: '/socios', icon: Users, label: 'Socios' },
   { href: '/asistencia', icon: ClipboardList, label: 'Asistencia' },
   { href: '/caja', icon: Wallet, label: 'Caja' },
-]
-
-// Items secundarios (en desktop sidebar y en sheet "Más" de mobile)
-const secondaryItems = [
+  // Secundarios
   { href: '/convocatoria', icon: Trophy, label: 'Convocatoria' },
   { href: '/fixture', icon: Calendar, label: 'Fixture' },
+  { href: '/partidos', icon: Trophy, label: 'Partidos' },
   { href: '/finanzas', icon: TrendingUp, label: 'Finanzas' },
   { href: '/reportes', icon: BarChart3, label: 'Reportes', proOnly: true },
   { href: '/tienda', icon: ShoppingBag, label: 'Tienda', proOnly: true },
@@ -45,8 +50,6 @@ const secondaryItems = [
   { href: '/invitar', icon: Gift, label: 'Invitar' },
   { href: '/config', icon: Settings, label: 'Config' },
 ]
-
-const allItems = [...primaryItems, ...secondaryItems]
 
 export function Sidebar() {
   const pathname = usePathname()
@@ -57,14 +60,18 @@ export function Sidebar() {
   const [sheetOpen, setSheetOpen] = useState(false)
   const initials = club.short_name.split(' ').map(w => w[0]).join('').slice(0, 3).toUpperCase()
 
-  // Filtrar items según el rol activo
-  const allowedPaths = new Set([
-    ...ROLE_NAV_ITEMS[activeRole].primary,
-    ...ROLE_NAV_ITEMS[activeRole].secondary,
-  ])
-  const filteredPrimary = primaryItems.filter(i => ROLE_NAV_ITEMS[activeRole].primary.includes(i.href))
-  const filteredSecondary = secondaryItems.filter(i => ROLE_NAV_ITEMS[activeRole].secondary.includes(i.href))
-  const filteredAll = allItems.filter(i => allowedPaths.has(i.href))
+  // Filtrar items según el rol activo + día de la semana
+  const todayDow = new Date().getDay()
+  const navConfig = getRoleNavItems(activeRole, todayDow)
+  const allowedPaths = new Set([...navConfig.primary, ...navConfig.secondary])
+  // Mantener el ORDEN definido por el rol (no el orden de la lista global)
+  const filteredPrimary = navConfig.primary
+    .map(p => allItems.find(i => i.href === p))
+    .filter((x): x is typeof allItems[number] => Boolean(x))
+  const filteredSecondary = navConfig.secondary
+    .map(p => allItems.find(i => i.href === p))
+    .filter((x): x is typeof allItems[number] => Boolean(x))
+  const filteredAll = [...filteredPrimary, ...filteredSecondary]
 
   async function handleLogout() {
     await supabase.auth.signOut()

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, MapPin, Trophy, Plus, X, CloudRain, Edit2 } from 'lucide-react'
-import { demoEvents, demoCategories } from '@/lib/demo-data'
+import { demoEvents, demoCategories, demoPlayers } from '@/lib/demo-data'
 import { TIRA_LABELS, TIRA_COLORS } from '@/types'
 
 type FixtureMatch = {
@@ -115,77 +115,212 @@ export default function FixturePage() {
         })}
       </div>
 
-      {showAdd && <NewMatchModal onClose={() => setShowAdd(false)} onSubmit={(m) => { setMatches([...matches, { ...m, id: `ev-new-${matches.length + 1}` }]); setShowAdd(false); }} />}
+      {showAdd && (
+        <NewMatchModal
+          onClose={() => setShowAdd(false)}
+          onSubmit={(newMatches) => {
+            const withIds = newMatches.map((m, i) => ({ ...m, id: `ev-new-${Date.now()}-${i}` }))
+            setMatches([...matches, ...withIds])
+            setShowAdd(false)
+          }}
+        />
+      )}
       {reprogramming && <RescheduleModal match={reprogramming} onClose={() => setReprogramming(null)} onConfirm={handleReschedule} />}
     </div>
   )
 }
 
-function NewMatchModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (m: any) => void }) {
-  const [form, setForm] = useState({
-    category_id: demoCategories[0].id,
-    rival: '',
-    date: '',
-    time: '10:00',
-    is_home: true,
-    venue: 'Predio Banfield Ramos Mejía',
-  })
+function NewMatchModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (matches: any[]) => void }) {
+  const ALL_TIRAS: ('metro' | 'liga1' | 'liga2' | 'edefi')[] = ['metro', 'liga1', 'liga2', 'edefi']
+  const [tira, setTira] = useState<'metro' | 'liga1' | 'liga2' | 'edefi'>('metro')
+  const [rival, setRival] = useState('')
+  const [date, setDate] = useState('')
+  const [isHome, setIsHome] = useState(true)
+  const [venue, setVenue] = useState('Predio Banfield Ramos Mejía')
+  const [address, setAddress] = useState('Av. Rivadavia 14250, Ramos Mejía')
+  const [shareLink, setShareLink] = useState('')
+
+  // Categorías que tienen jugadores en esa tira
+  const categoriesInTira = demoCategories.filter(c =>
+    c.is_active && demoPlayers.some(p => p.category_id === c.id && p.tira === tira)
+  )
+
+  // Horarios default — secuencia típica de un sábado por la mañana, escalonado por categoría
+  const DEFAULT_HOMES = ['09:00', '09:45', '10:30', '11:15', '12:00', '12:45', '13:30', '14:15']
+  const DEFAULT_AWAY  = ['10:00', '10:45', '11:30', '12:15', '13:00', '13:45', '14:30', '15:15']
+
+  // Map: catId → time
+  const [times, setTimes] = useState<Record<string, string>>({})
+
+  // Inicializar/actualizar horarios al cambiar tira o local/visitante
+  function recomputeDefaultTimes() {
+    const defaults = isHome ? DEFAULT_HOMES : DEFAULT_AWAY
+    const next: Record<string, string> = {}
+    categoriesInTira.forEach((c, i) => {
+      next[c.id] = defaults[i] ?? defaults[defaults.length - 1]
+    })
+    setTimes(next)
+  }
+
+  // Actualizar default cuando cambian inputs clave
+  if (Object.keys(times).length === 0 && categoriesInTira.length > 0) {
+    recomputeDefaultTimes()
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    onSubmit({
-      category_id: form.category_id,
-      rival: form.rival,
-      scheduled_at: `${form.date}T${form.time}:00`,
-      is_home: form.is_home,
-      venue: form.venue,
+    if (categoriesInTira.length === 0) return
+    const matches = categoriesInTira.map(c => ({
+      category_id: c.id,
+      rival,
+      scheduled_at: `${date}T${times[c.id] ?? '10:00'}:00`,
+      is_home: isHome,
+      venue,
       is_suspended: false,
-    })
+    }))
+    onSubmit(matches)
+  }
+
+  function generateMapLink() {
+    if (!address.trim()) return
+    const link = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
+    setShareLink(link)
+  }
+
+  function shareWA() {
+    const baseLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
+    const msg = `📍 ${venue}\n${address}\n\n${baseLink}`
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
   }
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-3" onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} className="bg-white rounded-t-2xl md:rounded-2xl w-full max-w-md p-4 space-y-3">
+      <div onClick={e => e.stopPropagation()} className="bg-white rounded-t-2xl md:rounded-2xl w-full max-w-md p-4 space-y-3 max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold" style={{ fontFamily: "var(--font-barlow)" }}>NUEVO PARTIDO</h3>
+          <h3 className="text-lg font-bold" style={{ fontFamily: "var(--font-barlow)" }}>NUEVO PARTIDO POR TIRA</h3>
           <button onClick={onClose}><X size={20} /></button>
         </div>
+        <p className="text-[11px] text-muted-foreground">
+          Crea un partido para cada categoría de la tira que juega el mismo día contra el mismo rival.
+        </p>
+
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="text-xs font-semibold mb-1 block">Categoría *</label>
-            <select value={form.category_id} onChange={e => setForm({ ...form, category_id: e.target.value })} className="w-full px-3 py-2.5 border rounded-lg text-sm">
-              {demoCategories.filter(c => c.is_active).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <label className="text-xs font-semibold mb-1 block">Tira *</label>
+            <div className="grid grid-cols-2 gap-1.5">
+              {ALL_TIRAS.map(t => {
+                const sel = tira === t
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => { setTira(t); setTimes({}); }}
+                    className={`py-2 rounded-lg text-sm font-bold border-2 ${sel ? 'text-white border-transparent' : 'border-gray-200'}`}
+                    style={sel ? { backgroundColor: TIRA_COLORS[t] } : {}}
+                  >
+                    {TIRA_LABELS[t]}
+                  </button>
+                )
+              })}
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Se crearán {categoriesInTira.length} partido{categoriesInTira.length === 1 ? '' : 's'}: {categoriesInTira.map(c => c.name).join(', ')}
+            </p>
           </div>
+
           <div>
             <label className="text-xs font-semibold mb-1 block">Rival *</label>
-            <input type="text" required value={form.rival} onChange={e => setForm({ ...form, rival: e.target.value })}
-              placeholder="Ej: Deportivo Norte" className="w-full px-3 py-2.5 border rounded-lg text-sm" />
+            <input type="text" required value={rival} onChange={e => setRival(e.target.value)}
+              placeholder="Ej: Independiente" className="w-full px-3 py-2.5 border rounded-lg text-sm" />
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs font-semibold mb-1 block">Fecha *</label>
-              <input type="date" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className="w-full px-3 py-2.5 border rounded-lg text-sm" />
+
+          <div>
+            <label className="text-xs font-semibold mb-1 block">Fecha *</label>
+            <input type="date" required value={date} onChange={e => setDate(e.target.value)} className="w-full px-3 py-2.5 border rounded-lg text-sm" />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold mb-1 block">¿Local o visitante?</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => { setIsHome(true); setTimes({}); }}
+                className={`py-2 rounded-lg text-sm font-semibold border-2 ${isHome ? 'text-white border-transparent' : 'border-gray-200'}`}
+                style={isHome ? { backgroundColor: '#00843D' } : {}}>🏠 Local</button>
+              <button type="button" onClick={() => { setIsHome(false); setTimes({}); }}
+                className={`py-2 rounded-lg text-sm font-semibold border-2 ${!isHome ? 'text-white border-transparent' : 'border-gray-200'}`}
+                style={!isHome ? { backgroundColor: '#1d4ed8' } : {}}>✈️ Visitante</button>
             </div>
-            <div>
-              <label className="text-xs font-semibold mb-1 block">Hora *</label>
-              <input type="time" required value={form.time} onChange={e => setForm({ ...form, time: e.target.value })} className="w-full px-3 py-2.5 border rounded-lg text-sm" />
-            </div>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => setForm({ ...form, is_home: true })}
-              className={`py-2 rounded-lg text-sm font-semibold border ${form.is_home ? 'text-white border-transparent' : 'border-gray-200'}`}
-              style={form.is_home ? { backgroundColor: '#00843D' } : {}}>🏠 Local</button>
-            <button type="button" onClick={() => setForm({ ...form, is_home: false })}
-              className={`py-2 rounded-lg text-sm font-semibold border ${!form.is_home ? 'text-white border-transparent' : 'border-gray-200'}`}
-              style={!form.is_home ? { backgroundColor: '#1d4ed8' } : {}}>✈️ Visitante</button>
-          </div>
+
           <div>
             <label className="text-xs font-semibold mb-1 block">Sede</label>
-            <input type="text" value={form.venue} onChange={e => setForm({ ...form, venue: e.target.value })} className="w-full px-3 py-2.5 border rounded-lg text-sm" />
+            <input type="text" value={venue} onChange={e => setVenue(e.target.value)} className="w-full px-3 py-2.5 border rounded-lg text-sm" />
           </div>
-          <button type="submit" className="w-full py-3 rounded-xl text-white font-bold text-sm" style={{ backgroundColor: '#00843D' }}>
-            CREAR PARTIDO
+
+          <div className="space-y-1.5 bg-blue-50 border border-blue-200 rounded-lg p-2.5">
+            <label className="text-xs font-semibold flex items-center gap-1">
+              <MapPin size={12} className="text-blue-600" /> Dirección (Google Maps)
+            </label>
+            <input type="text" value={address} onChange={e => setAddress(e.target.value)}
+              placeholder="Av. Rivadavia 14250, Ramos Mejía" className="w-full px-3 py-2 border rounded text-xs" />
+            <div className="flex gap-1.5">
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`}
+                target="_blank" rel="noopener noreferrer"
+                className="flex-1 text-center py-1.5 rounded text-xs font-semibold bg-blue-600 text-white"
+              >
+                🗺️ Ver en Maps
+              </a>
+              <button
+                type="button"
+                onClick={shareWA}
+                className="flex-1 py-1.5 rounded text-xs font-semibold bg-green-600 text-white"
+              >
+                💬 Compartir por WhatsApp
+              </button>
+            </div>
+          </div>
+
+          {/* Horarios por categoría */}
+          {categoriesInTira.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold">Horarios por categoría</label>
+                <span className="text-[10px] text-muted-foreground">
+                  {isHome ? 'Default local' : 'Default visitante'}
+                </span>
+              </div>
+              <div className="space-y-1.5 bg-gray-50 rounded-lg p-2">
+                {categoriesInTira.map(c => (
+                  <div key={c.id} className="flex items-center gap-2">
+                    <span className="text-xs font-semibold w-12">Cat. {c.name}</span>
+                    <input
+                      type="time"
+                      value={times[c.id] ?? '10:00'}
+                      onChange={e => setTimes({ ...times, [c.id]: e.target.value })}
+                      className="flex-1 px-2 py-1 border rounded text-sm"
+                    />
+                    <span className="text-[10px] text-muted-foreground">
+                      {c.sport_format_code === 'baby_5' ? 'Baby 5' :
+                       c.sport_format_code === 'baby_6' ? 'Baby 6' :
+                       c.sport_format_code === 'football_11' ? 'Fútbol 11' :
+                       c.sport_format_code ?? '—'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1 italic">
+                Default basado en horarios típicos de la última fecha como {isHome ? 'local' : 'visitante'}.
+              </p>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={!rival || !date || categoriesInTira.length === 0}
+            className="w-full py-3 rounded-xl text-white font-bold text-sm disabled:opacity-40"
+            style={{ backgroundColor: '#00843D' }}
+          >
+            CREAR {categoriesInTira.length} PARTIDO{categoriesInTira.length === 1 ? '' : 'S'}
           </button>
         </form>
       </div>
