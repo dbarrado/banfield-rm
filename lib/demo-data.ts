@@ -196,23 +196,71 @@ function generateEvents(): Event[] {
       }
     }
 
-    // Próximo partido (sábado o domingo siguiente)
-    const matchDate = new Date(today)
-    matchDate.setDate(today.getDate() + (6 - today.getDay()) + (cat.birth_year % 2 === 0 ? 0 : 1))
-    const rivales = ['Deportivo Norte','Atlético San Justo','Club Italiano','Vélez Junior','Boca Ramos','River Sub','Lanús Niño','Independiente Mini']
+    // Los partidos se generan después en bloque (uno por tira, todas las categorías de esa tira juegan al mismo rival)
+    if (false) {
     events.push({
       id: `ev-${evId++}`,
       category_id: cat.id,
       event_type: 'match',
-      scheduled_at: `${matchDate.toISOString().split('T')[0]}T${cat.birth_year % 2 === 0 ? '10:00' : '11:30'}:00`,
+      scheduled_at: today.toISOString(),
       is_suspended: false,
       suspension_reason: null,
-      rival: rivales[(cat.birth_year - 2010) % rivales.length],
-      venue: cat.birth_year % 2 === 0 ? 'Predio Banfield Ramos Mejía' : 'Cancha del rival',
-      is_home: cat.birth_year % 2 === 0,
+      rival: null,
+      venue: null,
+      is_home: null,
       created_by: null,
       created_at: '2026-04-25',
     })
+    }
+  }
+
+  // ─── PARTIDOS POR TIRA ───
+  // Los próximos 4 fines de semana, cada tira juega contra 1 rival distinto.
+  // Todas las categorías que tienen esa tira juegan al mismo rival ese día.
+  const tiraRivales: Record<string, string[]> = {
+    metro:  ['Independiente', 'Lanús', 'Argentinos', 'Estudiantes (LP)'],
+    liga1:  ['Acassuso', 'Talleres (RE)', 'Tigre', 'Almagro'],
+    liga2:  ['Sacachispas', 'San Telmo', 'Defensores Unidos', 'Excursionistas'],
+    edefi:  ['Liniers', 'Ferro Mini', 'Brown (A)', 'Comunicaciones'],
+  }
+  const allTiras: ('metro'|'liga1'|'liga2'|'edefi')[] = ['metro', 'liga1', 'liga2', 'edefi']
+
+  for (let weekOffset = 1; weekOffset <= 4; weekOffset++) {
+    // Sábado del weekOffset
+    const matchDate = new Date(today)
+    matchDate.setDate(today.getDate() + (6 - today.getDay()) + (weekOffset - 1) * 7)
+    const dateStr = matchDate.toISOString().split('T')[0]
+
+    for (const tira of allTiras) {
+      // Categorías que tienen esta tira
+      const catsWithTira = demoCategories.filter(c => {
+        const dist = distribucion[c.id]
+        return dist && dist.tiras.includes(tira)
+      })
+      if (catsWithTira.length === 0) continue
+
+      const rival = tiraRivales[tira][weekOffset - 1]
+      const isHome = weekOffset % 2 === 1
+      const venue = isHome ? 'Predio Banfield Ramos Mejía' : `Cancha de ${rival}`
+
+      // Una hora distinta por categoría dentro del mismo día
+      const horarios = ['09:00','09:45','10:30','11:15','12:00','12:45','13:30','14:15','15:00']
+      catsWithTira.forEach((cat, idx) => {
+        events.push({
+          id: `ev-match-${weekOffset}-${tira}-${cat.id}`,
+          category_id: cat.id,
+          event_type: 'match',
+          scheduled_at: `${dateStr}T${horarios[idx]}:00`,
+          is_suspended: false,
+          suspension_reason: null,
+          rival,
+          venue,
+          is_home: isHome,
+          created_by: null,
+          created_at: '2026-04-25',
+        })
+      })
+    }
   }
   return events
 }

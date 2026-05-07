@@ -9,6 +9,7 @@ import {
   getPlayerDebts,
   thisMonth,
 } from '@/lib/demo-data'
+import { TIRA_LABELS, TIRA_COLORS, type Tira } from '@/types'
 
 export default function DashboardPage() {
   const totalSocios = demoPlayers.filter(p => p.is_active).length
@@ -17,17 +18,49 @@ export default function DashboardPage() {
   const cuotaActividad = 62000
   const target = cuotaActividad * totalSocios
   const incomePercent = Math.round((monthlyIncome / target) * 100)
-  // Próximos partidos: el más próximo de cada categoría/tira (hasta 6)
+  // Próximos partidos agrupados: por (fecha, rival, tira) — todas las categorías que juegan ese día contra ese rival con esa tira
+  const today = new Date('2026-05-07')
   const allUpcoming = demoEvents
-    .filter(e => e.event_type === 'match' && !e.is_suspended && new Date(e.scheduled_at) > new Date('2026-05-05'))
+    .filter(e => e.event_type === 'match' && !e.is_suspended && new Date(e.scheduled_at) > today)
     .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
-  const upcomingMatches = allUpcoming.slice(0, 6).map(m => ({
-    id: m.id,
-    scheduled_at: m.scheduled_at,
-    rival: m.rival,
-    is_home: m.is_home,
-    category: demoCategories.find(c => c.id === m.category_id),
-  }))
+
+  // Para cada match, determinar la tira mirando los jugadores de la categoría
+  type GroupedMatch = {
+    key: string
+    date: string
+    rival: string | null
+    is_home: boolean | null
+    tira: Tira | null
+    venue: string | null
+    categories: { id: string; name: string; matchId: string; time: string }[]
+  }
+  const groupsMap = new Map<string, GroupedMatch>()
+  for (const m of allUpcoming) {
+    const dateOnly = m.scheduled_at.split('T')[0]
+    const time = m.scheduled_at.split('T')[1]?.slice(0, 5) ?? '—'
+    // Inferir tira: la mayoría de la categoría
+    const playersOfCat = demoPlayers.filter(p => p.category_id === m.category_id)
+    const tiraCount: Record<string, number> = {}
+    for (const p of playersOfCat) tiraCount[p.tira] = (tiraCount[p.tira] || 0) + 1
+    // Inferir tira por id del evento si tiene patrón
+    const tiraFromId = m.id.match(/ev-match-\d+-(\w+)-/)?.[1] as Tira | undefined
+    const tira = tiraFromId ?? (Object.entries(tiraCount).sort((a, b) => b[1] - a[1])[0]?.[0] as Tira | null)
+    const key = `${dateOnly}-${m.rival}-${tira}`
+    const cat = demoCategories.find(c => c.id === m.category_id)
+    if (!groupsMap.has(key)) {
+      groupsMap.set(key, {
+        key,
+        date: dateOnly,
+        rival: m.rival,
+        is_home: m.is_home,
+        tira,
+        venue: m.venue,
+        categories: [],
+      })
+    }
+    groupsMap.get(key)!.categories.push({ id: m.category_id, name: cat?.name ?? '—', matchId: m.id, time })
+  }
+  const groupedMatches = Array.from(groupsMap.values()).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 8)
   const deudoresCount = getPlayerDebts(demoPlayers, demoPayments).length
 
   const quickActions = [
@@ -118,43 +151,53 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: '#1d4ed8' }}>
-              {upcomingMatches.length}
+              {groupedMatches.length}
             </p>
-            <p className="text-xs text-muted-foreground">programados</p>
+            <p className="text-xs text-muted-foreground">próximos rivales</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Próximos partidos detalle */}
-      {upcomingMatches.length > 0 && (
+      {/* Próximos partidos agrupados por tira/rival */}
+      {groupedMatches.length > 0 && (
         <div>
           <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-2" style={{ fontFamily: "var(--font-barlow)" }}>
             PRÓXIMOS PARTIDOS
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-            {upcomingMatches.map(m => {
-              const date = new Date(m.scheduled_at)
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {groupedMatches.map(g => {
+              const date = new Date(g.date)
+              const tiraColor = g.tira ? TIRA_COLORS[g.tira] : '#9ca3af'
+              const tiraLabel = g.tira ? TIRA_LABELS[g.tira] : '—'
               return (
-                <Link key={m.id} href={`/partidos/${m.id}`}>
-                  <Card className="border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-                    <CardContent className="p-3">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: '#00843D20', color: '#00843D' }}>
-                          Cat. {m.category?.name ?? '—'}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground">
-                          {m.is_home ? '🏠 Local' : '✈️ Visitante'}
-                        </span>
-                      </div>
-                      <p className="text-sm font-bold truncate" style={{ fontFamily: "var(--font-barlow)" }}>
-                        vs. {m.rival ?? 'Por definir'}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        📅 {date.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })} — {date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    </CardContent>
-                  </Card>
-                </Link>
+                <Card key={g.key} className="border-0 shadow-sm" style={{ borderLeft: `4px solid ${tiraColor}` }}>
+                  <CardContent className="p-3 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded text-white" style={{ backgroundColor: tiraColor }}>
+                        {tiraLabel}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {g.is_home ? '🏠 Local' : '✈️ Visitante'}
+                      </span>
+                    </div>
+                    <p className="text-base font-bold leading-tight" style={{ fontFamily: "var(--font-barlow)" }}>
+                      vs. {g.rival ?? 'Por definir'}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground capitalize">
+                      📅 {date.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    </p>
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      <span className="text-[10px] uppercase font-semibold text-muted-foreground mr-1">Categorías:</span>
+                      {g.categories.map(c => (
+                        <Link key={c.matchId} href={`/partidos/${c.matchId}`}>
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded border hover:bg-gray-100" style={{ borderColor: tiraColor, color: tiraColor }}>
+                            {c.name} · {c.time}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
               )
             })}
           </div>
