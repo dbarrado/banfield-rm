@@ -60,6 +60,25 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
   const [currentFormation, setCurrentFormation] = useState<Formation>(formations[0] ?? getDefaultFormation(sportCode))
   // Drag & drop
   const [draggingId, setDraggingId] = useState<string | null>(null)
+  // Tap-to-swap: selección persistente para móvil (drag no funciona bien en touch)
+  const [tapSelectedId, setTapSelectedId] = useState<string | null>(null)
+
+  function handleTapPlayer(playerId: string) {
+    if (!tapSelectedId) {
+      setTapSelectedId(playerId)
+      return
+    }
+    if (tapSelectedId === playerId) {
+      setTapSelectedId(null)
+      return
+    }
+    // Intercambiar usando la lógica existente
+    setDraggingId(tapSelectedId)
+    setTimeout(() => {
+      handleDrop(playerId)
+      setTapSelectedId(null)
+    }, 0)
+  }
 
   function handleDrop(targetPlayerId: string) {
     if (!draggingId || draggingId === targetPlayerId) {
@@ -158,6 +177,20 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
       </div>
 
       <div className="p-3 space-y-3 -mt-3">
+        {/* Banner de tap-to-swap */}
+        {tapSelectedId && (() => {
+          const sel = [...titulares, ...suplentes].find(pl => pl.id === tapSelectedId)
+          return (
+            <div className="sticky top-0 z-40 -mx-3 px-3 py-2 bg-amber-400 text-amber-950 shadow-lg flex items-center gap-2">
+              <span className="text-xs font-bold flex-1">
+                Cambiando: <strong>{sel?.full_name ?? '?'}</strong> · Tocá otro jugador para intercambiar
+              </span>
+              <button onClick={() => setTapSelectedId(null)} className="text-xs font-bold px-2 py-1 rounded bg-amber-950 text-amber-100">
+                Cancelar
+              </button>
+            </div>
+          )
+        })()}
         {/* Acciones */}
         <div className="grid grid-cols-3 gap-2">
           <Link href={`/convocatoria?event=${id}`}>
@@ -252,6 +285,7 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
                 const x = ((i + 1) / (players.length + 1)) * 100
                 const card = cards[p.id]
                 const isDragging = draggingId === p.id
+                const isTapSelected = tapSelectedId === p.id
                 return (
                   <div
                     key={p.id}
@@ -262,10 +296,10 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
                     onDragEnd={() => setDraggingId(null)}
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={() => handleDrop(p.id)}
-                    onClick={() => setSwap({ titularId: p.id })}
+                    onClick={() => handleTapPlayer(p.id)}
                   >
                     <div
-                      className={`w-12 h-12 rounded-full bg-white border-2 shadow-lg overflow-hidden relative cursor-grab active:cursor-grabbing transition-transform ${isDragging ? 'opacity-40 scale-110' : 'hover:scale-105'}`}
+                      className={`w-12 h-12 rounded-full bg-white border-2 shadow-lg overflow-hidden relative cursor-pointer transition-transform ${isDragging ? 'opacity-40 scale-110' : 'hover:scale-105'} ${isTapSelected ? 'ring-4 ring-amber-400 scale-110' : ''}`}
                       style={{ borderColor: POSITION_COLORS[p.primary_position] }}
                     >
                       <img src={getAvatarUrl(p)} alt={p.full_name} className="w-full h-full object-cover" draggable={false} />
@@ -293,14 +327,15 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
             return (
               <Card
                 key={p.id}
-                className={`border-0 shadow-sm ${isLateCall ? 'bg-purple-50' : 'bg-amber-50'} ${draggingId === p.id ? 'opacity-40' : ''}`}
+                className={`border-0 shadow-sm ${isLateCall ? 'bg-purple-50' : 'bg-amber-50'} ${draggingId === p.id ? 'opacity-40' : ''} ${tapSelectedId === p.id ? 'ring-4 ring-amber-400' : ''}`}
                 draggable
                 onDragStart={() => setDraggingId(p.id)}
                 onDragEnd={() => setDraggingId(null)}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => handleDrop(p.id)}
+                onClick={() => handleTapPlayer(p.id)}
               >
-                <CardContent className="p-2 flex items-center gap-2.5 cursor-grab active:cursor-grabbing">
+                <CardContent className="p-2 flex items-center gap-2.5 cursor-pointer">
                   <div className="w-9 h-9 rounded-full overflow-hidden border-2 flex-shrink-0 relative bg-white" style={{ borderColor: POSITION_COLORS[p.primary_position] }}>
                     <img src={getAvatarUrl(p)} alt={p.full_name} className="w-full h-full object-cover" />
                     {card === 'yellow' && <span className="absolute -top-1 -right-1 w-3 h-4 rounded-sm bg-yellow-400 border border-yellow-600 z-10" />}
@@ -321,7 +356,7 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
                     )}
                   </div>
                   <button
-                    onClick={() => setSwap({ suplenteId: p.id })}
+                    onClick={(e) => { e.stopPropagation(); setSwap({ suplenteId: p.id }) }}
                     className="text-xs px-2 py-1 rounded text-white font-semibold flex items-center gap-1 flex-shrink-0"
                     style={{ backgroundColor: '#00843D' }}
                   >
