@@ -3,10 +3,11 @@
 import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ClipboardList, CheckCircle2, XCircle, AlertCircle, User, Lock, Unlock, Clock, Radio, Plus, X, Search, UserPlus } from 'lucide-react'
+import { ClipboardList, CheckCircle2, XCircle, AlertCircle, User, Lock, Unlock, Clock, Radio, Plus, X, Search, UserPlus, MapPin, Sparkles } from 'lucide-react'
 import { demoPlayers, demoCategories, demoProfes, getAssignmentsForProfe, getProfesForTira } from '@/lib/demo-data'
 import { TIRA_LABELS, TIRA_COLORS, type Tira } from '@/types'
 import { getSessionsForDay, TIRA_GROUPS, tiraGroupOf } from '@/lib/training-schedule'
+import { getActiveSlotForNow, getNextSlotForDay, type TrainingSlot } from '@/lib/training-roster'
 import { getAvatarUrl } from '@/lib/avatars'
 
 type AttendanceStatus = 'present' | 'absent_unjustified' | 'absent_justified'
@@ -32,11 +33,27 @@ export default function AsistenciaPage() {
   const initialGroup = liveSession?.group ?? upcomingSession?.group ?? 'group-a'
   const initialTira = (TIRA_GROUPS.find(g => g.id === initialGroup)?.tiras[0]) ?? 'metro'
 
+  // ¿Hay slot del cronograma cargable ahora o próximamente?
+  const activeSlot = getActiveSlotForNow(now)
+  const nextSlot = activeSlot ?? getNextSlotForDay(now)
+  const [usedSlot, setUsedSlot] = useState(false)
+  const [dismissedSlot, setDismissedSlot] = useState(false)
+
   // Multi-select: el profe arma la sesión real (sin rigidez de turno)
-  const [selectedProfe, setSelectedProfe] = useState<string>('')
-  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set([initialCategory]))
-  const initialTiras = (TIRA_GROUPS.find(g => g.id === initialGroup)?.tiras ?? ['metro']) as Tira[]
+  const [selectedProfe, setSelectedProfe] = useState<string>(nextSlot?.profe_titular_id ?? '')
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
+    new Set(nextSlot?.category_ids ?? [initialCategory])
+  )
+  const initialTiras = (nextSlot?.tiras ?? TIRA_GROUPS.find(g => g.id === initialGroup)?.tiras ?? ['metro']) as Tira[]
   const [selectedTiras, setSelectedTiras] = useState<Set<Tira>>(new Set(initialTiras))
+
+  function loadSlot(slot: TrainingSlot) {
+    setSelectedCategories(new Set(slot.category_ids))
+    setSelectedTiras(new Set(slot.tiras))
+    setSelectedProfe(slot.profe_titular_id ?? '')
+    setUsedSlot(true)
+    setAttendance({})
+  }
   const sessionColor = Array.from(selectedTiras)[0] ? TIRA_COLORS[Array.from(selectedTiras)[0]] : 'var(--club-primary, #00843D)'
   const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({})
   const [closed, setClosed] = useState(false)
@@ -174,6 +191,59 @@ export default function AsistenciaPage() {
                 )
               })}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Banner de slot del cronograma */}
+      {nextSlot && !usedSlot && !dismissedSlot && (
+        <Card className="border-0 shadow-sm" style={{ borderLeft: '4px solid #7c3aed', background: 'linear-gradient(135deg, #f5f3ff 0%, white 100%)' }}>
+          <CardContent className="p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Sparkles size={14} className="text-purple-600 flex-shrink-0" />
+                <p className="text-xs font-bold uppercase text-purple-800 truncate" style={{ fontFamily: "var(--font-barlow)" }}>
+                  {activeSlot ? '📋 Sesión del cronograma' : '📋 Próxima sesión'}
+                </p>
+              </div>
+              <button onClick={() => setDismissedSlot(true)} className="p-1 rounded text-purple-400 hover:bg-purple-100 flex-shrink-0">
+                <X size={12} />
+              </button>
+            </div>
+            <div className="flex items-center gap-2 text-xs flex-wrap">
+              <span className="font-bold">{nextSlot.start_time}–{nextSlot.end_time}</span>
+              <span className="flex items-center gap-1"><MapPin size={10} className="text-purple-600" /> Cancha {nextSlot.court}</span>
+              <span className="text-muted-foreground">·</span>
+              {nextSlot.category_ids.map(cid => {
+                const c = demoCategories.find(x => x.id === cid)
+                return c ? <Badge key={cid} className="text-[10px] bg-purple-100 text-purple-700 border-0">{c.name}</Badge> : null
+              })}
+              {nextSlot.tiras.map(t => (
+                <Badge key={t} className="text-[10px] border-0 text-white" style={{ backgroundColor: TIRA_COLORS[t] }}>
+                  {TIRA_LABELS[t]}
+                </Badge>
+              ))}
+            </div>
+            {(() => {
+              const tit = demoProfes.find(p => p.id === nextSlot.profe_titular_id)
+              const sup = nextSlot.profe_suplente_id ? demoProfes.find(p => p.id === nextSlot.profe_suplente_id) : null
+              return (
+                <p className="text-[11px] text-muted-foreground">
+                  Titular: <strong>{tit?.full_name ?? '—'}</strong>
+                  {sup && <> · Suplente: <strong>{sup.full_name}</strong></>}
+                </p>
+              )
+            })()}
+            <button
+              onClick={() => loadSlot(nextSlot)}
+              className="w-full py-2 rounded-lg text-white font-bold text-sm"
+              style={{ backgroundColor: '#7c3aed' }}
+            >
+              CARGAR ESTA SESIÓN →
+            </button>
+            <p className="text-[10px] text-muted-foreground text-center">
+              Carga las tiras, categorías y profe titular automáticamente. Después podés modificar todo.
+            </p>
           </CardContent>
         </Card>
       )}
