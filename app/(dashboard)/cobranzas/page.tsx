@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Wallet, AlertCircle, MessageCircle, RefreshCw, Settings, Mail, Ban, Edit2, X, Check } from 'lucide-react'
+import { Wallet, AlertCircle, MessageCircle, RefreshCw, Settings, Mail, Ban, Edit2, X, Check, CreditCard } from 'lucide-react'
 import { useActiveRole } from '@/lib/use-role'
 import Link from 'next/link'
 import { demoPlayers, demoCategories } from '@/lib/demo-data'
@@ -171,6 +171,14 @@ Muchas gracias.`
           </CardContent>
         </Card>
       )}
+
+      {/* CTA principal — cobrar cuota directo desde acá */}
+      <Link href="/caja/cobrar"
+        className="w-full py-4 rounded-xl text-white font-bold text-base flex items-center justify-center gap-2 shadow-md"
+        style={{ backgroundColor: '#00843D' }}
+      >
+        <CreditCard size={22} /> COBRAR CUOTA
+      </Link>
 
       {/* KPIs */}
       <div className="grid grid-cols-3 gap-1.5">
