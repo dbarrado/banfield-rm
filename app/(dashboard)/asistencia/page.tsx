@@ -226,11 +226,11 @@ export default function AsistenciaPage() {
             </div>
             {(() => {
               const tit = demoProfes.find(p => p.id === nextSlot.profe_titular_id)
-              const sup = nextSlot.profe_suplente_id ? demoProfes.find(p => p.id === nextSlot.profe_suplente_id) : null
+              const sups = (nextSlot.profe_suplentes_ids ?? []).map(id => demoProfes.find(p => p.id === id)).filter(Boolean) as typeof demoProfes
               return (
                 <p className="text-[11px] text-muted-foreground">
                   Titular: <strong>{tit?.full_name ?? '—'}</strong>
-                  {sup && <> · Suplente: <strong>{sup.full_name}</strong></>}
+                  {sups.length > 0 && <> · Suplentes ({sups.length}): <strong>{sups.map(s => s.full_name).join(', ')}</strong></>}
                 </p>
               )
             })()}

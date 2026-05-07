@@ -10,7 +10,7 @@ export type TrainingSlot = {
   category_ids: string[]
   tiras: Tira[]
   profe_titular_id: string | null
-  profe_suplente_id?: string | null
+  profe_suplentes_ids?: string[]   // sin límite
   notes?: string
   is_active: boolean
 }
@@ -28,14 +28,14 @@ export const DAYS_OF_WEEK = [
 // Cronograma demo — 3 canchas, casos variados
 export const demoTrainingRoster: TrainingSlot[] = [
   // ─── LUNES ───
-  { id: 'ts-1',  day_of_week: 1, start_time: '17:00', end_time: '18:30', court: 1, category_ids: ['cat-2010'], tiras: ['metro', 'liga1'], profe_titular_id: 'pf-1', profe_suplente_id: 'pf-3', is_active: true },
+  { id: 'ts-1',  day_of_week: 1, start_time: '17:00', end_time: '18:30', court: 1, category_ids: ['cat-2010'], tiras: ['metro', 'liga1'], profe_titular_id: 'pf-1', profe_suplentes_ids: ['pf-3', 'pf-9'], is_active: true },
   { id: 'ts-2',  day_of_week: 1, start_time: '17:00', end_time: '18:30', court: 2, category_ids: ['cat-2011'], tiras: ['metro', 'liga1'], profe_titular_id: 'pf-1', is_active: true },
   { id: 'ts-3',  day_of_week: 1, start_time: '18:30', end_time: '20:00', court: 1, category_ids: ['cat-2012'], tiras: ['metro', 'liga1'], profe_titular_id: 'pf-3', is_active: true },
   { id: 'ts-4',  day_of_week: 1, start_time: '18:30', end_time: '20:00', court: 2, category_ids: ['cat-2013'], tiras: ['metro'], profe_titular_id: 'pf-6', is_active: true },
 
   // ─── MARTES (Liga 2 + Edefi) ───
   { id: 'ts-5',  day_of_week: 2, start_time: '17:00', end_time: '18:30', court: 1, category_ids: ['cat-2010'], tiras: ['liga2', 'edefi'], profe_titular_id: 'pf-2', is_active: true },
-  { id: 'ts-6',  day_of_week: 2, start_time: '18:30', end_time: '20:00', court: 1, category_ids: ['cat-2011'], tiras: ['liga2', 'edefi'], profe_titular_id: 'pf-3', profe_suplente_id: 'pf-4', is_active: true },
+  { id: 'ts-6',  day_of_week: 2, start_time: '18:30', end_time: '20:00', court: 1, category_ids: ['cat-2011'], tiras: ['liga2', 'edefi'], profe_titular_id: 'pf-3', profe_suplentes_ids: ['pf-4'], is_active: true },
   { id: 'ts-7',  day_of_week: 2, start_time: '17:00', end_time: '18:00', court: 3, category_ids: ['cat-2017'], tiras: ['metro', 'edefi'], profe_titular_id: 'pf-10', is_active: true },
 
   // ─── MIÉRCOLES ───
@@ -45,10 +45,10 @@ export const demoTrainingRoster: TrainingSlot[] = [
 
   // ─── JUEVES ───
   { id: 'ts-11', day_of_week: 4, start_time: '17:00', end_time: '18:30', court: 1, category_ids: ['cat-2014'], tiras: ['liga2', 'edefi'], profe_titular_id: 'pf-7', is_active: true },
-  { id: 'ts-12', day_of_week: 4, start_time: '17:00', end_time: '18:00', court: 2, category_ids: ['cat-2017'], tiras: ['metro', 'edefi'], profe_titular_id: 'pf-10', profe_suplente_id: 'pf-11', is_active: true },
+  { id: 'ts-12', day_of_week: 4, start_time: '17:00', end_time: '18:00', court: 2, category_ids: ['cat-2017'], tiras: ['metro', 'edefi'], profe_titular_id: 'pf-10', profe_suplentes_ids: ['pf-11'], is_active: true },
 
   // ─── SÁBADO MAÑANA — múltiples canchas en simultáneo, agrupaciones grandes ───
-  { id: 'ts-13', day_of_week: 6, start_time: '09:00', end_time: '10:30', court: 1, category_ids: ['cat-2014', 'cat-2015', 'cat-2016'], tiras: ['edefi'], profe_titular_id: 'pf-6', profe_suplente_id: 'pf-8', notes: 'Sesión combinada Edefi formativas', is_active: true },
+  { id: 'ts-13', day_of_week: 6, start_time: '09:00', end_time: '10:30', court: 1, category_ids: ['cat-2014', 'cat-2015', 'cat-2016'], tiras: ['edefi'], profe_titular_id: 'pf-6', profe_suplentes_ids: ['pf-8', 'pf-7', 'pf-11'], notes: 'Sesión combinada Edefi formativas — staff numeroso', is_active: true },
   { id: 'ts-14', day_of_week: 6, start_time: '09:00', end_time: '10:30', court: 2, category_ids: ['cat-2010'], tiras: ['liga1', 'liga2'], profe_titular_id: 'pf-3', is_active: true },
   { id: 'ts-15', day_of_week: 6, start_time: '09:00', end_time: '10:00', court: 3, category_ids: ['cat-2018'], tiras: ['metro', 'edefi'], profe_titular_id: 'pf-12', is_active: true },
   { id: 'ts-16', day_of_week: 6, start_time: '10:30', end_time: '12:00', court: 1, category_ids: ['cat-2012', 'cat-2013'], tiras: ['metro'], profe_titular_id: 'pf-3', is_active: true },
@@ -78,7 +78,7 @@ export function getNextSlotForDay(now: Date, profeId?: string): TrainingSlot | n
   const minutes = now.getHours() * 60 + now.getMinutes()
   const slots = demoTrainingRoster
     .filter(s => s.day_of_week === day && s.is_active)
-    .filter(s => !profeId || s.profe_titular_id === profeId || s.profe_suplente_id === profeId)
+    .filter(s => !profeId || s.profe_titular_id === profeId || (s.profe_suplentes_ids ?? []).includes(profeId))
     .sort((a, b) => a.start_time.localeCompare(b.start_time))
   for (const s of slots) {
     const [sh, sm] = s.start_time.split(':').map(Number)

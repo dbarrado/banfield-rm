@@ -103,7 +103,8 @@ export default function AsistenciaProfesPage() {
       <div className="space-y-2">
         {slotsToday.map(slot => {
           const titular = demoProfes.find(p => p.id === slot.profe_titular_id)
-          const suplente = slot.profe_suplente_id ? demoProfes.find(p => p.id === slot.profe_suplente_id) : null
+          const suplentes = (slot.profe_suplentes_ids ?? []).map(id => demoProfes.find(p => p.id === id)).filter(Boolean) as typeof demoProfes
+          const suplente = suplentes[0] // primer suplente como "designado por defecto"
           const status = attendance[slot.id]
           const cfg = status ? STATUS_CONFIG[status] : null
           const courtColor = COURT_COLORS[(slot.court - 1) % COURT_COLORS.length]
@@ -186,18 +187,20 @@ export default function AsistenciaProfesPage() {
                       className="w-full mt-1 px-2 py-1.5 border rounded text-sm bg-white"
                     >
                       <option value="">— Seleccionar —</option>
-                      {suplente && <option value={suplente.id}>{suplente.full_name} (suplente designado)</option>}
-                      {demoProfes.filter(p => p.is_active && p.id !== slot.profe_titular_id && p.id !== suplente?.id).map(p => (
+                      {suplentes.map(s => (
+                        <option key={s.id} value={s.id}>{s.full_name} (suplente designado)</option>
+                      ))}
+                      {demoProfes.filter(p => p.is_active && p.id !== slot.profe_titular_id && !suplentes.find(s => s.id === p.id)).map(p => (
                         <option key={p.id} value={p.id}>{p.full_name}</option>
                       ))}
                     </select>
                   </div>
                 )}
 
-                {/* Suplente disponible (info) */}
-                {!status && suplente && (
+                {/* Suplentes disponibles (info) */}
+                {!status && suplentes.length > 0 && (
                   <p className="text-[10px] text-muted-foreground">
-                    Suplente designado: <strong>{suplente.full_name}</strong>
+                    Suplentes designados ({suplentes.length}): <strong>{suplentes.map(s => s.full_name).join(', ')}</strong>
                   </p>
                 )}
               </CardContent>

@@ -103,7 +103,7 @@ export default function CronogramaPage() {
               const courtColor = COURT_COLORS[(s.court - 1) % COURT_COLORS.length]
               const cats = demoCategories.filter(c => s.category_ids.includes(c.id))
               const titular = demoProfes.find(p => p.id === s.profe_titular_id)
-              const suplente = s.profe_suplente_id ? demoProfes.find(p => p.id === s.profe_suplente_id) : null
+              const suplentes = (s.profe_suplentes_ids ?? []).map(id => demoProfes.find(p => p.id === id)).filter(Boolean) as typeof demoProfes
               return (
                 <Card key={s.id} className="border-0 shadow-sm" style={{ borderLeft: `4px solid ${courtColor}` }}>
                   <CardContent className="p-3 space-y-2">
@@ -144,10 +144,10 @@ export default function CronogramaPage() {
                     <div className="flex items-center gap-1.5 text-[11px] flex-wrap">
                       <User size={10} className="text-muted-foreground" />
                       <span>Titular: <strong>{titular?.full_name ?? 'Sin asignar'}</strong></span>
-                      {suplente && (
+                      {suplentes.length > 0 && (
                         <>
                           <span className="text-muted-foreground">·</span>
-                          <span>Suplente: <strong className="text-muted-foreground">{suplente.full_name}</strong></span>
+                          <span>Suplentes ({suplentes.length}): <strong className="text-muted-foreground">{suplentes.map(p => p.full_name).join(', ')}</strong></span>
                         </>
                       )}
                     </div>
@@ -197,7 +197,7 @@ function SlotModal({ slot, defaultDay, onClose, onSave }: {
   const [catIds, setCatIds] = useState<Set<string>>(new Set(slot?.category_ids ?? []))
   const [tiras, setTiras] = useState<Set<Tira>>(new Set(slot?.tiras ?? []))
   const [titular, setTitular] = useState(slot?.profe_titular_id ?? '')
-  const [suplente, setSuplente] = useState(slot?.profe_suplente_id ?? '')
+  const [suplentes, setSuplentes] = useState<string[]>(slot?.profe_suplentes_ids ?? [])
   const [notes, setNotes] = useState(slot?.notes ?? '')
 
   function toggleCat(id: string) {
@@ -219,7 +219,7 @@ function SlotModal({ slot, defaultDay, onClose, onSave }: {
       category_ids: Array.from(catIds),
       tiras: Array.from(tiras),
       profe_titular_id: titular || null,
-      profe_suplente_id: suplente || null,
+      profe_suplentes_ids: suplentes.filter(s => s),
       notes: notes || undefined,
       is_active: true,
     })
@@ -326,11 +326,48 @@ function SlotModal({ slot, defaultDay, onClose, onSave }: {
             </select>
           </div>
           <div>
-            <label className="text-xs font-semibold mb-1 block">Profe suplente (opcional)</label>
-            <select value={suplente} onChange={e => setSuplente(e.target.value)} className="w-full px-3 py-2 border rounded text-sm">
-              <option value="">— Sin suplente —</option>
-              {demoProfes.filter(p => p.is_active && p.id !== titular).map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-            </select>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-semibold">Profes suplentes (opcionales)</label>
+              <button
+                type="button"
+                onClick={() => setSuplentes([...suplentes, ''])}
+                className="text-xs px-2 py-0.5 rounded border font-semibold flex items-center gap-1 hover:bg-gray-50"
+              >
+                <Plus size={11} /> Agregar suplente
+              </button>
+            </div>
+            <div className="space-y-1.5">
+              {suplentes.length === 0 && (
+                <p className="text-[11px] text-muted-foreground italic">Sin suplentes asignados.</p>
+              )}
+              {suplentes.map((sId, idx) => (
+                <div key={idx} className="flex gap-1.5 items-center">
+                  <span className="text-[10px] text-muted-foreground w-6">#{idx + 1}</span>
+                  <select
+                    value={sId}
+                    onChange={e => {
+                      const next = [...suplentes]
+                      next[idx] = e.target.value
+                      setSuplentes(next)
+                    }}
+                    className="flex-1 px-3 py-2 border rounded text-sm"
+                  >
+                    <option value="">— Seleccionar profe —</option>
+                    {demoProfes
+                      .filter(p => p.is_active && p.id !== titular && (!suplentes.includes(p.id) || suplentes[idx] === p.id))
+                      .map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)
+                    }
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setSuplentes(suplentes.filter((_, i) => i !== idx))}
+                    className="p-1.5 rounded text-red-500 hover:bg-red-50 flex-shrink-0"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Notas */}
