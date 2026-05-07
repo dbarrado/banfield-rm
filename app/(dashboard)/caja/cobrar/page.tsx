@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Search, Users, MessageCircle, Plus, X, Check, CreditCard, Banknote, UserPlus, Clock } from 'lucide-react'
+import { ArrowLeft, Search, Users, MessageCircle, Plus, X, Check, CreditCard, Banknote, UserPlus, Clock, Smartphone } from 'lucide-react'
 import { demoPlayers, demoCategories, getSiblings } from '@/lib/demo-data'
 import { generateBillingsForPeriod, loadBillingConfig, type Billing } from '@/lib/billings'
 import { getAvatarUrl } from '@/lib/avatars'
@@ -27,14 +27,14 @@ export default function CobrarPage() {
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([])
   const [includeSiblings, setIncludeSiblings] = useState(true)
   const [selectedBillingIds, setSelectedBillingIds] = useState<Set<string>>(new Set())
-  const [method, setMethod] = useState<'cash' | 'transfer'>('cash')
+  const [method, setMethod] = useState<'cash' | 'transfer' | 'mercadopago'>('cash')
   const [reference, setReference] = useState('')
   const [chosenContactIdx, setChosenContactIdx] = useState(0)
   const [showAddContact, setShowAddContact] = useState(false)
   const [newContact, setNewContact] = useState({ name: '', whatsapp: '', relation: '' })
   const [extraContacts, setExtraContacts] = useState<Record<string, Contact[]>>({}) // playerId → contacts persistidos durante la sesión
   const [recent, setRecent] = useState<{ at: string; players: string[]; total: number }[]>([])
-  const [doneInfo, setDoneInfo] = useState<{ contact: Contact | null; total: number; players: string[] } | null>(null)
+  const [doneInfo, setDoneInfo] = useState<{ contact: Contact | null; total: number; players: string[]; baseTotal: number; mpSurcharge: number; method: 'cash' | 'transfer' | 'mercadopago' } | null>(null)
 
   const searchRef = useRef<HTMLInputElement>(null)
 
@@ -76,7 +76,10 @@ export default function CobrarPage() {
   // ── Cálculo del total ──────────────────────────────────────────────────
   const billingsForSelected = billings.filter(b => selectedPlayerIds.includes(b.player_id))
   const billingsToCharge = billingsForSelected.filter(b => selectedBillingIds.has(b.id))
-  const total = billingsToCharge.reduce((s, b) => s + b.amount_final + b.late_fee_amount, 0)
+  const baseTotal = billingsToCharge.reduce((s, b) => s + b.amount_final + b.late_fee_amount, 0)
+  // Recargo MP — solo se reconoce como ingreso AL MOMENTO de cobrar con MP
+  const mpSurcharge = method === 'mercadopago' ? Math.round(baseTotal * (cfg.mp_surcharge_pct / 100)) : 0
+  const total = baseTotal + mpSurcharge
 
   // ── Contactos disponibles del primer player (suficiente para WhatsApp) ─
   const primaryPlayer = demoPlayers.find(p => p.id === selectedPlayerIds[0])
@@ -126,7 +129,7 @@ export default function CobrarPage() {
     const next = [{ at: today.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }), players: playerNames, total }, ...recent].slice(0, 5)
     setRecent(next)
     try { localStorage.setItem(RECENT_KEY, JSON.stringify(next)) } catch {}
-    setDoneInfo({ contact: availableContacts[chosenContactIdx] ?? null, total, players: playerNames })
+    setDoneInfo({ contact: availableContacts[chosenContactIdx] ?? null, total, players: playerNames, baseTotal, mpSurcharge, method })
     setStep('done')
   }
 
@@ -273,11 +276,11 @@ export default function CobrarPage() {
         <>
           <Card className="border-0 shadow-sm bg-green-50 border-l-4 border-l-green-600">
             <CardContent className="p-3">
-              <p className="text-[10px] uppercase font-bold text-green-700">Total a cobrar</p>
+              <p className="text-[10px] uppercase font-bold text-green-700">Total a cobrar (efectivo)</p>
               <p className="text-3xl font-bold text-green-700" style={{ fontFamily: 'var(--font-barlow)' }}>
-                ${total.toLocaleString('es-AR')}
+                ${baseTotal.toLocaleString('es-AR')}
               </p>
-              <p className="text-[11px] text-green-700">{selectedBillingIds.size} cuota(s) seleccionadas</p>
+              <p className="text-[11px] text-green-700">{selectedBillingIds.size} cuota(s) seleccionadas · Mercado Pago suma {cfg.mp_surcharge_pct}%</p>
             </CardContent>
           </Card>
 
@@ -322,10 +325,10 @@ export default function CobrarPage() {
             <button onClick={() => setStep('search')} className="flex-1 py-3 rounded-xl border-2 font-bold text-sm">
               Atrás
             </button>
-            <button onClick={() => setStep('payment')} disabled={total === 0}
+            <button onClick={() => setStep('payment')} disabled={baseTotal === 0}
               className="flex-[2] py-3 rounded-xl text-white font-bold text-sm disabled:opacity-40"
               style={{ backgroundColor: 'var(--club-primary, #00843D)' }}>
-              Continuar — ${total.toLocaleString('es-AR')}
+              Continuar — ${baseTotal.toLocaleString('es-AR')}
             </button>
           </div>
         </>
@@ -335,32 +338,68 @@ export default function CobrarPage() {
       {step === 'payment' && (
         <>
           <Card className="border-0 shadow-sm bg-green-50 border-l-4 border-l-green-600">
-            <CardContent className="p-3 text-center">
-              <p className="text-[10px] uppercase font-bold text-green-700">Total</p>
-              <p className="text-3xl font-bold text-green-700" style={{ fontFamily: 'var(--font-barlow)' }}>
-                ${total.toLocaleString('es-AR')}
-              </p>
+            <CardContent className="p-3 text-center space-y-1">
+              {mpSurcharge > 0 ? (
+                <>
+                  <div className="flex items-center justify-between text-[11px] text-green-700">
+                    <span>Cuota base</span>
+                    <span className="font-mono">${baseTotal.toLocaleString('es-AR')}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-purple-700">
+                    <span>Recargo MP ({cfg.mp_surcharge_pct}%)</span>
+                    <span className="font-mono">+${mpSurcharge.toLocaleString('es-AR')}</span>
+                  </div>
+                  <div className="border-t border-green-200 pt-1">
+                    <p className="text-[10px] uppercase font-bold text-green-700">Total a cobrar</p>
+                    <p className="text-3xl font-bold text-green-700" style={{ fontFamily: 'var(--font-barlow)' }}>
+                      ${total.toLocaleString('es-AR')}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-[10px] uppercase font-bold text-green-700">Total</p>
+                  <p className="text-3xl font-bold text-green-700" style={{ fontFamily: 'var(--font-barlow)' }}>
+                    ${total.toLocaleString('es-AR')}
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
 
           <Card className="border-0 shadow-sm">
             <CardContent className="p-3 space-y-3">
               <p className="text-xs font-bold uppercase text-muted-foreground">Medio de pago</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-1.5">
                 <button onClick={() => setMethod('cash')}
-                  className={`py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-1.5 border-2 ${method === 'cash' ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`}
+                  className={`py-3 rounded-lg font-bold text-xs flex flex-col items-center justify-center gap-1 border-2 ${method === 'cash' ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`}
                   style={method === 'cash' ? { backgroundColor: '#00843D' } : {}}>
-                  <Banknote size={16} /> Efectivo
+                  <Banknote size={18} /> Efectivo
                 </button>
                 <button onClick={() => setMethod('transfer')}
-                  className={`py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-1.5 border-2 ${method === 'transfer' ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`}
+                  className={`py-3 rounded-lg font-bold text-xs flex flex-col items-center justify-center gap-1 border-2 ${method === 'transfer' ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`}
                   style={method === 'transfer' ? { backgroundColor: '#1d4ed8' } : {}}>
-                  <CreditCard size={16} /> Transferencia
+                  <CreditCard size={18} /> Transfer.
+                </button>
+                <button onClick={() => setMethod('mercadopago')}
+                  className={`py-3 rounded-lg font-bold text-xs flex flex-col items-center justify-center gap-0.5 border-2 ${method === 'mercadopago' ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`}
+                  style={method === 'mercadopago' ? { backgroundColor: '#00b1ea' } : {}}>
+                  <Smartphone size={18} /> Mercado Pago
+                  <span className="text-[9px] opacity-90">+{cfg.mp_surcharge_pct}%</span>
                 </button>
               </div>
               {method === 'transfer' && (
                 <input value={reference} onChange={e => setReference(e.target.value)}
                   placeholder="N° de comprobante" className="w-full px-3 py-2.5 border rounded-lg text-sm" />
+              )}
+              {method === 'mercadopago' && (
+                <input value={reference} onChange={e => setReference(e.target.value)}
+                  placeholder="ID de operación MP (opcional)" className="w-full px-3 py-2.5 border rounded-lg text-sm" />
+              )}
+              {method === 'mercadopago' && (
+                <p className="text-[10px] text-purple-700 italic">
+                  El recargo de ${mpSurcharge.toLocaleString('es-AR')} se registra como ingreso adicional aparte de la cuota.
+                </p>
               )}
             </CardContent>
           </Card>
@@ -439,8 +478,18 @@ export default function CobrarPage() {
               <p className="text-2xl font-bold text-green-700" style={{ fontFamily: 'var(--font-barlow)' }}>
                 ${doneInfo.total.toLocaleString('es-AR')}
               </p>
+              {doneInfo.mpSurcharge > 0 && (
+                <p className="text-[11px] text-purple-700">
+                  Cuota ${doneInfo.baseTotal.toLocaleString('es-AR')} + recargo MP ${doneInfo.mpSurcharge.toLocaleString('es-AR')}
+                </p>
+              )}
               <p className="text-sm">Cobrado a {doneInfo.players.join(', ')}</p>
               {doneInfo.contact && <p className="text-[11px] text-muted-foreground">Pagó: {doneInfo.contact.name} ({doneInfo.contact.relation})</p>}
+              <p className="text-[10px] text-muted-foreground italic">
+                {doneInfo.method === 'cash' && '💵 Efectivo'}
+                {doneInfo.method === 'transfer' && '🏦 Transferencia'}
+                {doneInfo.method === 'mercadopago' && '📱 Mercado Pago'}
+              </p>
             </CardContent>
           </Card>
 

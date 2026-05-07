@@ -63,7 +63,7 @@ function SociosPage() {
   const hasActiveFilters = showDeudores || selectedTira || selectedCategory || search.trim()
 
   return (
-    <div className="p-3 md:p-6 space-y-3">
+    <div className="p-3 md:p-6 space-y-3 max-w-full overflow-x-hidden">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <Users size={20} style={{ color: '#00843D' }} className="flex-shrink-0" />
@@ -173,19 +173,17 @@ function SociosPage() {
                   </div>
 
                   {/* Nombre + meta en 2 líneas */}
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 overflow-hidden">
                     <p className="text-sm font-semibold truncate leading-tight">{player.full_name}</p>
-                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5 truncate">
+                    <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
                       <span className="font-bold" style={{ color: TIRA_COLORS[player.tira] }}>
                         {TIRA_LABELS[player.tira]}
                       </span>
-                      <span>·</span>
-                      <span>Cat. {cat?.name ?? '—'}</span>
-                      <span>·</span>
+                      <span> · Cat. {cat?.name ?? '—'} · </span>
                       <span className="font-bold" style={{ color: POSITION_COLORS[player.primary_position] }}>
                         {POSITION_LABELS[player.primary_position].slice(0, 3).toUpperCase()}
                       </span>
-                    </div>
+                    </p>
                   </div>
 
                   {/* WhatsApp solo si es deudor */}

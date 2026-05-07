@@ -19,37 +19,44 @@ export type Billing = {
   status: BillingStatus
   late_fee_amount: number
   paid_at: string | null
-  payment_method: 'cash' | 'transfer' | null
+  payment_method: 'cash' | 'transfer' | 'mercadopago' | null
 }
 
 // Config (en prod vendría de tabla club_settings)
 export const DEFAULT_OVERDUE_DAY = 16
 export const DEFAULT_LATE_FEE_PCT = 10
 export const DEFAULT_DUE_DAY = 10
+export const DEFAULT_MP_SURCHARGE_PCT = 10
 const CONFIG_KEY = 'plantel_billing_config'
 
 export type BillingConfig = {
   overdue_day: number
   late_fee_pct: number
   due_day: number
+  mp_surcharge_pct: number
 }
 
 export function loadBillingConfig(): BillingConfig {
-  if (typeof window === 'undefined') {
-    return { overdue_day: DEFAULT_OVERDUE_DAY, late_fee_pct: DEFAULT_LATE_FEE_PCT, due_day: DEFAULT_DUE_DAY }
+  const defaults = {
+    overdue_day: DEFAULT_OVERDUE_DAY,
+    late_fee_pct: DEFAULT_LATE_FEE_PCT,
+    due_day: DEFAULT_DUE_DAY,
+    mp_surcharge_pct: DEFAULT_MP_SURCHARGE_PCT,
   }
+  if (typeof window === 'undefined') return defaults
   try {
     const raw = localStorage.getItem(CONFIG_KEY)
     if (raw) {
       const parsed = JSON.parse(raw)
       return {
-        overdue_day: parsed.overdue_day ?? DEFAULT_OVERDUE_DAY,
-        late_fee_pct: parsed.late_fee_pct ?? DEFAULT_LATE_FEE_PCT,
-        due_day: parsed.due_day ?? DEFAULT_DUE_DAY,
+        overdue_day: parsed.overdue_day ?? defaults.overdue_day,
+        late_fee_pct: parsed.late_fee_pct ?? defaults.late_fee_pct,
+        due_day: parsed.due_day ?? defaults.due_day,
+        mp_surcharge_pct: parsed.mp_surcharge_pct ?? defaults.mp_surcharge_pct,
       }
     }
   } catch {}
-  return { overdue_day: DEFAULT_OVERDUE_DAY, late_fee_pct: DEFAULT_LATE_FEE_PCT, due_day: DEFAULT_DUE_DAY }
+  return defaults
 }
 
 export function saveBillingConfig(cfg: BillingConfig) {
