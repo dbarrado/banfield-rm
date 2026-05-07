@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Search, Users, MessageCircle, Plus, X, Check, CreditCard, Banknote, UserPlus, Clock, Smartphone, Camera, Sparkles, Image as ImageIcon, Loader2, AlertCircle } from 'lucide-react'
 import { demoPlayers, demoCategories, getSiblings } from '@/lib/demo-data'
-import { generateBillingsForPeriod, loadBillingConfig, type Billing } from '@/lib/billings'
+import { generateBillingsForPeriod, loadBillingConfig, getOutstandingAmount, type Billing } from '@/lib/billings'
 import { getAvatarUrl } from '@/lib/avatars'
 
 type Step = 'search' | 'select_fees' | 'payment' | 'done'
@@ -27,6 +27,8 @@ export default function CobrarPage() {
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([])
   const [includeSiblings, setIncludeSiblings] = useState(true)
   const [selectedBillingIds, setSelectedBillingIds] = useState<Set<string>>(new Set())
+  // Override de monto por billing (pago parcial o ajuste manual). billingId → monto a cobrar ahora
+  const [billingOverrides, setBillingOverrides] = useState<Record<string, number>>({})
   const [method, setMethod] = useState<'cash' | 'transfer' | 'mercadopago'>('cash')
   const [reference, setReference] = useState('')
   const [receiptImage, setReceiptImage] = useState<string | null>(null)
@@ -79,7 +81,12 @@ export default function CobrarPage() {
   // ── Cálculo del total ──────────────────────────────────────────────────
   const billingsForSelected = billings.filter(b => selectedPlayerIds.includes(b.player_id))
   const billingsToCharge = billingsForSelected.filter(b => selectedBillingIds.has(b.id))
-  const baseTotal = billingsToCharge.reduce((s, b) => s + b.amount_final + b.late_fee_amount, 0)
+  // Si hay override, usarlo; sino, el saldo pendiente
+  function chargeAmountOf(b: Billing): number {
+    const owed = getOutstandingAmount(b)
+    return billingOverrides[b.id] !== undefined ? billingOverrides[b.id] : owed
+  }
+  const baseTotal = billingsToCharge.reduce((s, b) => s + chargeAmountOf(b), 0)
   // Recargo MP — solo se reconoce como ingreso AL MOMENTO de cobrar con MP
   const mpSurcharge = method === 'mercadopago' ? Math.round(baseTotal * (cfg.mp_surcharge_pct / 100)) : 0
   const total = baseTotal + mpSurcharge
@@ -123,11 +130,24 @@ export default function CobrarPage() {
   }
 
   function confirmCharge() {
-    // Marcar billings como pagados (mock)
-    setBillings(prev => prev.map(b => selectedBillingIds.has(b.id)
-      ? { ...b, status: 'paid', paid_at: today.toISOString().slice(0, 10), payment_method: method }
-      : b
-    ))
+    // Marcar billings como pagados (total) o partial (queda saldo)
+    setBillings(prev => prev.map(b => {
+      if (!selectedBillingIds.has(b.id)) return b
+      const charge = chargeAmountOf(b)
+      const owed = getOutstandingAmount(b)
+      const newPaid = b.amount_paid + charge
+      const isFull = charge >= owed
+      return {
+        ...b,
+        amount_paid: newPaid,
+        status: isFull ? ('paid' as const) : ('partial' as const),
+        paid_at: isFull ? today.toISOString().slice(0, 10) : b.paid_at,
+        payment_method: method,
+        adjustments: !isFull
+          ? [...(b.adjustments ?? []), { type: 'partial_payment' as const, amount: charge, reason: 'Pago parcial', by: 'tesorero', at: today.toISOString() }]
+          : b.adjustments,
+      }
+    }))
     const playerNames = selectedPlayerIds.map(id => demoPlayers.find(p => p.id === id)?.full_name ?? '?')
     const next = [{ at: today.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }), players: playerNames, total }, ...recent].slice(0, 5)
     setRecent(next)
@@ -333,19 +353,44 @@ export default function CobrarPage() {
                     )}
                     {playerBillings.map(b => {
                       const checked = selectedBillingIds.has(b.id)
-                      const disabled = b.status === 'paid'
+                      const disabled = b.status === 'paid' || b.status === 'condoned'
+                      const owed = getOutstandingAmount(b)
+                      const currentCharge = chargeAmountOf(b)
+                      const isPartial = currentCharge < owed
                       return (
-                        <label key={b.id} className={`flex items-center gap-2 p-2 rounded border ${checked ? 'border-green-600 bg-green-50' : 'border-gray-200'} ${disabled ? 'opacity-50' : 'cursor-pointer'}`}>
-                          <input type="checkbox" checked={checked} disabled={disabled} onChange={() => toggleBilling(b.id)} />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold">Cuota {b.period} {disabled && '(pagada)'}</p>
-                            {b.discount_pct > 0 && <p className="text-[10px] text-purple-700">-{b.discount_pct}% hermano</p>}
-                            {b.late_fee_amount > 0 && <p className="text-[10px] text-red-600">Recargo mora: ${b.late_fee_amount.toLocaleString('es-AR')}</p>}
-                          </div>
-                          <p className="text-sm font-bold" style={{ fontFamily: 'var(--font-barlow)' }}>
-                            ${(b.amount_final + b.late_fee_amount).toLocaleString('es-AR')}
-                          </p>
-                        </label>
+                        <div key={b.id} className={`p-2 rounded border space-y-1.5 ${checked ? 'border-green-600 bg-green-50' : 'border-gray-200'} ${disabled ? 'opacity-50' : ''}`}>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" checked={checked} disabled={disabled} onChange={() => toggleBilling(b.id)} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold">
+                                Cuota {b.period} {b.status === 'partial' && <span className="text-amber-700">(saldo pendiente)</span>}
+                              </p>
+                              {b.discount_pct > 0 && <p className="text-[10px] text-purple-700">-{b.discount_pct}% hermano</p>}
+                              {b.late_fee_amount > 0 && <p className="text-[10px] text-red-600">Recargo mora: ${b.late_fee_amount.toLocaleString('es-AR')}</p>}
+                              {b.amount_paid > 0 && <p className="text-[10px] text-amber-700">Ya pagó ${b.amount_paid.toLocaleString('es-AR')}</p>}
+                            </div>
+                            <p className="text-sm font-bold" style={{ fontFamily: 'var(--font-barlow)' }}>
+                              ${currentCharge.toLocaleString('es-AR')}
+                            </p>
+                          </label>
+                          {checked && !disabled && (
+                            <div className="pl-5 flex items-center gap-1.5">
+                              <span className="text-[10px] text-muted-foreground">Cobrar:</span>
+                              <input type="number" min="0" max={owed} value={currentCharge}
+                                onChange={e => setBillingOverrides(prev => ({ ...prev, [b.id]: Math.max(0, Math.min(owed, Number(e.target.value) || 0)) }))}
+                                className="flex-1 px-2 py-1 border rounded text-xs text-right font-bold" />
+                              <button type="button" onClick={() => setBillingOverrides(prev => ({ ...prev, [b.id]: Math.round(owed / 2) }))}
+                                className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">½</button>
+                              <button type="button" onClick={() => setBillingOverrides(prev => { const c = { ...prev }; delete c[b.id]; return c })}
+                                className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 font-bold">Total</button>
+                              {isPartial && (
+                                <span className="text-[10px] text-amber-700 font-bold">
+                                  Queda ${(owed - currentCharge).toLocaleString('es-AR')}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       )
                     })}
                   </CardContent>

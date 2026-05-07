@@ -5,7 +5,17 @@
 import { demoPlayers, demoPayments, getSiblingDiscount } from './demo-data'
 import type { Player, Payment } from '@/types'
 
-export type BillingStatus = 'paid' | 'pending' | 'overdue' | 'overdue_with_fee'
+export type BillingStatus = 'paid' | 'pending' | 'overdue' | 'overdue_with_fee' | 'condoned' | 'partial'
+
+export type BillingAdjustment = {
+  type: 'condone' | 'amount_override' | 'partial_payment'
+  amount?: number       // monto involucrado en el ajuste
+  reason: string
+  causal?: string       // causal predefinida (vacaciones, ausente, etc.)
+  by: string            // nombre del usuario que ejecutó la acción
+  by_role?: 'admin' | 'tesorero' | 'coordinador'
+  at: string            // ISO timestamp
+}
 
 export type Billing = {
   id: string
@@ -20,7 +30,18 @@ export type Billing = {
   late_fee_amount: number
   paid_at: string | null
   payment_method: 'cash' | 'transfer' | 'mercadopago' | null
+  amount_paid: number   // acumulado pagado (para pagos parciales)
+  adjustments?: BillingAdjustment[]
 }
+
+export const CONDONE_CAUSALES = [
+  'Vacaciones',
+  'Ausente todo el mes',
+  'Lesión / motivo médico',
+  'Acuerdo con dirigencia',
+  'Beca deportiva',
+  'Otro',
+]
 
 // Config (en prod vendría de tabla club_settings)
 export const DEFAULT_OVERDUE_DAY = 16
@@ -111,6 +132,8 @@ export function generateBillingsForPeriod(period: string, today: Date, cfg: Bill
       late_fee_amount: lateFee,
       paid_at: payment?.paid_at ?? null,
       payment_method: payment?.payment_method ?? null,
+      amount_paid: status === 'paid' ? (amountFinal + lateFee) : 0,
+      adjustments: [],
     })
   }
 
@@ -118,8 +141,16 @@ export function generateBillingsForPeriod(period: string, today: Date, cfg: Bill
 }
 
 export const STATUS_CONFIG: Record<BillingStatus, { label: string; color: string; bg: string }> = {
-  paid:              { label: 'Pagado',         color: '#16a34a', bg: '#dcfce7' },
-  pending:           { label: 'Pendiente',      color: '#f59e0b', bg: '#fef3c7' },
-  overdue:           { label: 'Vencido',        color: '#dc2626', bg: '#fee2e2' },
+  paid:              { label: 'Pagado',           color: '#16a34a', bg: '#dcfce7' },
+  pending:           { label: 'Pendiente',        color: '#f59e0b', bg: '#fef3c7' },
+  overdue:           { label: 'Vencido',          color: '#dc2626', bg: '#fee2e2' },
   overdue_with_fee:  { label: 'Vencido c/recargo', color: '#991b1b', bg: '#fecaca' },
+  condoned:          { label: 'Condonado',        color: '#6b7280', bg: '#f3f4f6' },
+  partial:           { label: 'Saldo pendiente',  color: '#d97706', bg: '#fef3c7' },
+}
+
+// Saldo restante por cobrar (considerando ajustes y pagos parciales)
+export function getOutstandingAmount(b: Billing): number {
+  if (b.status === 'paid' || b.status === 'condoned') return 0
+  return Math.max(0, (b.amount_final + b.late_fee_amount) - b.amount_paid)
 }
