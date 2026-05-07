@@ -149,71 +149,65 @@ function SociosPage() {
       </div>
 
       {/* Lista */}
-      <div className="space-y-2">
+      <div className="space-y-1.5 overflow-x-hidden">
         {players.map(player => {
           const status = getPaymentStatus(player.id)
           const cat = demoCategories.find(c => c.id === player.category_id)
-          const waMsg = encodeURIComponent(`Hola ${player.tutor_name}, te recordamos que ${player.full_name} tiene una deuda pendiente con el Club Banfield Ramos Mejía. Cualquier consulta estamos a disposición.`)
+          const waMsg = encodeURIComponent(`Hola ${player.tutor_name}, te recordamos que ${player.full_name} tiene una deuda pendiente con el Club Banfield Ramos Mejía.`)
+          const statusDot = { 'al-dia': '#00843D', proximo: '#F59E0B', deudor: '#DC2626' }[status]
           return (
-            <Link key={player.id} href={`/socios/${player.id}`}>
-              <Card className="border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="p-3 flex items-center gap-3">
+            <Link key={player.id} href={`/socios/${player.id}`} className="block">
+              <Card className="border-0 shadow-sm hover:shadow-md transition-shadow active:scale-[0.99]" style={{ borderLeft: `3px solid ${TIRA_COLORS[player.tira]}` }}>
+                <CardContent className="p-2 flex items-center gap-2 min-w-0">
                   {/* Avatar */}
-                  <div className="w-11 h-11 rounded-full overflow-hidden border-2 flex-shrink-0 bg-white" style={{ borderColor: TIRA_COLORS[player.tira] }}>
-                    <img src={getAvatarUrl(player)} alt={player.full_name} className="w-full h-full object-cover" />
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate">{player.full_name}</p>
-                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                  <div className="relative flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full overflow-hidden bg-white">
+                      <img src={getAvatarUrl(player)} alt="" className="w-full h-full object-cover" />
+                    </div>
+                    {/* Dot de estado de cuota sobre el avatar */}
                     <span
-                      className="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wide text-white"
-                      style={{ backgroundColor: POSITION_COLORS[player.primary_position] }}
-                    >
-                      {POSITION_LABELS[player.primary_position]}
-                    </span>
-                    {player.secondary_positions.map(sp => (
-                      <span
-                        key={sp}
-                        className="text-[10px] px-1.5 py-0.5 rounded font-medium"
-                        style={{ backgroundColor: `${POSITION_COLORS[sp]}20`, color: POSITION_COLORS[sp] }}
-                      >
-                        {POSITION_LABELS[sp]}
-                      </span>
-                    ))}
+                      className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white"
+                      style={{ backgroundColor: statusDot }}
+                      title={statusLabel[status]}
+                    />
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Cat. <strong>{cat?.name ?? '—'}</strong> ·{' '}
-                    <span className="font-semibold" style={{ color: TIRA_COLORS[player.tira] }}>
-                      {TIRA_LABELS[player.tira]}
-                    </span>
-                  </p>
-                </div>
 
-                {/* Estado + WhatsApp */}
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <Badge className="text-xs text-white border-0" style={{ backgroundColor: statusColor[status] }}>
-                    {statusLabel[status]}
-                  </Badge>
+                  {/* Nombre + meta en 2 líneas */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate leading-tight">{player.full_name}</p>
+                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5 truncate">
+                      <span className="font-bold" style={{ color: TIRA_COLORS[player.tira] }}>
+                        {TIRA_LABELS[player.tira]}
+                      </span>
+                      <span>·</span>
+                      <span>Cat. {cat?.name ?? '—'}</span>
+                      <span>·</span>
+                      <span className="font-bold" style={{ color: POSITION_COLORS[player.primary_position] }}>
+                        {POSITION_LABELS[player.primary_position].slice(0, 3).toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* WhatsApp solo si es deudor */}
                   {status === 'deudor' && player.tutor_whatsapp && (
                     <a
                       href={`https://wa.me/54${player.tutor_whatsapp}?text=${waMsg}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      title="Avisar deuda por WhatsApp"
-                      className="text-green-600 hover:text-green-700"
                       onClick={(e) => e.stopPropagation()}
+                      className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-green-50 text-green-600 hover:bg-green-100"
                     >
-                      <MessageCircle size={18} />
+                      <MessageCircle size={16} />
                     </a>
                   )}
-                </div>
                 </CardContent>
               </Card>
             </Link>
           )
         })}
+        {players.length === 0 && (
+          <p className="text-center text-sm text-muted-foreground py-8">Sin resultados con esos filtros.</p>
+        )}
       </div>
     </div>
   )

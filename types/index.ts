@@ -1,4 +1,19 @@
-export type UserRole = 'admin' | 'profe' | 'tesorero'
+export type UserRole = 'super_admin' | 'admin' | 'profe' | 'tesorero'
+
+export interface Club {
+  id: string
+  name: string
+  slug: string
+  short_name: string
+  logo_url: string | null
+  primary_color: string
+  secondary_color: string
+  city: string
+  is_active: boolean
+  plan: 'free' | 'pro' | 'enterprise'
+  total_socios?: number
+  created_at: string
+}
 
 export type Shift = 'morning' | 'afternoon'
 
