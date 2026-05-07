@@ -1,15 +1,17 @@
 'use client'
 
-import { use } from 'react'
+import { use, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Trophy, MapPin, Calendar, ClipboardList, Star, Edit2 } from 'lucide-react'
+import { ArrowLeft, Trophy, MapPin, Calendar, ClipboardList, Star, Edit2, ArrowUpDown, AlertTriangle, Ban, MessageSquare, X } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { demoEvents, demoCategories, demoPlayers } from '@/lib/demo-data'
-import { POSITION_LABELS, POSITION_COLORS, TIRA_COLORS, TIRA_LABELS, type Position } from '@/types'
+import { POSITION_LABELS, POSITION_COLORS, type Position } from '@/types'
+import { getAvatarUrl } from '@/lib/avatars'
 
 const POSITIONS: Position[] = ['arquero', 'defensor', 'mediocampista', 'delantero']
+
+type CardStatus = 'none' | 'yellow' | 'red'
 
 export default function PartidoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -17,16 +19,40 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
   if (!event) notFound()
 
   const cat = demoCategories.find(c => c.id === event!.category_id)
-  // Demo: tomar 11 titulares + 3 suplentes
   const allOfCat = demoPlayers.filter(p => p.category_id === event!.category_id)
-  const arqueros = allOfCat.filter(p => p.primary_position === 'arquero').slice(0, 1)
-  const defensores = allOfCat.filter(p => p.primary_position === 'defensor').slice(0, 4)
-  const medios = allOfCat.filter(p => p.primary_position === 'mediocampista').slice(0, 4)
-  const delanteros = allOfCat.filter(p => p.primary_position === 'delantero').slice(0, 2)
-  const titulares = [...arqueros, ...defensores, ...medios, ...delanteros]
-  const suplentes = allOfCat.filter(p => !titulares.includes(p)).slice(0, 3)
-  const convocados = [...titulares, ...suplentes]
+
+  const arq = allOfCat.filter(p => p.primary_position === 'arquero')
+  const def = allOfCat.filter(p => p.primary_position === 'defensor')
+  const med = allOfCat.filter(p => p.primary_position === 'mediocampista')
+  const del = allOfCat.filter(p => p.primary_position === 'delantero')
+
+  const initialTitulares = [...arq.slice(0, 1), ...def.slice(0, 4), ...med.slice(0, 4), ...del.slice(0, 2)]
+  const initialSuplentes = allOfCat.filter(p => !initialTitulares.includes(p)).slice(0, 5)
+
+  const [titularesIds, setTitularesIds] = useState<string[]>(initialTitulares.map(p => p.id))
+  const [suplentesIds, setSuplentesIds] = useState<string[]>(initialSuplentes.map(p => p.id))
+  const [cards, setCards] = useState<Record<string, CardStatus>>({})
+  const [matchComment, setMatchComment] = useState('')
+  const [swap, setSwap] = useState<{ titularId?: string; suplenteId?: string } | null>(null)
+
+  const titulares = titularesIds.map(id => allOfCat.find(p => p.id === id)!).filter(Boolean)
+  const suplentes = suplentesIds.map(id => allOfCat.find(p => p.id === id)!).filter(Boolean)
+
+  // Agrupados por posición principal
+  const titularesByPos: Record<Position, typeof titulares> = { arquero: [], defensor: [], mediocampista: [], delantero: [] }
+  for (const t of titulares) titularesByPos[t.primary_position].push(t)
+
   const date = new Date(event!.scheduled_at)
+
+  function setCard(playerId: string, status: CardStatus) {
+    setCards(prev => ({ ...prev, [playerId]: status }))
+  }
+
+  function performSwap(titularId: string, suplenteId: string) {
+    setTitularesIds(prev => prev.map(id => id === titularId ? suplenteId : id))
+    setSuplentesIds(prev => prev.map(id => id === suplenteId ? titularId : id))
+    setSwap(null)
+  }
 
   return (
     <div className="pb-4">
@@ -48,77 +74,40 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
       </div>
 
       <div className="p-3 space-y-3 -mt-3">
-        {/* KPIs */}
+        {/* Acciones */}
         <div className="grid grid-cols-3 gap-2">
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-2.5 text-center">
-              <p className="text-[10px] uppercase font-semibold text-muted-foreground">Convocados</p>
-              <p className="text-2xl font-bold mt-0.5" style={{ fontFamily: "var(--font-barlow)" }}>{convocados.length}</p>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-2.5 text-center">
-              <p className="text-[10px] uppercase font-semibold text-muted-foreground">Titulares</p>
-              <p className="text-2xl font-bold mt-0.5 text-green-600" style={{ fontFamily: "var(--font-barlow)" }}>{titulares.length}</p>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-2.5 text-center">
-              <p className="text-[10px] uppercase font-semibold text-muted-foreground">Suplentes</p>
-              <p className="text-2xl font-bold mt-0.5 text-amber-600" style={{ fontFamily: "var(--font-barlow)" }}>{suplentes.length}</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Acciones — antes/durante/después */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
           <Link href={`/convocatoria?event=${id}`}>
-            <Card className="border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer h-full">
-              <CardContent className="p-3 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#1d4ed8' }}>
-                  <Edit2 size={16} className="text-white" />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-semibold text-sm">Editar convocatoria</p>
-                  <p className="text-[11px] text-muted-foreground">Antes del partido</p>
-                </div>
+            <Card className="border-0 shadow-sm h-full">
+              <CardContent className="p-2.5 text-center">
+                <Edit2 size={14} className="mx-auto" style={{ color: '#1d4ed8' }} />
+                <p className="text-[10px] font-bold mt-1">Convocatoria</p>
               </CardContent>
             </Card>
           </Link>
-
           <Link href={`/partidos/${id}/asistencia`}>
-            <Card className="border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer h-full">
-              <CardContent className="p-3 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#00843D' }}>
-                  <ClipboardList size={16} className="text-white" />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-semibold text-sm">Asistencia</p>
-                  <p className="text-[11px] text-muted-foreground">Día del partido</p>
-                </div>
+            <Card className="border-0 shadow-sm h-full">
+              <CardContent className="p-2.5 text-center">
+                <ClipboardList size={14} className="mx-auto" style={{ color: '#00843D' }} />
+                <p className="text-[10px] font-bold mt-1">Asistencia</p>
               </CardContent>
             </Card>
           </Link>
-
           <Link href={`/partidos/${id}/puntajes`}>
-            <Card className="border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer h-full">
-              <CardContent className="p-3 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#C9A84C' }}>
-                  <Star size={16} className="text-white" />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-semibold text-sm">Puntajes 1-10</p>
-                  <p className="text-[11px] text-muted-foreground">Después del partido</p>
-                </div>
+            <Card className="border-0 shadow-sm h-full">
+              <CardContent className="p-2.5 text-center">
+                <Star size={14} className="mx-auto" style={{ color: '#C9A84C' }} />
+                <p className="text-[10px] font-bold mt-1">Puntajes</p>
               </CardContent>
             </Card>
           </Link>
         </div>
 
         {/* Formación visual */}
-        <h2 className="font-bold text-sm uppercase tracking-wider text-muted-foreground mt-4" style={{ fontFamily: "var(--font-barlow)" }}>
+        <h2 className="font-bold text-sm uppercase tracking-wider text-muted-foreground" style={{ fontFamily: "var(--font-barlow)" }}>
           FORMACIÓN
         </h2>
+        <p className="text-[10px] text-muted-foreground -mt-2">Tap en un jugador para hacer cambio o marcar tarjeta</p>
+
         <div className="relative w-full overflow-hidden rounded-xl shadow-lg" style={{ aspectRatio: '2/3', maxWidth: 480, margin: '0 auto' }}>
           <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, #16a34a 0%, #15803d 100%)' }}>
             <svg viewBox="0 0 200 300" className="w-full h-full">
@@ -133,34 +122,37 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
             </svg>
           </div>
 
-          {/* Posicionar titulares */}
           {(() => {
-            const layouts: Record<string, { y: number; players: typeof titulares }> = {
-              arquero: { y: 92, players: arqueros },
-              defensor: { y: 70, players: defensores },
-              mediocampista: { y: 45, players: medios },
-              delantero: { y: 18, players: delanteros },
+            const layouts: Record<string, { y: number }> = {
+              arquero: { y: 92 },
+              defensor: { y: 70 },
+              mediocampista: { y: 45 },
+              delantero: { y: 18 },
             }
             return POSITIONS.flatMap(pos => {
-              const { y, players } = layouts[pos]
+              const players = titularesByPos[pos]
               return players.map((p, i) => {
                 const x = ((i + 1) / (players.length + 1)) * 100
+                const card = cards[p.id]
                 return (
-                  <div
+                  <button
                     key={p.id}
+                    onClick={() => setSwap({ titularId: p.id })}
                     className="absolute -translate-x-1/2 -translate-y-1/2"
-                    style={{ left: `${x}%`, top: `${y}%` }}
+                    style={{ left: `${x}%`, top: `${layouts[pos].y}%` }}
                   >
                     <div
-                      className="w-12 h-12 rounded-full bg-white border-2 shadow-lg flex items-center justify-center text-[10px] font-bold"
-                      style={{ borderColor: POSITION_COLORS[p.primary_position], color: POSITION_COLORS[p.primary_position] }}
+                      className="w-12 h-12 rounded-full bg-white border-2 shadow-lg overflow-hidden relative"
+                      style={{ borderColor: POSITION_COLORS[p.primary_position] }}
                     >
-                      {p.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                      <img src={getAvatarUrl(p)} alt={p.full_name} className="w-full h-full object-cover" />
+                      {card === 'yellow' && <span className="absolute -top-1 -right-1 w-4 h-5 rounded-sm bg-yellow-400 border border-yellow-600 z-10" />}
+                      {card === 'red' && <span className="absolute -top-1 -right-1 w-4 h-5 rounded-sm bg-red-600 border border-red-800 z-10" />}
                     </div>
                     <p className="text-[9px] text-white text-center mt-0.5 font-bold leading-tight whitespace-nowrap drop-shadow-md">
                       {p.full_name.split(' ').slice(-1)[0]}
                     </p>
-                  </div>
+                  </button>
                 )
               })
             })
@@ -168,30 +160,149 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
         </div>
 
         {/* Suplentes */}
-        {suplentes.length > 0 && (
-          <>
-            <h3 className="text-xs uppercase font-bold text-muted-foreground mt-3" style={{ fontFamily: "var(--font-barlow)" }}>
-              Suplentes ({suplentes.length})
-            </h3>
-            <div className="space-y-1.5">
-              {suplentes.map(p => (
-                <Card key={p.id} className="border-0 shadow-sm bg-amber-50">
-                  <CardContent className="p-2 flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0" style={{ backgroundColor: POSITION_COLORS[p.primary_position] }}>
-                      {p.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{p.full_name}</p>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase text-white" style={{ backgroundColor: POSITION_COLORS[p.primary_position] }}>
-                        {POSITION_LABELS[p.primary_position]}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </>
-        )}
+        <h3 className="text-xs uppercase font-bold text-muted-foreground mt-3" style={{ fontFamily: "var(--font-barlow)" }}>
+          Suplentes ({suplentes.length})
+        </h3>
+        <div className="space-y-1.5">
+          {suplentes.map(p => {
+            const card = cards[p.id]
+            return (
+              <Card key={p.id} className="border-0 shadow-sm bg-amber-50">
+                <CardContent className="p-2 flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-full overflow-hidden border-2 flex-shrink-0 relative bg-white" style={{ borderColor: POSITION_COLORS[p.primary_position] }}>
+                    <img src={getAvatarUrl(p)} alt={p.full_name} className="w-full h-full object-cover" />
+                    {card === 'yellow' && <span className="absolute -top-1 -right-1 w-3 h-4 rounded-sm bg-yellow-400 border border-yellow-600 z-10" />}
+                    {card === 'red' && <span className="absolute -top-1 -right-1 w-3 h-4 rounded-sm bg-red-600 border border-red-800 z-10" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{p.full_name}</p>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase text-white" style={{ backgroundColor: POSITION_COLORS[p.primary_position] }}>
+                      {POSITION_LABELS[p.primary_position]}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setSwap({ suplenteId: p.id })}
+                    className="text-xs px-2 py-1 rounded text-white font-semibold flex items-center gap-1 flex-shrink-0"
+                    style={{ backgroundColor: '#00843D' }}
+                  >
+                    <ArrowUpDown size={12} /> Subir
+                  </button>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+
+        {/* Tarjetas amarillas y rojas */}
+        <h3 className="text-xs uppercase font-bold text-muted-foreground mt-3" style={{ fontFamily: "var(--font-barlow)" }}>
+          Tarjetas
+        </h3>
+        <div className="space-y-1.5">
+          {[...titulares, ...suplentes].map(p => {
+            const card = cards[p.id] ?? 'none'
+            return (
+              <div key={p.id} className="flex items-center gap-2 py-1.5 border-b last:border-0">
+                <span className="flex-1 text-sm font-medium truncate">{p.full_name}</span>
+                <button
+                  onClick={() => setCard(p.id, card === 'none' ? 'yellow' : 'none')}
+                  className={`w-6 h-7 rounded-sm flex items-center justify-center text-[10px] font-bold border ${card === 'yellow' ? 'bg-yellow-400 border-yellow-600' : 'bg-yellow-50 border-yellow-200 opacity-50'}`}
+                  title="Amonestación"
+                >🟨</button>
+                <button
+                  onClick={() => setCard(p.id, card === 'red' ? 'none' : 'red')}
+                  className={`w-6 h-7 rounded-sm flex items-center justify-center text-[10px] font-bold border ${card === 'red' ? 'bg-red-600 border-red-800' : 'bg-red-50 border-red-200 opacity-50'}`}
+                  title="Expulsión"
+                >🟥</button>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Comentario del partido */}
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-3 space-y-1.5">
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5" style={{ fontFamily: "var(--font-barlow)" }}>
+              <MessageSquare size={12} /> COMENTARIO DEL PARTIDO
+            </p>
+            <textarea
+              value={matchComment}
+              onChange={e => setMatchComment(e.target.value)}
+              rows={3}
+              placeholder="Resumen del partido, jugadas clave, decisiones tácticas..."
+              className="w-full text-sm px-3 py-2 border rounded-lg"
+            />
+          </CardContent>
+        </Card>
+
+        {/* Botón guardar */}
+        <button
+          className="w-full py-3 rounded-xl text-white font-bold text-sm shadow-sm sticky bottom-20 md:bottom-4"
+          style={{ backgroundColor: '#00843D' }}
+          onClick={() => {
+            const yellows = Object.values(cards).filter(c => c === 'yellow').length
+            const reds = Object.values(cards).filter(c => c === 'red').length
+            alert(`✅ Partido guardado (demo)\n\n${yellows} amonestaciones · ${reds} expulsiones\nComentario: ${matchComment ? 'sí' : 'no'}`)
+          }}
+        >
+          GUARDAR PARTIDO
+        </button>
+      </div>
+
+      {/* Modal de cambio */}
+      {swap && (
+        <SwapModal
+          titulares={titulares}
+          suplentes={suplentes}
+          initialTitularId={swap.titularId}
+          initialSuplenteId={swap.suplenteId}
+          onClose={() => setSwap(null)}
+          onConfirm={performSwap}
+        />
+      )}
+    </div>
+  )
+}
+
+function SwapModal({ titulares, suplentes, initialTitularId, initialSuplenteId, onClose, onConfirm }: {
+  titulares: { id: string; full_name: string; primary_position: Position }[]
+  suplentes: { id: string; full_name: string; primary_position: Position }[]
+  initialTitularId?: string
+  initialSuplenteId?: string
+  onClose: () => void
+  onConfirm: (titularId: string, suplenteId: string) => void
+}) {
+  const [titularId, setTitularId] = useState(initialTitularId ?? '')
+  const [suplenteId, setSuplenteId] = useState(initialSuplenteId ?? '')
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-3" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="bg-white rounded-t-2xl md:rounded-2xl w-full max-w-md p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold" style={{ fontFamily: "var(--font-barlow)" }}>CAMBIO</h3>
+          <button onClick={onClose}><X size={20} /></button>
+        </div>
+        <div>
+          <label className="text-xs font-semibold mb-1 block">Sale (titular)</label>
+          <select value={titularId} onChange={e => setTitularId(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm">
+            <option value="">Elegir titular...</option>
+            {titulares.map(t => <option key={t.id} value={t.id}>{t.full_name} — {POSITION_LABELS[t.primary_position]}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-semibold mb-1 block">Entra (suplente)</label>
+          <select value={suplenteId} onChange={e => setSuplenteId(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm">
+            <option value="">Elegir suplente...</option>
+            {suplentes.map(s => <option key={s.id} value={s.id}>{s.full_name} — {POSITION_LABELS[s.primary_position]}</option>)}
+          </select>
+        </div>
+        <button
+          onClick={() => titularId && suplenteId && onConfirm(titularId, suplenteId)}
+          disabled={!titularId || !suplenteId}
+          className="w-full py-3 rounded-xl text-white font-bold text-sm disabled:opacity-40"
+          style={{ backgroundColor: '#00843D' }}
+        >
+          CONFIRMAR CAMBIO
+        </button>
       </div>
     </div>
   )

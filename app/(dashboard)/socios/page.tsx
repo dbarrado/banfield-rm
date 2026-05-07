@@ -1,9 +1,16 @@
+'use client'
+
+export const dynamic = 'force-dynamic'
+
+import { useState, useMemo, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { Users, Plus, MessageCircle } from 'lucide-react'
+import { Users, Plus, MessageCircle, Search, X } from 'lucide-react'
 import Link from 'next/link'
 import { demoPlayers, demoPayments, demoCategories, getPlayerDebts, thisMonth } from '@/lib/demo-data'
 import { POSITION_LABELS, POSITION_COLORS, TIRA_LABELS, TIRA_COLORS } from '@/types'
+import { getAvatarUrl } from '@/lib/avatars'
 
 function getPaymentStatus(playerId: string) {
   const paid = demoPayments.filter(p => p.player_id === playerId && p.period === thisMonth && p.fee_type === 'actividad')
@@ -16,10 +23,39 @@ function getPaymentStatus(playerId: string) {
 const statusLabel = { 'al-dia': 'Al día', proximo: 'Por vencer', deudor: 'Deudor' }
 const statusColor: Record<string, string> = { 'al-dia': '#00843D', proximo: '#F59E0B', deudor: '#DC2626' }
 
-export default function SociosPage({ searchParams }: { searchParams: { filter?: string } }) {
-  const filter = searchParams?.filter
-  const deudores = getPlayerDebts(demoPlayers, demoPayments)
-  const players = filter === 'deudores' ? deudores : demoPlayers.filter(p => p.is_active)
+export default function SociosPageWrapper() {
+  return (
+    <Suspense fallback={<div className="p-4 text-sm text-muted-foreground">Cargando...</div>}>
+      <SociosPage />
+    </Suspense>
+  )
+}
+
+function SociosPage() {
+  const searchParams = useSearchParams()
+  const initialFilter = searchParams.get('filter') ?? 'todos'
+  const [filter, setFilter] = useState(initialFilter)
+  const [search, setSearch] = useState('')
+  const deudores = useMemo(() => getPlayerDebts(demoPlayers, demoPayments), [])
+  const baseList = useMemo(() => {
+    if (filter === 'todos') return demoPlayers.filter(p => p.is_active)
+    if (filter === 'deudores') return deudores
+    if (filter.startsWith('tira-')) {
+      const tira = filter.replace('tira-', '')
+      return demoPlayers.filter(p => p.is_active && p.tira === tira)
+    }
+    // Si es un categoryId (ej: cat-2012)
+    return demoPlayers.filter(p => p.is_active && p.category_id === filter)
+  }, [filter, deudores])
+  const players = useMemo(() => {
+    if (!search.trim()) return baseList
+    const q = search.toLowerCase().trim()
+    return baseList.filter(p =>
+      p.full_name.toLowerCase().includes(q) ||
+      (p.dni ?? '').includes(q) ||
+      (p.tutor_name ?? '').toLowerCase().includes(q)
+    )
+  }, [baseList, search])
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -36,19 +72,59 @@ export default function SociosPage({ searchParams }: { searchParams: { filter?: 
         </Link>
       </div>
 
+      {/* Buscador */}
+      <div className="relative">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Buscar por apellido, nombre, DNI o tutor..."
+          className="w-full pl-9 pr-9 py-2.5 border rounded-lg text-sm bg-white"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-gray-700"
+          >
+            <X size={14} />
+          </button>
+        )}
+      </div>
+
       {/* Filtros */}
-      <div className="flex gap-2 flex-wrap">
-        <Link href="/socios" className={`px-3 py-1 rounded-full text-sm font-medium border transition-colors ${!filter ? 'text-white border-transparent' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`} style={!filter ? { backgroundColor: '#00843D' } : {}}>
-          Todos ({demoPlayers.filter(p => p.is_active).length})
-        </Link>
-        <Link href="/socios?filter=deudores" className={`px-3 py-1 rounded-full text-sm font-medium border transition-colors ${filter === 'deudores' ? 'text-white border-transparent' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`} style={filter === 'deudores' ? { backgroundColor: '#DC2626' } : {}}>
-          Deudores ({deudores.length})
-        </Link>
-        {demoCategories.filter(c => c.is_active).map(cat => (
-          <Link key={cat.id} href={`/socios?filter=${cat.id}`} className={`px-3 py-1 rounded-full text-sm font-medium border transition-colors ${filter === cat.id ? 'text-white border-transparent' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`} style={filter === cat.id ? { backgroundColor: '#1d4ed8' } : {}}>
-            {cat.name}
-          </Link>
-        ))}
+      <div className="space-y-2">
+        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-3 px-3">
+          <button onClick={() => setFilter('todos')} className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${filter === 'todos' ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`} style={filter === 'todos' ? { backgroundColor: '#00843D' } : {}}>
+            Todos ({demoPlayers.filter(p => p.is_active).length})
+          </button>
+          <button onClick={() => setFilter('deudores')} className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${filter === 'deudores' ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`} style={filter === 'deudores' ? { backgroundColor: '#DC2626' } : {}}>
+            Deudores ({deudores.length})
+          </button>
+        </div>
+
+        {/* Filtro por tira */}
+        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-3 px-3">
+          <span className="text-[10px] font-bold uppercase text-muted-foreground self-center mr-1">Tira:</span>
+          {(['metro', 'liga1', 'liga2', 'edefi'] as const).map(t => {
+            const sel = filter === `tira-${t}`
+            return (
+              <button key={t} onClick={() => setFilter(sel ? 'todos' : `tira-${t}`)} className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${sel ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`} style={sel ? { backgroundColor: TIRA_COLORS[t] } : {}}>
+                {TIRA_LABELS[t]}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Filtro por categoría */}
+        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-3 px-3">
+          <span className="text-[10px] font-bold uppercase text-muted-foreground self-center mr-1">Cat:</span>
+          {demoCategories.filter(c => c.is_active).map(cat => (
+            <button key={cat.id} onClick={() => setFilter(filter === cat.id ? 'todos' : cat.id)} className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${filter === cat.id ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`} style={filter === cat.id ? { backgroundColor: '#1d4ed8' } : {}}>
+              {cat.name}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Lista */}
@@ -58,18 +134,17 @@ export default function SociosPage({ searchParams }: { searchParams: { filter?: 
           const cat = demoCategories.find(c => c.id === player.category_id)
           const waMsg = encodeURIComponent(`Hola ${player.tutor_name}, te recordamos que ${player.full_name} tiene una deuda pendiente con el Club Banfield Ramos Mejía. Cualquier consulta estamos a disposición.`)
           return (
-            <Card key={player.id} className="border-0 shadow-sm hover:shadow-md transition-shadow">
-              <CardContent className="p-3 flex items-center gap-3">
-                {/* Avatar */}
-                <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style={{ backgroundColor: '#00843D' }}>
-                  {player.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                </div>
+            <Link key={player.id} href={`/socios/${player.id}`}>
+              <Card className="border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                <CardContent className="p-3 flex items-center gap-3">
+                  {/* Avatar */}
+                  <div className="w-11 h-11 rounded-full overflow-hidden border-2 flex-shrink-0 bg-white" style={{ borderColor: TIRA_COLORS[player.tira] }}>
+                    <img src={getAvatarUrl(player)} alt={player.full_name} className="w-full h-full object-cover" />
+                  </div>
 
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <Link href={`/socios/${player.id}`}>
-                    <p className="font-semibold text-sm truncate hover:underline">{player.full_name}</p>
-                  </Link>
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm truncate">{player.full_name}</p>
                   <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                     <span
                       className="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wide text-white"
@@ -107,13 +182,15 @@ export default function SociosPage({ searchParams }: { searchParams: { filter?: 
                       rel="noopener noreferrer"
                       title="Avisar deuda por WhatsApp"
                       className="text-green-600 hover:text-green-700"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <MessageCircle size={18} />
                     </a>
                   )}
                 </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </Link>
           )
         })}
       </div>

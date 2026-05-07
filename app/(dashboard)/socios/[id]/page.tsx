@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { demoPlayers, demoCategories, demoPayments, demoEvents, demoAttendance, getAttendanceStats, thisMonth } from '@/lib/demo-data'
 import { POSITION_LABELS, POSITION_COLORS, TIRA_LABELS, TIRA_COLORS, type Position } from '@/types'
+import { getAvatarUrl } from '@/lib/avatars'
 
 const ALL_POSITIONS: Position[] = ['arquero', 'defensor', 'mediocampista', 'delantero']
 
@@ -78,9 +79,7 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
               {photo ? (
                 <img src={photo} alt={player.full_name} className="w-full h-full object-cover" />
               ) : (
-                <span className="text-3xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: TIRA_COLORS[player.tira] }}>
-                  {initials}
-                </span>
+                <img src={getAvatarUrl(player)} alt={player.full_name} className="w-full h-full object-cover" />
               )}
             </div>
             <button
@@ -488,20 +487,49 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
 }
 
 function PaymentFormModal({ player, onClose }: { player: any; onClose: () => void }) {
-  const [feeType, setFeeType] = useState<'actividad' | 'matricula' | 'social'>('actividad')
-  const [amount, setAmount] = useState('62000')
+  // Generar cuotas pendientes simuladas: meses sin pagar + matrícula si falta
+  const today = new Date('2026-05-07')
+  const cuotaMonths = ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05']
+  // Filtramos las que NO están pagadas (en demo)
+  const pagadas = new Set([`${player.id}-actividad-2026-03`, `${player.id}-actividad-2026-04`])
+  const pendientes = [
+    ...cuotaMonths.filter(m => !pagadas.has(`${player.id}-actividad-${m}`)).map(m => ({
+      id: `actividad-${m}`,
+      label: `Cuota actividad ${m}`,
+      amount: 62000,
+    })),
+    { id: 'matricula-2026', label: 'Matrícula 2026', amount: 35000 },
+  ]
+
+  const [selected, setSelected] = useState<Set<string>>(new Set([pendientes[0]?.id]))
   const [method, setMethod] = useState<'cash' | 'transfer'>('cash')
   const [reference, setReference] = useState('')
+  const [sendWA, setSendWA] = useState(true)
+
+  const totalAmount = pendientes
+    .filter(p => selected.has(p.id))
+    .reduce((s, p) => s + p.amount, 0)
+
+  function toggle(id: string) {
+    const next = new Set(selected)
+    next.has(id) ? next.delete(id) : next.add(id)
+    setSelected(next)
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    alert(`✅ Pago registrado (demo):\n${player.full_name}\n${feeType} · $${amount}\n${method === 'cash' ? 'Efectivo' : `Transf. ${reference}`}`)
+    const lista = pendientes.filter(p => selected.has(p.id)).map(p => `✓ ${p.label} — $${p.amount.toLocaleString('es-AR')}`).join('\n')
+    const recibo = `🧾 RECIBO — Club Banfield Ramos Mejía\nSocio: ${player.full_name}\n\n${lista}\n─────────\nTOTAL: $${totalAmount.toLocaleString('es-AR')}\nMedio: ${method === 'cash' ? 'Efectivo' : `Transferencia (${reference})`}\nFecha: ${today.toLocaleDateString('es-AR')}\n\n¡Gracias!`
+    if (sendWA && player.tutor_whatsapp) {
+      window.open(`https://wa.me/54${player.tutor_whatsapp}?text=${encodeURIComponent(recibo)}`, '_blank')
+    }
+    alert(`✅ Cobro registrado (demo):\n${player.full_name}\nTotal: $${totalAmount.toLocaleString('es-AR')}`)
     onClose()
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-3">
-      <div className="bg-white rounded-t-2xl md:rounded-2xl w-full max-w-md p-4 space-y-3">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-3" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="bg-white rounded-t-2xl md:rounded-2xl w-full max-w-md p-4 space-y-3 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold" style={{ fontFamily: "var(--font-barlow)" }}>REGISTRAR PAGO</h3>
           <button onClick={onClose} className="text-2xl text-muted-foreground">×</button>
@@ -510,18 +538,30 @@ function PaymentFormModal({ player, onClose }: { player: any; onClose: () => voi
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="text-xs font-semibold mb-1 block">Tipo de cuota</label>
-            <select value={feeType} onChange={e => setFeeType(e.target.value as any)} className="w-full px-3 py-2 border rounded-lg text-sm">
-              <option value="actividad">Cuota actividad</option>
-              <option value="matricula">Matrícula</option>
-              <option value="social">Cuota social</option>
-            </select>
+            <p className="text-xs font-semibold mb-1.5">Cuotas pendientes — marcá las que cobra</p>
+            <div className="space-y-1.5">
+              {pendientes.map(p => {
+                const sel = selected.has(p.id)
+                return (
+                  <label key={p.id} className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer ${sel ? 'border-green-500 bg-green-50' : 'border-gray-200'}`}>
+                    <input type="checkbox" checked={sel} onChange={() => toggle(p.id)} className="w-4 h-4 accent-[#00843D]" />
+                    <span className="flex-1 text-sm">{p.label}</span>
+                    <span className="font-bold text-sm" style={{ fontFamily: "var(--font-barlow)" }}>${p.amount.toLocaleString('es-AR')}</span>
+                  </label>
+                )
+              })}
+            </div>
           </div>
-          <div>
-            <label className="text-xs font-semibold mb-1 block">Monto</label>
-            <input type="number" value={amount} onChange={e => setAmount(e.target.value)} required
-              className="w-full px-3 py-2 border rounded-lg text-sm" />
-          </div>
+
+          <Card className="border-0 bg-gray-50">
+            <CardContent className="p-3 flex items-center justify-between">
+              <span className="text-sm font-semibold">TOTAL</span>
+              <span className="text-2xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: '#00843D' }}>
+                ${totalAmount.toLocaleString('es-AR')}
+              </span>
+            </CardContent>
+          </Card>
+
           <div>
             <label className="text-xs font-semibold mb-1 block">Medio de pago</label>
             <div className="flex gap-2">
@@ -540,8 +580,17 @@ function PaymentFormModal({ player, onClose }: { player: any; onClose: () => voi
                 placeholder="Ej: MP-12345" className="w-full px-3 py-2 border rounded-lg text-sm" />
             </div>
           )}
-          <button type="submit" className="w-full py-3 rounded-xl text-white font-bold text-sm" style={{ backgroundColor: '#00843D' }}>
-            REGISTRAR PAGO
+
+          {player.tutor_whatsapp && (
+            <label className="flex items-center gap-2 p-2 rounded-lg border bg-green-50 border-green-200 cursor-pointer">
+              <input type="checkbox" checked={sendWA} onChange={e => setSendWA(e.target.checked)} className="w-4 h-4 accent-green-600" />
+              <MessageCircle size={14} className="text-green-600" />
+              <span className="text-xs font-semibold text-green-700">Enviar recibo por WhatsApp al tutor</span>
+            </label>
+          )}
+
+          <button type="submit" disabled={selected.size === 0} className="w-full py-3 rounded-xl text-white font-bold text-sm disabled:opacity-40" style={{ backgroundColor: '#00843D' }}>
+            REGISTRAR Y ENVIAR ({selected.size})
           </button>
         </form>
       </div>

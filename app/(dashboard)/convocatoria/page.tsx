@@ -5,13 +5,15 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Trophy, CheckCircle2, MessageCircle, Lock, List, LayoutGrid, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
-import { demoPlayers, demoCategories, demoEvents, getAttendanceStats, getMatchAttendanceStats, demoEligibilityConfig } from '@/lib/demo-data'
+import { demoPlayers, demoCategories, demoEvents, getAttendanceStats, getMatchAttendanceStats, demoEligibilityConfig, demoProfes, getAssignmentsForProfe } from '@/lib/demo-data'
+import { getAvatarUrl } from '@/lib/avatars'
 import { POSITION_LABELS, POSITION_COLORS, TIRA_LABELS, TIRA_COLORS, type Position, type Tira } from '@/types'
 
 const POSITIONS: Position[] = ['arquero', 'defensor', 'mediocampista', 'delantero']
 const ALL_TIRAS: Tira[] = ['metro', 'liga1', 'liga2', 'edefi']
 
 export default function ConvocatoriaPage() {
+  const [selectedProfe, setSelectedProfe] = useState<string>('')
   const [selectedCategory, setSelectedCategory] = useState(demoCategories[0].id)
   const [selectedTira, setSelectedTira] = useState<Tira | null>(null)
   const [selectedEvent, setSelectedEvent] = useState(demoEvents.filter(e => e.event_type === 'match')[0]?.id ?? '')
@@ -20,14 +22,26 @@ export default function ConvocatoriaPage() {
   const [matchThreshold, setMatchThreshold] = useState(50)
   const [view, setView] = useState<'list' | 'pitch'>('list')
 
-  const activeCategories = demoCategories.filter(c => c.is_active)
-  const matches = demoEvents.filter(e => e.event_type === 'match' && e.category_id === selectedCategory)
-  const tirasInCategory = ALL_TIRAS.filter(t =>
-    demoPlayers.some(p => p.category_id === selectedCategory && p.tira === t)
-  )
+  // Si hay profe seleccionado, limitar categorías y tiras a las que tiene asignadas
+  const profeAssignments = selectedProfe ? getAssignmentsForProfe(selectedProfe) : []
+  const allCategoriesActive = demoCategories.filter(c => c.is_active)
+  const activeCategories = selectedProfe
+    ? allCategoriesActive.filter(c => profeAssignments.some(a => a.category_id === c.id))
+    : allCategoriesActive
+  const effectiveCategory = activeCategories.some(c => c.id === selectedCategory)
+    ? selectedCategory
+    : (activeCategories[0]?.id ?? selectedCategory)
+
+  const matches = demoEvents.filter(e => e.event_type === 'match' && e.category_id === effectiveCategory)
+  const tirasInCategory = ALL_TIRAS.filter(t => {
+    const hasPlayers = demoPlayers.some(p => p.category_id === effectiveCategory && p.tira === t)
+    if (!hasPlayers) return false
+    if (!selectedProfe) return true
+    return profeAssignments.some(a => a.category_id === effectiveCategory && a.tira === t)
+  })
 
   const players = demoPlayers.filter(p =>
-    p.category_id === selectedCategory &&
+    p.category_id === effectiveCategory &&
     p.is_active &&
     (selectedTira ? p.tira === selectedTira : true)
   )
@@ -53,7 +67,7 @@ export default function ConvocatoriaPage() {
 
   function generateWhatsApp() {
     const event = demoEvents.find(e => e.id === selectedEvent)
-    const cat = demoCategories.find(c => c.id === selectedCategory)
+    const cat = demoCategories.find(c => c.id === effectiveCategory)
     const date = event ? new Date(event.scheduled_at).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Por definir'
     const time = event ? new Date(event.scheduled_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : ''
     const ordered = [...selectedPlayers].sort(
@@ -82,7 +96,18 @@ export default function ConvocatoriaPage() {
       {/* Selectores */}
       <div className="space-y-2">
         <select
-          value={selectedCategory}
+          value={selectedProfe}
+          onChange={e => { setSelectedProfe(e.target.value); setSelected(new Set()); setSelectedTira(null); }}
+          className="w-full px-3 py-2 rounded-lg border text-sm font-medium bg-white"
+        >
+          <option value="">Todos los profes (admin)</option>
+          {demoProfes.filter(p => p.is_active).map(p => (
+            <option key={p.id} value={p.id}>👤 {p.full_name}</option>
+          ))}
+        </select>
+
+        <select
+          value={effectiveCategory}
           onChange={e => { setSelectedCategory(e.target.value); setSelected(new Set()); setSelectedTira(null); }}
           className="w-full px-3 py-2 rounded-lg border text-sm font-medium bg-white"
           style={{ borderColor: '#00843D', color: '#00843D' }}
@@ -264,10 +289,10 @@ export default function ConvocatoriaPage() {
                   style={{ left: `${x}%`, top: `${y}%` }}
                 >
                   <div
-                    className="w-12 h-12 rounded-full bg-white border-2 shadow-lg flex items-center justify-center text-[10px] font-bold"
-                    style={{ borderColor: POSITION_COLORS[p.primary_position], color: POSITION_COLORS[p.primary_position] }}
+                    className="w-12 h-12 rounded-full bg-white border-2 shadow-lg overflow-hidden"
+                    style={{ borderColor: POSITION_COLORS[p.primary_position] }}
                   >
-                    {p.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                    <img src={getAvatarUrl(p)} alt={p.full_name} className="w-full h-full object-cover" />
                   </div>
                   <p className="text-[9px] text-white text-center mt-0.5 font-bold leading-tight whitespace-nowrap drop-shadow-md">
                     {p.full_name.split(' ').slice(-1)[0]}
@@ -311,10 +336,10 @@ export default function ConvocatoriaPage() {
                       className="flex items-center gap-2.5 flex-1 min-w-0 text-left"
                     >
                       <div
-                        className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                        style={{ backgroundColor: isSelected ? POSITION_COLORS[pos] : '#9ca3af' }}
+                        className="w-10 h-10 rounded-full overflow-hidden border-2 flex-shrink-0 bg-white"
+                        style={{ borderColor: isSelected ? POSITION_COLORS[pos] : '#d1d5db' }}
                       >
-                        {p.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        <img src={getAvatarUrl(p)} alt={p.full_name} className="w-full h-full object-cover" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold truncate">{p.full_name}</p>
@@ -354,8 +379,8 @@ export default function ConvocatoriaPage() {
                   {notEligibleOfPos.map(p => (
                     <Card key={p.id} className="border-0 shadow-sm bg-gray-50">
                       <CardContent className="p-2 flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold bg-gray-400 flex-shrink-0">
-                          {p.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-gray-300 bg-white flex-shrink-0 grayscale">
+                          <img src={getAvatarUrl(p)} alt={p.full_name} className="w-full h-full object-cover" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-semibold text-gray-500 truncate">{p.full_name}</p>

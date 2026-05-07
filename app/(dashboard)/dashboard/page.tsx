@@ -60,7 +60,17 @@ export default function DashboardPage() {
     }
     groupsMap.get(key)!.categories.push({ id: m.category_id, name: cat?.name ?? '—', matchId: m.id, time })
   }
-  const groupedMatches = Array.from(groupsMap.values()).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 8)
+  // Solo el más próximo por tira (1 por tira: Metro, Liga 1, Liga 2, Edefi)
+  const sortedAll = Array.from(groupsMap.values()).sort((a, b) => a.date.localeCompare(b.date))
+  const seenTiras = new Set<string>()
+  const groupedMatches: typeof sortedAll = []
+  for (const g of sortedAll) {
+    if (g.tira && !seenTiras.has(g.tira)) {
+      seenTiras.add(g.tira)
+      groupedMatches.push(g)
+    }
+    if (groupedMatches.length === 4) break
+  }
   const deudoresCount = getPlayerDebts(demoPlayers, demoPayments).length
 
   const quickActions = [

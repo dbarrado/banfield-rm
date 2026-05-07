@@ -15,8 +15,16 @@ export default function PuntajesPartidoPage({ params }: { params: Promise<{ id: 
   if (!event) notFound()
 
   const cat = demoCategories.find(c => c.id === event!.category_id)
-  // Demo: tomar 14 "convocados" de la categoría como base
-  const convocados = demoPlayers.filter(p => p.category_id === event!.category_id).slice(0, 14)
+  // Demo: tomar 14 "convocados" y ordenarlos por posición (arquero → defensor → medio → delantero)
+  // dentro de cada posición, derecha → izquierda (orden inverso al index)
+  const allOfCat = demoPlayers.filter(p => p.category_id === event!.category_id).slice(0, 14)
+  const positionOrder: Record<string, number> = { arquero: 0, defensor: 1, mediocampista: 2, delantero: 3 }
+  const convocados = [...allOfCat].sort((a, b) => {
+    const posDiff = positionOrder[a.primary_position] - positionOrder[b.primary_position]
+    if (posDiff !== 0) return posDiff
+    // Mismo puesto: invertir el orden natural (derecha→izquierda en cancha = última posición primero)
+    return b.id.localeCompare(a.id)
+  })
 
   const [scores, setScores] = useState<Record<string, number>>({})
   const [observations, setObservations] = useState<Record<string, string>>({})
