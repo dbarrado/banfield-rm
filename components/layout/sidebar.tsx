@@ -14,6 +14,7 @@ import {
   Settings,
   LogOut,
   Volleyball,
+  Gift,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -28,6 +29,7 @@ const navItems = [
   { href: '/deportes', icon: Volleyball, label: 'Deportes' },
   { href: '/caja', icon: Wallet, label: 'Caja' },
   { href: '/finanzas', icon: TrendingUp, label: 'Finanzas' },
+  { href: '/invitar', icon: Gift, label: 'Invitar' },
   { href: '/config', icon: Settings, label: 'Config' },
 ]
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Users, TrendingUp, AlertTriangle, Calendar } from 'lucide-react'
+import { Users, TrendingUp, AlertTriangle, Calendar, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import {
   demoPlayers,
@@ -14,6 +14,9 @@ import {
 } from '@/lib/demo-data'
 import { TIRA_LABELS, TIRA_COLORS, type Tira } from '@/types'
 import { useCurrentClub } from '@/lib/use-current-club'
+import { demoClubs } from '@/lib/clubs'
+import { getReferralActivationStatus, getReferralProgress } from '@/lib/referrals'
+import { Gift, Sparkles } from 'lucide-react'
 
 export default function DashboardPage() {
   const club = useCurrentClub()
@@ -80,6 +83,11 @@ export default function DashboardPage() {
     if (groupedMatches.length === 4) break
   }
   const deudoresCount = getPlayerDebts(demoPlayers, demoPayments).length
+
+  // Referrals
+  const fullClub = demoClubs.find(c => c.id === club.id)
+  const referralActive = fullClub ? getReferralActivationStatus(fullClub.first_payment_at).active : false
+  const referralProgress = fullClub ? getReferralProgress(club.id) : null
 
   const quickActions = [
     { label: 'Tomar asistencia', href: '/asistencia', color: club.primary_color },
@@ -181,6 +189,44 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Card de programa de referidos (solo si activo después de 15 días) */}
+      {referralActive && referralProgress && !referralProgress.reached_pro && club.plan === 'club' && (
+        <Link href="/invitar">
+          <Card className="border-0 shadow-sm cursor-pointer hover:shadow-md transition-shadow" style={{ borderLeft: '4px solid #C9A84C', background: 'linear-gradient(135deg, #fef3c7 0%, white 100%)' }}>
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={16} className="text-amber-600 flex-shrink-0" />
+                <p className="text-sm font-bold text-amber-800 flex-1" style={{ fontFamily: "var(--font-barlow)" }}>
+                  ¿Conocés otro club? Subí a Pro gratis
+                </p>
+                <ArrowRight size={14} className="text-amber-600 flex-shrink-0" />
+              </div>
+              <p className="text-[11px] text-amber-700 mb-2">
+                Llevás <strong>{referralProgress.successful}/3</strong> referidos. Te falta {referralProgress.needs_for_pro} para acceder a Plan Pro sin costo.
+              </p>
+              <div className="h-1.5 bg-amber-100 rounded-full overflow-hidden">
+                <div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-600 transition-all" style={{ width: `${referralProgress.progress_to_pro * 100}%` }} />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
+
+      {referralActive && referralProgress?.reached_pro && (
+        <Link href="/invitar">
+          <Card className="border-0 shadow-sm cursor-pointer hover:shadow-md transition-shadow bg-gradient-to-br from-purple-100 to-pink-50">
+            <CardContent className="p-3 flex items-center gap-2">
+              <Sparkles size={20} className="text-purple-600 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-bold text-purple-800">¡Sos embajador Pro!</p>
+                <p className="text-[11px] text-purple-700">{referralProgress.successful} clubes confían en vos. Tu Plan Pro es gratis.</p>
+              </div>
+              <ArrowRight size={14} className="text-purple-600 flex-shrink-0" />
+            </CardContent>
+          </Card>
+        </Link>
+      )}
 
       {/* No anotados que participaron */}
       {demoGuestParticipations.filter(g => g.reason !== 'visit_other_tira').length > 0 && (

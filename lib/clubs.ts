@@ -1,7 +1,7 @@
 import type { Club } from '@/types'
 
 // Lista de clubes demo. En producción vendría de Supabase tabla `clubs`.
-export const demoClubs: Club[] = [
+export const demoClubs: (Club & { referral_code: string; first_payment_at: string; successful_referrals: number })[] = [
   {
     id: 'club-banfield-rm',
     name: 'Filial Banfield Ramos Mejía',
@@ -12,10 +12,13 @@ export const demoClubs: Club[] = [
     secondary_color: '#C9A84C',
     city: 'Ramos Mejía',
     is_active: true,
-    plan: 'pro',
+    plan: 'club',
     default_sport_code: 'football_11',
     total_socios: 450,
     created_at: '2025-03-01',
+    referral_code: 'BANFIELD-RM-A3X',
+    first_payment_at: '2026-03-15', // ~50 días atrás → ya activo
+    successful_referrals: 2,
   },
   {
     id: 'club-brisas',
@@ -31,6 +34,9 @@ export const demoClubs: Club[] = [
     default_sport_code: 'baby_5',
     total_socios: 875,
     created_at: '2025-01-15',
+    referral_code: 'BRISAS-HD-K7M',
+    first_payment_at: '2025-02-01', // muy antiguo
+    successful_referrals: 5,
   },
   {
     id: 'club-boca-rm',
@@ -46,6 +52,9 @@ export const demoClubs: Club[] = [
     default_sport_code: 'football_11',
     total_socios: 312,
     created_at: '2026-02-10',
+    referral_code: 'BOCA-RM-Q2P',
+    first_payment_at: '2026-04-25', // ~12 días atrás → todavía no activo, falta llegar a 15d
+    successful_referrals: 0,
   },
 ]
 

@@ -14,6 +14,10 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith('/padres')) {
     return NextResponse.next()
   }
+  // Landing de referidos es público
+  if (pathname.startsWith('/r/')) {
+    return NextResponse.next()
+  }
   if (pathname !== '/login' && !authed) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
