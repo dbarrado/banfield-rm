@@ -156,6 +156,45 @@ function generatePlayers(): Player[] {
 
 export const demoPlayers: Player[] = generatePlayers()
 
+// Vincular hermanos: tomar 8 grupos de 2 y 3 grupos de 3 jugadores con mismo tutor_email
+;(function linkSiblings() {
+  const familyEmails = [
+    'fernandez.diego@gmail.com',
+    'garcia.ana@gmail.com',
+    'lopez.jorge@gmail.com',
+    'martinez.laura@gmail.com',
+    'rodriguez.silvia@gmail.com',
+    'sanchez.roberto@gmail.com',
+    'perez.monica@gmail.com',
+    'torres.diego@gmail.com',
+  ]
+  // 8 familias de 2 hermanos
+  let p = 0
+  for (let i = 0; i < 8; i++) {
+    if (p + 1 >= demoPlayers.length) break
+    demoPlayers[p].tutor_email = familyEmails[i]
+    demoPlayers[p].tutor_name = familyEmails[i].split('@')[0].split('.')[0].charAt(0).toUpperCase() + familyEmails[i].split('@')[0].split('.')[0].slice(1) + ' ' + demoPlayers[p].full_name.split(' ').slice(-1)[0]
+    demoPlayers[p + 1].tutor_email = familyEmails[i]
+    demoPlayers[p + 1].tutor_name = demoPlayers[p].tutor_name
+    p += 30 // saltear suficientes para no chocar
+  }
+  // 3 familias de 3 hermanos (jugadores p-200 a p-220 aprox)
+  const tripleFamilies = [
+    { email: 'gomez.carlos@gmail.com', name: 'Carlos Gómez', start: 100 },
+    { email: 'romero.veronica@gmail.com', name: 'Verónica Romero', start: 200 },
+    { email: 'silva.daniel@gmail.com', name: 'Daniel Silva', start: 300 },
+  ]
+  for (const f of tripleFamilies) {
+    for (let i = 0; i < 3; i++) {
+      const idx = f.start + i
+      if (idx < demoPlayers.length) {
+        demoPlayers[idx].tutor_email = f.email
+        demoPlayers[idx].tutor_name = f.name
+      }
+    }
+  }
+})()
+
 // ──────────────────────────────────────────────────────────────────────────
 // EVENTOS — prácticas del último mes + partidos próximos
 // Calendario: lunes/miércoles/viernes para todas las categorías
@@ -586,6 +625,38 @@ export const demoGuestParticipations: GuestParticipation[] = [
   { id: 'guest-4', full_name: 'Brian Núñez',     category_id: 'cat-2012', shifted_to: 'metro', date: '2026-05-02', reason: 'sibling', notes: 'Hermano de Tomás García', added_by_profe: 'pf-3' },
   { id: 'guest-5', full_name: 'Tobías Ledesma',  category_id: 'cat-2016', shifted_to: 'metro', date: '2026-05-01', reason: 'unregistered_trial', notes: 'A prueba — pendiente registro', added_by_profe: 'pf-10' },
 ]
+
+// ──────────────────────────────────────────────────────────────────────────
+// DESCUENTOS POR HERMANO
+// ──────────────────────────────────────────────────────────────────────────
+export const demoSiblingDiscountConfig: import('@/types').SiblingDiscountConfig = {
+  second_child_pct: 50,        // 2do hermano paga 50% de su cuota
+  third_or_more_pct: 75,       // 3ro+ pagan 25% de su cuota (75% off)
+  updated_at: '2026-03-01',
+  updated_by: null,
+}
+
+// Detecta hermanos por mismo email del tutor
+export function getSiblings(playerId: string) {
+  const player = demoPlayers.find(p => p.id === playerId)
+  if (!player || !player.tutor_email) return []
+  return demoPlayers.filter(p =>
+    p.id !== playerId && p.tutor_email && p.tutor_email === player.tutor_email && p.is_active
+  )
+}
+
+// Calcula el descuento aplicable a un jugador según orden entre hermanos (mayor a menor por nacimiento)
+export function getSiblingDiscount(playerId: string): { order: number; discount_pct: number } {
+  const player = demoPlayers.find(p => p.id === playerId)
+  if (!player || !player.tutor_email) return { order: 1, discount_pct: 0 }
+  const family = demoPlayers
+    .filter(p => p.tutor_email === player.tutor_email && p.is_active)
+    .sort((a, b) => a.birth_date.localeCompare(b.birth_date))
+  const order = family.findIndex(p => p.id === playerId) + 1
+  if (order === 1) return { order: 1, discount_pct: 0 }
+  if (order === 2) return { order: 2, discount_pct: demoSiblingDiscountConfig.second_child_pct }
+  return { order, discount_pct: demoSiblingDiscountConfig.third_or_more_pct }
+}
 
 export const demoEligibilityConfig: EligibilityConfig = {
   id: 'ec-1',

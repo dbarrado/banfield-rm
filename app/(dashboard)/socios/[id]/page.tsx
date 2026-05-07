@@ -3,10 +3,10 @@
 import { useState, useRef, use } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, MessageCircle, Camera, Plus, Trophy, AlertCircle, Star, Award, FileCheck, FileWarning, Upload, Mail, Edit2, X, Check } from 'lucide-react'
+import { ArrowLeft, MessageCircle, Camera, Plus, Trophy, AlertCircle, Star, Award, FileCheck, FileWarning, Upload, Mail, Edit2, X, Check, QrCode, Users as UsersIcon, Shield } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { demoPlayers, demoCategories, demoPayments, demoEvents, demoAttendance, getDetailedAttendanceStats, thisMonth } from '@/lib/demo-data'
+import { demoPlayers, demoCategories, demoPayments, demoEvents, demoAttendance, getDetailedAttendanceStats, thisMonth, getSiblings, getSiblingDiscount, demoSiblingDiscountConfig } from '@/lib/demo-data'
 import { POSITION_LABELS, POSITION_COLORS, TIRA_LABELS, TIRA_COLORS, type Position } from '@/types'
 import { getAvatarUrl } from '@/lib/avatars'
 
@@ -25,6 +25,13 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
   const [editingPositions, setEditingPositions] = useState(false)
   const [showPaymentForm, setShowPaymentForm] = useState(false)
   const [showObservationForm, setShowObservationForm] = useState(false)
+  // Consentimientos de imagen (Ley 26.061 + 25.326)
+  const [imageConsent, setImageConsent] = useState({
+    team_photos: true,
+    match_videos: true,
+    social_media: false,  // por default OFF — opt-in explícito requerido
+    training_clips: true,
+  })
   const fileInputRef = useRef<HTMLInputElement>(null)
   const aptoInputRef = useRef<HTMLInputElement>(null)
 
@@ -71,6 +78,9 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
       <div className="relative" style={{ background: `linear-gradient(135deg, ${TIRA_COLORS[player.tira]} 0%, ${TIRA_COLORS[player.tira]}dd 100%)` }}>
         <Link href="/socios" className="absolute top-3 left-3 text-white p-2 rounded-full bg-black/20 hover:bg-black/30 z-10">
           <ArrowLeft size={18} />
+        </Link>
+        <Link href={`/carnet/${player.id}`} target="_blank" className="absolute top-3 right-3 text-white px-2.5 py-1.5 rounded-full bg-black/20 hover:bg-black/30 z-10 flex items-center gap-1 text-xs font-semibold">
+          <QrCode size={14} /> Carnet
         </Link>
         <div className="pt-8 pb-4 px-4 text-center">
           <div className="relative inline-block">
@@ -256,6 +266,54 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
           </CardContent>
         </Card>
 
+        {/* Hermanos en el club */}
+        {(() => {
+          const siblings = getSiblings(player.id)
+          const myDiscount = getSiblingDiscount(player.id)
+          if (siblings.length === 0) return null
+          return (
+            <Card className="border-0 shadow-sm" style={{ borderLeft: '4px solid #7c3aed' }}>
+              <CardContent className="p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-bold uppercase tracking-wider text-purple-700 flex items-center gap-1.5" style={{ fontFamily: "var(--font-barlow)" }}>
+                    <UsersIcon size={12} /> HERMANOS EN EL CLUB ({siblings.length})
+                  </p>
+                  {myDiscount.discount_pct > 0 && (
+                    <Badge className="text-[10px] bg-purple-100 text-purple-700 border-0">
+                      {myDiscount.order}° hijo · {myDiscount.discount_pct}% off
+                    </Badge>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  {siblings.map(s => {
+                    const sCat = demoCategories.find(c => c.id === s.category_id)
+                    const sDiscount = getSiblingDiscount(s.id)
+                    return (
+                      <Link key={s.id} href={`/socios/${s.id}`}>
+                        <div className="flex items-center gap-2 p-1.5 rounded hover:bg-purple-50 transition-colors">
+                          <div className="w-7 h-7 rounded-full bg-purple-200 flex items-center justify-center text-[10px] font-bold text-purple-800 flex-shrink-0">
+                            {s.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold truncate">{s.full_name}</p>
+                            <p className="text-[10px] text-muted-foreground">Cat. {sCat?.name}</p>
+                          </div>
+                          {sDiscount.discount_pct > 0 && (
+                            <span className="text-[10px] text-purple-700 font-bold">{sDiscount.discount_pct}% off</span>
+                          )}
+                        </div>
+                      </Link>
+                    )
+                  })}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-2 italic">
+                  Configurado: 2° hijo {demoSiblingDiscountConfig.second_child_pct}% off · 3° y siguientes {demoSiblingDiscountConfig.third_or_more_pct}% off
+                </p>
+              </CardContent>
+            </Card>
+          )
+        })()}
+
         {/* Datos del tutor */}
         <Card className="border-0 shadow-sm">
           <CardContent className="p-3">
@@ -283,6 +341,42 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
                 </a>
               )}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Consentimiento de imagen del menor (Ley 26.061) */}
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-3">
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5" style={{ fontFamily: "var(--font-barlow)" }}>
+              <Shield size={12} /> CONSENTIMIENTOS DE IMAGEN
+            </p>
+            <div className="space-y-1.5">
+              {[
+                { key: 'team_photos' as const, label: 'Fotos grupales del plantel', desc: 'Plantel completo posando' },
+                { key: 'match_videos' as const, label: 'Grabación de partidos', desc: 'Para uso interno del cuerpo técnico' },
+                { key: 'training_clips' as const, label: 'Videos de entrenamientos', desc: 'Análisis técnico interno' },
+                { key: 'social_media' as const, label: 'Redes sociales del club', desc: 'Instagram, Facebook, web pública', sensitive: true },
+              ].map(item => (
+                <label key={item.key} className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer ${imageConsent[item.key] ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-200'}`}>
+                  <input
+                    type="checkbox"
+                    checked={imageConsent[item.key]}
+                    onChange={e => setImageConsent({ ...imageConsent, [item.key]: e.target.checked })}
+                    className="mt-0.5 w-4 h-4 accent-green-600"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold flex items-center gap-1">
+                      {item.label}
+                      {item.sensitive && <Badge className="text-[8px] bg-amber-100 text-amber-700 border-0">SENSIBLE</Badge>}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-2 italic">
+              Firmado por tutor responsable. Conforme Ley 26.061 (protección integral NNA) y Ley 25.326 (datos personales).
+            </p>
           </CardContent>
         </Card>
 
@@ -550,6 +644,9 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
 }
 
 function PaymentFormModal({ player, onClose }: { player: any; onClose: () => void }) {
+  const siblingDiscount = getSiblingDiscount(player.id)
+  const discountAmount = (62000 * siblingDiscount.discount_pct) / 100
+  const finalCuota = 62000 - discountAmount
   // Generar cuotas pendientes simuladas: meses sin pagar + matrícula si falta
   const today = new Date('2026-05-07')
   const cuotaMonths = ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05']
@@ -559,9 +656,10 @@ function PaymentFormModal({ player, onClose }: { player: any; onClose: () => voi
     ...cuotaMonths.filter(m => !pagadas.has(`${player.id}-actividad-${m}`)).map(m => ({
       id: `actividad-${m}`,
       label: `Cuota actividad ${m}`,
-      amount: 62000,
+      amount: finalCuota,
+      original_amount: 62000,
     })),
-    { id: 'matricula-2026', label: 'Matrícula 2026', amount: 35000 },
+    { id: 'matricula-2026', label: 'Matrícula 2026', amount: 35000, original_amount: 35000 },
   ]
 
   const [selected, setSelected] = useState<Set<string>>(new Set([pendientes[0]?.id]))
@@ -598,6 +696,17 @@ function PaymentFormModal({ player, onClose }: { player: any; onClose: () => voi
           <button onClick={onClose} className="text-2xl text-muted-foreground">×</button>
         </div>
         <p className="text-sm text-muted-foreground">{player.full_name}</p>
+
+        {siblingDiscount.discount_pct > 0 && (
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-2 text-xs">
+            <p className="font-semibold text-purple-800 flex items-center gap-1">
+              👨‍👦 {siblingDiscount.order}° hijo de la familia — descuento {siblingDiscount.discount_pct}%
+            </p>
+            <p className="text-purple-700 text-[11px]">
+              La cuota se aplica con descuento automático: ${finalCuota.toLocaleString('es-AR')} (en lugar de $62.000)
+            </p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>

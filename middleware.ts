@@ -18,6 +18,10 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith('/r/')) {
     return NextResponse.next()
   }
+  // Carnet es público (lo escanea seguridad en la entrada del club)
+  if (pathname.startsWith('/carnet')) {
+    return NextResponse.next()
+  }
   if (pathname !== '/login' && !authed) {
     return NextResponse.redirect(new URL('/login', request.url))
   }

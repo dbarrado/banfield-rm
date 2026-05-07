@@ -252,8 +252,11 @@ export default function AsistenciaPage() {
             <button key={player.id} onClick={() => !closed && cycleStatus(player.id)} disabled={closed} className="w-full text-left disabled:opacity-90">
               <Card className="border-0 shadow-sm transition-all active:scale-[0.99]" style={{ borderLeft: `4px solid ${color}` }}>
                 <CardContent className="p-2.5 flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style={{ backgroundColor: color }}>
-                    {player.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                  <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 flex-shrink-0 bg-white" style={{ borderColor: color }}>
+                    <img src={getAvatarUrl(player)} alt={player.full_name} className="w-full h-full object-cover" />
+                    <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white flex items-center justify-center" style={{ backgroundColor: color }}>
+                      <Icon size={8} className="text-white" />
+                    </span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm truncate">{player.full_name}</p>

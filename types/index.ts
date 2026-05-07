@@ -126,6 +126,32 @@ export interface FeeConfig {
   updated_by: string | null
 }
 
+export interface SiblingDiscountConfig {
+  second_child_pct: number  // ej: 50 → 2do hermano paga 50%
+  third_or_more_pct: number  // ej: 75 → 3ro+ pagan 75% off
+  updated_at: string
+  updated_by: string | null
+}
+
+export interface AvailabilityRSVP {
+  player_id: string
+  event_id: string
+  status: 'going' | 'maybe' | 'not_going' | 'no_response'
+  notes?: string
+  responded_by?: string  // tutor o jugador
+  responded_at?: string
+}
+
+export interface ImageConsent {
+  player_id: string
+  for_team_photos: boolean         // fotos grupales del plantel
+  for_match_videos: boolean        // grabaciones de partidos
+  for_social_media: boolean        // redes del club
+  for_training_clips: boolean      // videos de entrenamientos
+  signed_by_tutor_dni?: string
+  signed_at?: string
+}
+
 export interface Payment {
   id: string
   player_id: string
