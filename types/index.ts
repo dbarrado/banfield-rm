@@ -10,7 +10,8 @@ export interface Club {
   secondary_color: string
   city: string
   is_active: boolean
-  plan: 'free' | 'pro' | 'enterprise'
+  plan: 'free' | 'club' | 'pro' | 'enterprise'
+  default_sport_code?: string  // SportCode, default 'football_11'
   total_socios?: number
   created_at: string
 }

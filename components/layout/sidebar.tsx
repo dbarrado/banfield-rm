@@ -13,6 +13,7 @@ import {
   TrendingUp,
   Settings,
   LogOut,
+  Volleyball,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -24,6 +25,7 @@ const navItems = [
   { href: '/asistencia', icon: ClipboardList, label: 'Asistencia' },
   { href: '/convocatoria', icon: Trophy, label: 'Convocatoria' },
   { href: '/fixture', icon: Calendar, label: 'Fixture' },
+  { href: '/deportes', icon: Volleyball, label: 'Deportes' },
   { href: '/caja', icon: Wallet, label: 'Caja' },
   { href: '/finanzas', icon: TrendingUp, label: 'Finanzas' },
   { href: '/config', icon: Settings, label: 'Config' },
