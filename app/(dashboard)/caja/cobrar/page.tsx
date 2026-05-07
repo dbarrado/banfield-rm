@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Search, Users, MessageCircle, Plus, X, Check, CreditCard, Banknote, UserPlus, Clock, Smartphone } from 'lucide-react'
+import { ArrowLeft, Search, Users, MessageCircle, Plus, X, Check, CreditCard, Banknote, UserPlus, Clock, Smartphone, Camera, Sparkles, Image as ImageIcon, Loader2, AlertCircle } from 'lucide-react'
 import { demoPlayers, demoCategories, getSiblings } from '@/lib/demo-data'
 import { generateBillingsForPeriod, loadBillingConfig, type Billing } from '@/lib/billings'
 import { getAvatarUrl } from '@/lib/avatars'
@@ -29,6 +29,9 @@ export default function CobrarPage() {
   const [selectedBillingIds, setSelectedBillingIds] = useState<Set<string>>(new Set())
   const [method, setMethod] = useState<'cash' | 'transfer' | 'mercadopago'>('cash')
   const [reference, setReference] = useState('')
+  const [receiptImage, setReceiptImage] = useState<string | null>(null)
+  const [ocrStatus, setOcrStatus] = useState<'idle' | 'scanning' | 'done' | 'mismatch'>('idle')
+  const [ocrResult, setOcrResult] = useState<{ amount: number; reference: string } | null>(null)
   const [chosenContactIdx, setChosenContactIdx] = useState(0)
   const [showAddContact, setShowAddContact] = useState(false)
   const [newContact, setNewContact] = useState({ name: '', whatsapp: '', relation: '' })
@@ -139,10 +142,40 @@ export default function CobrarPage() {
     setSelectedBillingIds(new Set())
     setMethod('cash')
     setReference('')
+    setReceiptImage(null)
+    setOcrStatus('idle')
+    setOcrResult(null)
     setChosenContactIdx(0)
     setShowAddContact(false)
     setDoneInfo(null)
     setStep('search')
+  }
+
+  // ── OCR simulado (TODO: reemplazar por servicio real post-demo) ────────
+  function handleReceiptUpload(file: File) {
+    const reader = new FileReader()
+    reader.onload = e => {
+      setReceiptImage(e.target?.result as string)
+      setOcrStatus('scanning')
+      // Simulación: en producción esto manda la imagen a un OCR (Google Vision, Textract, GPT-4V).
+      // El servicio devuelve { amount, reference }. Si amount !== total, marcamos mismatch.
+      setTimeout(() => {
+        const fakeRef = method === 'mercadopago' ? `MP-${Math.floor(Math.random() * 9_000_000_000) + 1_000_000_000}` : `TR-${Math.floor(Math.random() * 900000) + 100000}`
+        // 85% del tiempo el monto detectado coincide con el total esperado
+        const detected = Math.random() < 0.85 ? total : total - Math.floor(Math.random() * 1000) - 500
+        setOcrResult({ amount: detected, reference: fakeRef })
+        setReference(fakeRef)
+        setOcrStatus(detected === total ? 'done' : 'mismatch')
+      }, 1500)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  function clearReceipt() {
+    setReceiptImage(null)
+    setOcrStatus('idle')
+    setOcrResult(null)
+    setReference('')
   }
 
   function buildWhatsAppLink(c: Contact) {
@@ -388,14 +421,85 @@ export default function CobrarPage() {
                   <span className="text-[9px] opacity-90">+{cfg.mp_surcharge_pct}%</span>
                 </button>
               </div>
-              {method === 'transfer' && (
-                <input value={reference} onChange={e => setReference(e.target.value)}
-                  placeholder="N° de comprobante" className="w-full px-3 py-2.5 border rounded-lg text-sm" />
+              {(method === 'transfer' || method === 'mercadopago') && (
+                <div className="space-y-2">
+                  {/* Captura del comprobante */}
+                  {!receiptImage ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="cursor-pointer py-3 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center gap-1 hover:bg-gray-50">
+                        <Camera size={20} className="text-gray-500" />
+                        <span className="text-xs font-bold text-gray-700">Sacar foto</span>
+                        <input type="file" accept="image/*" capture="environment" className="hidden"
+                          onChange={e => e.target.files?.[0] && handleReceiptUpload(e.target.files[0])} />
+                      </label>
+                      <label className="cursor-pointer py-3 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center gap-1 hover:bg-gray-50">
+                        <ImageIcon size={20} className="text-gray-500" />
+                        <span className="text-xs font-bold text-gray-700">Subir imagen</span>
+                        <input type="file" accept="image/*" className="hidden"
+                          onChange={e => e.target.files?.[0] && handleReceiptUpload(e.target.files[0])} />
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="relative rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-50">
+                        <img src={receiptImage} alt="Comprobante" className="w-full max-h-48 object-contain" />
+                        <button onClick={clearReceipt} className="absolute top-1 right-1 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center">
+                          <X size={14} />
+                        </button>
+                      </div>
+
+                      {/* Banner OCR */}
+                      {ocrStatus === 'scanning' && (
+                        <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg p-2.5">
+                          <Loader2 size={16} className="text-blue-600 animate-spin flex-shrink-0" />
+                          <p className="text-xs text-blue-700">
+                            <strong>IA leyendo comprobante…</strong> detectando monto y N° de operación
+                          </p>
+                        </div>
+                      )}
+                      {ocrStatus === 'done' && ocrResult && (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-2.5 space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <Sparkles size={13} className="text-green-700" />
+                            <p className="text-xs font-bold text-green-700">IA: comprobante validado</p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-[11px]">
+                            <div>
+                              <span className="text-muted-foreground">Monto detectado:</span>{' '}
+                              <strong className="text-green-700">${ocrResult.amount.toLocaleString('es-AR')}</strong>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">N° operación:</span>{' '}
+                              <strong className="font-mono text-[10px]">{ocrResult.reference}</strong>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {ocrStatus === 'mismatch' && ocrResult && (
+                        <div className="bg-amber-50 border border-amber-300 rounded-lg p-2.5 space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <AlertCircle size={13} className="text-amber-700" />
+                            <p className="text-xs font-bold text-amber-800">El monto del comprobante no coincide</p>
+                          </div>
+                          <p className="text-[11px] text-amber-800">
+                            Detectado <strong>${ocrResult.amount.toLocaleString('es-AR')}</strong> · esperado <strong>${total.toLocaleString('es-AR')}</strong>. Verificá antes de confirmar.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Input manual de referencia (editable o autocompletado por OCR) */}
+                  <input value={reference} onChange={e => setReference(e.target.value)}
+                    placeholder={method === 'mercadopago' ? 'ID de operación MP' : 'N° de comprobante'}
+                    className="w-full px-3 py-2.5 border rounded-lg text-sm" />
+
+                  <p className="text-[10px] text-muted-foreground italic flex items-center gap-1">
+                    <Sparkles size={10} /> IA simulada — en producción se conecta a OCR real (Google Vision / GPT-4V) para extraer monto y N° automáticamente.
+                  </p>
+                </div>
               )}
-              {method === 'mercadopago' && (
-                <input value={reference} onChange={e => setReference(e.target.value)}
-                  placeholder="ID de operación MP (opcional)" className="w-full px-3 py-2.5 border rounded-lg text-sm" />
-              )}
+
               {method === 'mercadopago' && (
                 <p className="text-[10px] text-purple-700 italic">
                   El recargo de ${mpSurcharge.toLocaleString('es-AR')} se registra como ingreso adicional aparte de la cuota.
