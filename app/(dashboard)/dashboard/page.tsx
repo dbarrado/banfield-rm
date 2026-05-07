@@ -1,3 +1,5 @@
+'use client'
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Users, TrendingUp, AlertTriangle, Calendar } from 'lucide-react'
 import Link from 'next/link'
@@ -11,11 +13,16 @@ import {
   thisMonth,
 } from '@/lib/demo-data'
 import { TIRA_LABELS, TIRA_COLORS, type Tira } from '@/types'
+import { useCurrentClub } from '@/lib/use-current-club'
 
 export default function DashboardPage() {
-  const totalSocios = demoPlayers.filter(p => p.is_active).length
+  const club = useCurrentClub()
+  const baseSocios = club.total_socios ?? demoPlayers.filter(p => p.is_active).length
+  // Escala los datos demo proporcionalmente al tamaño del club
+  const scale = baseSocios / 450
+  const totalSocios = baseSocios
   const thisMonthPayments = demoPayments.filter(p => p.period === thisMonth && p.fee_type === 'actividad')
-  const monthlyIncome = thisMonthPayments.reduce((s, p) => s + p.amount, 0)
+  const monthlyIncome = Math.round(thisMonthPayments.reduce((s, p) => s + p.amount, 0) * scale)
   const cuotaActividad = 62000
   const target = cuotaActividad * totalSocios
   const incomePercent = Math.round((monthlyIncome / target) * 100)
@@ -75,23 +82,29 @@ export default function DashboardPage() {
   const deudoresCount = getPlayerDebts(demoPlayers, demoPayments).length
 
   const quickActions = [
-    { label: 'Tomar asistencia', href: '/asistencia', color: '#00843D' },
+    { label: 'Tomar asistencia', href: '/asistencia', color: club.primary_color },
     { label: 'Nueva convocatoria', href: '/convocatoria', color: '#1d4ed8' },
-    { label: 'Registrar pago', href: '/socios', color: '#C9A84C' },
+    { label: 'Registrar pago', href: '/socios', color: club.secondary_color },
     { label: 'Abrir caja', href: '/caja', color: '#7c3aed' },
   ]
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="p-3 md:p-6 space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#00843D' }}>
-            BANFIELD RM
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl md:text-3xl font-bold uppercase truncate" style={{ fontFamily: "var(--font-barlow)", color: club.primary_color }}>
+            {club.short_name}
           </h1>
-          <p className="text-sm text-muted-foreground">Filial Ramos Mejía</p>
+          <p className="text-xs md:text-sm text-muted-foreground truncate">{club.city}</p>
         </div>
-        <img src="/escudo-banfield.png" alt="Escudo" className="w-12 h-12 object-contain" />
+        {club.logo_url ? (
+          <img src={club.logo_url} alt={club.name} className="w-12 h-12 object-contain flex-shrink-0" />
+        ) : (
+          <div className="w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold text-lg flex-shrink-0" style={{ backgroundColor: club.primary_color }}>
+            {club.short_name.split(' ').map(w => w[0]).join('').slice(0, 2)}
+          </div>
+        )}
       </div>
 
       {/* Acciones rápidas */}
@@ -112,10 +125,10 @@ export default function DashboardPage() {
         <Card className="border-0 shadow-sm">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm text-muted-foreground font-medium">Socios activos</CardTitle>
-            <Users size={18} style={{ color: '#00843D' }} />
+            <Users size={18} style={{ color: club.primary_color }} />
           </CardHeader>
           <CardContent>
-            <p className="text-4xl font-bold" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#00843D' }}>
+            <p className="text-4xl font-bold" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: club.primary_color }}>
               {totalSocios ?? 0}
             </p>
           </CardContent>
@@ -124,16 +137,16 @@ export default function DashboardPage() {
         <Card className="border-0 shadow-sm">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm text-muted-foreground font-medium">Recaudado este mes</CardTitle>
-            <TrendingUp size={18} style={{ color: '#C9A84C' }} />
+            <TrendingUp size={18} style={{ color: club.secondary_color }} />
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#C9A84C' }}>
+            <p className="text-3xl font-bold" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: club.secondary_color }}>
               ${monthlyIncome.toLocaleString('es-AR')}
             </p>
             <div className="mt-2 h-2 bg-gray-100 rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full transition-all"
-                style={{ width: `${Math.min(incomePercent, 100)}%`, backgroundColor: '#C9A84C' }}
+                style={{ width: `${Math.min(incomePercent, 100)}%`, backgroundColor: club.secondary_color }}
               />
             </div>
             <p className="text-xs text-muted-foreground mt-1">{incomePercent}% del objetivo</p>
