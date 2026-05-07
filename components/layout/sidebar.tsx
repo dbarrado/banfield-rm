@@ -39,6 +39,7 @@ const allItems: NavItem[] = [
   { href: '/socios', icon: Users, label: 'Socios' },
   { href: '/asistencia', icon: ClipboardList, label: 'Asistencia' },
   { href: '/caja', icon: Wallet, label: 'Caja' },
+  { href: '/cobranzas', icon: Wallet, label: 'Cobranzas' },
   // Secundarios
   { href: '/convocatoria', icon: Trophy, label: 'Convocatoria' },
   { href: '/fixture', icon: Calendar, label: 'Fixture' },

@@ -3,19 +3,26 @@
 import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ClipboardList, CheckCircle2, XCircle, AlertCircle, User, Lock, Unlock, Clock, Radio, Plus, X, Search, UserPlus, MapPin, Sparkles } from 'lucide-react'
+import { ClipboardList, CheckCircle2, XCircle, AlertCircle, User, Lock, Unlock, Clock, Radio, Plus, X, Search, UserPlus, MapPin, Sparkles, Circle } from 'lucide-react'
 import { demoPlayers, demoCategories, demoProfes, getAssignmentsForProfe, getProfesForTira } from '@/lib/demo-data'
 import { TIRA_LABELS, TIRA_COLORS, type Tira } from '@/types'
 import { getSessionsForDay, TIRA_GROUPS, tiraGroupOf } from '@/lib/training-schedule'
 import { getActiveSlotForNow, getNextSlotForDay, type TrainingSlot } from '@/lib/training-roster'
 import { getAvatarUrl } from '@/lib/avatars'
 
-type AttendanceStatus = 'present' | 'absent_unjustified' | 'absent_justified'
+type AttendanceStatus = 'unmarked' | 'present' | 'late' | 'absent_unjustified' | 'absent_justified'
 
 const statusConfig = {
+  unmarked:           { label: 'Sin marcar',         color: '#9ca3af', icon: Circle },
   present:            { label: 'Presente',           color: '#00843D', icon: CheckCircle2 },
+  late:               { label: 'Llegó tarde',        color: '#F59E0B', icon: Clock },
   absent_unjustified: { label: 'Ausente',            color: '#DC2626', icon: XCircle },
-  absent_justified:   { label: 'Justificado',        color: '#F59E0B', icon: AlertCircle },
+  absent_justified:   { label: 'Justificado',        color: '#3b82f6', icon: AlertCircle },
+}
+
+// Tarde cuenta como presente para % de asistencia (regla de elegibilidad)
+function isPresentForEligibility(s: AttendanceStatus): boolean {
+  return s === 'present' || s === 'late'
 }
 
 const ALL_TIRAS: Tira[] = ['metro', 'liga1', 'liga2', 'edefi']
@@ -114,20 +121,18 @@ export default function AsistenciaPage() {
   const today = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })
 
   function getStatus(playerId: string): AttendanceStatus {
-    return attendance[playerId] ?? 'present'
+    return attendance[playerId] ?? 'unmarked'
   }
 
-  function cycleStatus(playerId: string) {
-    const current = getStatus(playerId)
-    const next: AttendanceStatus =
-      current === 'present' ? 'absent_unjustified' :
-      current === 'absent_unjustified' ? 'absent_justified' :
-      'present'
-    setAttendance(prev => ({ ...prev, [playerId]: next }))
+  function setStatus(playerId: string, status: AttendanceStatus) {
+    setAttendance(prev => ({ ...prev, [playerId]: status }))
   }
 
-  const presentCount = players.filter(p => getStatus(p.id) === 'present').length
-  const absentCount = players.filter(p => getStatus(p.id) !== 'present').length
+  // Tarde cuenta como presente para %; sin marcar cuenta como ausente
+  const presentCount = players.filter(p => isPresentForEligibility(getStatus(p.id))).length
+  const lateCount = players.filter(p => getStatus(p.id) === 'late').length
+  const absentCount = players.filter(p => !isPresentForEligibility(getStatus(p.id))).length
+  const unmarkedCount = players.filter(p => getStatus(p.id) === 'unmarked').length
   const livePercent = players.length > 0 ? Math.round((presentCount / players.length) * 100) : 0
 
   return (
@@ -351,13 +356,26 @@ export default function AsistenciaPage() {
               style={{ width: `${livePercent}%`, backgroundColor: sessionColor }}
             />
           </div>
-          <div className="flex gap-2 text-xs">
+          <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs">
             <span className="text-green-700 font-semibold">{presentCount} presentes</span>
+            {lateCount > 0 && (
+              <>
+                <span className="text-gray-400">·</span>
+                <span className="text-amber-600 font-semibold">{lateCount} tarde</span>
+              </>
+            )}
             <span className="text-gray-400">·</span>
             <span className="text-red-600 font-semibold">{absentCount} ausentes</span>
-            <span className="text-gray-400">·</span>
-            <span className="text-muted-foreground">{players.length} totales</span>
+            {unmarkedCount > 0 && (
+              <>
+                <span className="text-gray-400">·</span>
+                <span className="text-gray-500 italic">({unmarkedCount} sin marcar)</span>
+              </>
+            )}
           </div>
+          <p className="text-[10px] text-muted-foreground italic mt-0.5">
+            "Tarde" suma para % de elegibilidad; "sin marcar" cuenta como ausente al cerrar.
+          </p>
         </CardContent>
       </Card>
 
@@ -372,33 +390,47 @@ export default function AsistenciaPage() {
         )}
         {players.map(player => {
           const status = getStatus(player.id)
-          const { label, color, icon: Icon } = statusConfig[status]
+          const { color } = statusConfig[status]
           return (
-            <button key={player.id} onClick={() => !closed && cycleStatus(player.id)} disabled={closed} className="w-full text-left disabled:opacity-90">
-              <Card className="border-0 shadow-sm transition-all active:scale-[0.99]" style={{ borderLeft: `4px solid ${color}` }}>
-                <CardContent className="p-2.5 flex items-center gap-2.5">
-                  <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 flex-shrink-0 bg-white" style={{ borderColor: color }}>
-                    <img src={getAvatarUrl(player)} alt={player.full_name} className="w-full h-full object-cover" />
-                    <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white flex items-center justify-center" style={{ backgroundColor: color }}>
-                      <Icon size={8} className="text-white" />
+            <Card key={player.id} className="border-0 shadow-sm" style={{ borderLeft: `4px solid ${color}` }}>
+              <CardContent className="p-2.5 flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-full overflow-hidden border-2 flex-shrink-0 bg-white" style={{ borderColor: color }}>
+                  <img src={getAvatarUrl(player)} alt={player.full_name} className="w-full h-full object-cover" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm truncate">{player.full_name}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase text-white" style={{ backgroundColor: TIRA_COLORS[player.tira] }}>
+                      {TIRA_LABELS[player.tira]}
                     </span>
+                    <span className="text-[10px] text-muted-foreground">Conv: {player.convocation_count}</span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate">{player.full_name}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase text-white" style={{ backgroundColor: TIRA_COLORS[player.tira] }}>
-                        {TIRA_LABELS[player.tira]}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground">Conv: {player.convocation_count}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <Icon size={18} style={{ color }} />
-                    <span className="text-[11px] font-semibold hidden sm:inline" style={{ color }}>{label}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </button>
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button
+                    onClick={() => !closed && setStatus(player.id, status === 'present' ? 'unmarked' : 'present')}
+                    disabled={closed}
+                    title="Presente"
+                    className={`w-8 h-8 rounded-md flex items-center justify-center border ${status === 'present' ? 'text-white border-transparent' : 'border-gray-200 text-gray-400'}`}
+                    style={status === 'present' ? { backgroundColor: '#00843D' } : {}}
+                  ><CheckCircle2 size={15} /></button>
+                  <button
+                    onClick={() => !closed && setStatus(player.id, status === 'late' ? 'unmarked' : 'late')}
+                    disabled={closed}
+                    title="Llegó tarde"
+                    className={`w-8 h-8 rounded-md flex items-center justify-center border ${status === 'late' ? 'text-white border-transparent' : 'border-gray-200 text-gray-400'}`}
+                    style={status === 'late' ? { backgroundColor: '#F59E0B' } : {}}
+                  ><Clock size={15} /></button>
+                  <button
+                    onClick={() => !closed && setStatus(player.id, status === 'absent_unjustified' ? 'unmarked' : 'absent_unjustified')}
+                    disabled={closed}
+                    title="Ausente"
+                    className={`w-8 h-8 rounded-md flex items-center justify-center border ${status === 'absent_unjustified' ? 'text-white border-transparent' : 'border-gray-200 text-gray-400'}`}
+                    style={status === 'absent_unjustified' ? { backgroundColor: '#DC2626' } : {}}
+                  ><XCircle size={15} /></button>
+                </div>
+              </CardContent>
+            </Card>
           )
         })}
       </div>
@@ -502,6 +534,16 @@ export default function AsistenciaPage() {
               className="w-full py-3 rounded-xl text-white font-bold text-sm shadow-lg flex items-center justify-center gap-2"
               style={{ backgroundColor: '#00843D' }}
               onClick={() => {
+                if (unmarkedCount > 0) {
+                  const ok = confirm(`Hay ${unmarkedCount} jugador(es) sin marcar. Al cerrar quedarán registrados como AUSENTES. ¿Continuar?`)
+                  if (!ok) return
+                  // Convertir sin marcar → ausente
+                  setAttendance(prev => {
+                    const next = { ...prev }
+                    players.forEach(pl => { if (!next[pl.id]) next[pl.id] = 'absent_unjustified' })
+                    return next
+                  })
+                }
                 const profeName = selectedProfe ? demoProfes.find(p => p.id === selectedProfe)?.full_name ?? 'Diego Barrado' : 'Diego Barrado'
                 const now = new Date().toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
                 setLog([...log, { action: log.length === 0 ? 'close' : 'close', user: profeName, at: now }])

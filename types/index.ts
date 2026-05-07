@@ -94,6 +94,8 @@ export interface Player {
   tutor_dni: string | null
   tutor_email: string | null
   tutor_whatsapp: string | null
+  // Contactos adicionales (otro padre/madre, abuelo/a, etc.) — se acumulan a lo largo del tiempo
+  alt_contacts?: { name: string; whatsapp: string; relation?: string }[]
   primary_position: Position
   secondary_positions: Position[]
   apto_medico_ok: boolean

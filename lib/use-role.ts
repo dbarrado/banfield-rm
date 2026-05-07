@@ -55,14 +55,14 @@ export const ROLE_LABELS: Record<ActiveRole, { label: string; emoji: string; des
 export function getRoleNavItems(role: ActiveRole, dayOfWeek: number): { primary: string[]; secondary: string[] } {
   if (role === 'admin') {
     return {
-      primary: ['/dashboard', '/socios', '/asistencia', '/caja'],
-      secondary: ['/convocatoria', '/fixture', '/partidos', '/asistencia-profes', '/finanzas', '/reportes', '/tienda', '/invitar', '/config'],
+      primary: ['/dashboard', '/socios', '/asistencia', '/cobranzas'],
+      secondary: ['/caja', '/convocatoria', '/fixture', '/partidos', '/asistencia-profes', '/finanzas', '/reportes', '/tienda', '/invitar', '/config'],
     }
   }
   if (role === 'tesorero') {
     return {
-      primary: ['/dashboard', '/caja', '/finanzas', '/socios'],
-      secondary: ['/reportes', '/tienda', '/invitar'],
+      primary: ['/dashboard', '/cobranzas', '/caja', '/finanzas'],
+      secondary: ['/socios', '/reportes', '/tienda', '/invitar'],
     }
   }
   if (role === 'coordinador') {

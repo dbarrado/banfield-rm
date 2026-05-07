@@ -3,15 +3,18 @@
 import { use } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle2, XCircle, ArrowLeft, Share2, Download } from 'lucide-react'
+import { CheckCircle2, XCircle, ArrowLeft, Share2 } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { demoPlayers, demoCategories, demoPayments, thisMonth } from '@/lib/demo-data'
 import { TIRA_LABELS, TIRA_COLORS, POSITION_LABELS, POSITION_COLORS } from '@/types'
 import { getAvatarUrl } from '@/lib/avatars'
+import { useCurrentClub } from '@/lib/use-current-club'
+import { QRCodeSVG } from 'qrcode.react'
 
 export default function CarnetPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  const club = useCurrentClub()
   const player = demoPlayers.find(p => p.id === id)
   if (!player) notFound()
 
@@ -31,8 +34,8 @@ export default function CarnetPage({ params }: { params: Promise<{ id: string }>
     apto: aptoOk,
     valid_until: '2026-05-31',
   }
-  const qrText = `PLANTEL|${qrPayload.player_id}|${qrPayload.dni}|${paidThisMonth ? 'OK' : 'NO'}|${aptoOk ? 'OK' : 'NO'}`
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrText)}&color=${accessGranted ? '00843D' : 'DC2626'}&bgcolor=FFFFFF&margin=10`
+  const qrText = `PLANTEL|${qrPayload.player_id}|${qrPayload.dni}|${paidThisMonth ? 'OK' : 'NO'}|${aptoOk ? 'OK' : 'NO'}|${qrPayload.valid_until}`
+  const qrColor = accessGranted ? '#00843D' : '#DC2626'
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-3">
@@ -52,14 +55,34 @@ export default function CarnetPage({ params }: { params: Promise<{ id: string }>
           className="rounded-2xl shadow-2xl overflow-hidden"
           style={{ background: `linear-gradient(135deg, ${TIRA_COLORS[player!.tira]} 0%, ${TIRA_COLORS[player!.tira]}dd 100%)` }}
         >
-          {/* Header del club */}
-          <div className="p-3 text-white text-center">
-            <p className="text-[10px] uppercase tracking-widest opacity-80">Carnet de socio</p>
-            <p className="text-base font-bold" style={{ fontFamily: "var(--font-barlow)" }}>FILIAL BANFIELD RAMOS MEJÍA</p>
+          {/* Header del club con escudo */}
+          <div className="p-3 text-white text-center flex items-center justify-center gap-3">
+            {club.logo_url && (
+              <img
+                src={club.logo_url}
+                alt={`Escudo ${club.name}`}
+                className="w-12 h-12 object-contain drop-shadow-md flex-shrink-0"
+              />
+            )}
+            <div className="text-left">
+              <p className="text-[10px] uppercase tracking-widest opacity-80">Carnet de socio</p>
+              <p className="text-base font-bold leading-tight" style={{ fontFamily: "var(--font-barlow)" }}>
+                {club.name.toUpperCase()}
+              </p>
+            </div>
           </div>
 
           {/* Body blanco */}
-          <div className="bg-white p-4 space-y-3">
+          <div className="bg-white p-4 space-y-3 relative">
+            {/* Escudo watermark */}
+            {club.logo_url && (
+              <img
+                src={club.logo_url}
+                alt=""
+                aria-hidden
+                className="absolute right-3 bottom-3 w-24 h-24 object-contain opacity-[0.06] pointer-events-none"
+              />
+            )}
             {/* Foto + datos */}
             <div className="flex items-center gap-3">
               <div className="w-20 h-20 rounded-full overflow-hidden border-4 flex-shrink-0" style={{ borderColor: TIRA_COLORS[player!.tira] }}>
@@ -82,10 +105,22 @@ export default function CarnetPage({ params }: { params: Promise<{ id: string }>
               </div>
             </div>
 
-            {/* QR grande */}
+            {/* QR grande generado localmente con escudo al centro */}
             <div className="flex justify-center pt-1">
-              <div className="p-3 rounded-lg border-4" style={{ borderColor: accessGranted ? '#00843D' : '#DC2626' }}>
-                <img src={qrUrl} alt="QR del socio" className="w-48 h-48" />
+              <div className="p-3 rounded-lg border-4 bg-white" style={{ borderColor: qrColor }}>
+                <QRCodeSVG
+                  value={qrText}
+                  size={192}
+                  level="H"
+                  fgColor={qrColor}
+                  bgColor="#FFFFFF"
+                  imageSettings={club.logo_url ? {
+                    src: club.logo_url,
+                    height: 36,
+                    width: 36,
+                    excavate: true,
+                  } : undefined}
+                />
               </div>
             </div>
 
@@ -120,9 +155,6 @@ export default function CarnetPage({ params }: { params: Promise<{ id: string }>
           </div>
         </div>
 
-        <button className="w-full py-2.5 rounded-xl border-2 font-semibold text-sm bg-white flex items-center justify-center gap-1.5">
-          <Download size={14} /> Guardar en wallet
-        </button>
       </div>
     </div>
   )

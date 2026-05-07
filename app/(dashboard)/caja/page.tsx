@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Wallet, TrendingUp, TrendingDown, Plus, X } from 'lucide-react'
+import { Wallet, TrendingUp, TrendingDown, Plus, X, CreditCard } from 'lucide-react'
+import Link from 'next/link'
 import { demoCashMovements, demoCashSession, demoFinanceCategories } from '@/lib/demo-data'
 
 export default function CajaPage() {
@@ -75,13 +76,20 @@ export default function CajaPage() {
       </div>
 
       {!closed && (
-        <button
-          className="w-full py-3 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2 shadow-sm"
-          style={{ backgroundColor: '#00843D' }}
-          onClick={() => setShowAddForm(true)}
-        >
-          <Plus size={18} /> AGREGAR MOVIMIENTO
-        </button>
+        <div className="space-y-2">
+          <Link href="/caja/cobrar"
+            className="w-full py-4 rounded-xl text-white font-bold text-base flex items-center justify-center gap-2 shadow-md"
+            style={{ backgroundColor: '#00843D' }}
+          >
+            <CreditCard size={22} /> COBRAR CUOTA
+          </Link>
+          <button
+            className="w-full py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 border-2 border-gray-200 text-gray-700"
+            onClick={() => setShowAddForm(true)}
+          >
+            <Plus size={16} /> Otro movimiento (no cuota)
+          </button>
+        </div>
       )}
 
       <h2 className="font-bold text-sm uppercase tracking-wider text-muted-foreground mt-4" style={{ fontFamily: "var(--font-barlow)" }}>

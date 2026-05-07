@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Upload, FileCheck, FileWarning, Receipt, ChevronRight, LogOut, ArrowLeft } from 'lucide-react'
+import { Upload, FileCheck, FileWarning, Receipt, ChevronRight, LogOut, ArrowLeft, QrCode } from 'lucide-react'
 import Link from 'next/link'
 import { demoPlayers } from '@/lib/demo-data'
 import { TIRA_LABELS, TIRA_COLORS } from '@/types'
@@ -35,7 +35,27 @@ export default function PortalPadres() {
       </div>
 
       <div className="p-3 space-y-3 -mt-4">
+        {/* Acceso directo al carnet — primera pantalla */}
         <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground" style={{ fontFamily: "var(--font-barlow)" }}>
+          Carnet digital ({DEMO_CHILDREN.length})
+        </p>
+        <div className={`grid gap-2 ${DEMO_CHILDREN.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          {DEMO_CHILDREN.map(child => (
+            <Link key={`carnet-${child.id}`} href={`/carnet/${child.id}`}>
+              <Card className="border-0 shadow-md hover:shadow-lg transition-shadow cursor-pointer" style={{ background: `linear-gradient(135deg, ${TIRA_COLORS[child.tira]} 0%, ${TIRA_COLORS[child.tira]}dd 100%)` }}>
+                <CardContent className="p-3 text-white text-center">
+                  <QrCode size={28} className="mx-auto mb-1" />
+                  <p className="text-[11px] uppercase tracking-wider opacity-90">Abrir carnet</p>
+                  <p className="text-sm font-bold leading-tight mt-0.5" style={{ fontFamily: "var(--font-barlow)" }}>
+                    {child.full_name.split(' ')[0].toUpperCase()}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+
+        <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground pt-2" style={{ fontFamily: "var(--font-barlow)" }}>
           Mis hijos ({DEMO_CHILDREN.length})
         </p>
 
