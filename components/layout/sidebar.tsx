@@ -43,6 +43,7 @@ const allItems: NavItem[] = [
   { href: '/convocatoria', icon: Trophy, label: 'Convocatoria' },
   { href: '/fixture', icon: Calendar, label: 'Fixture' },
   { href: '/partidos', icon: Trophy, label: 'Partidos' },
+  { href: '/asistencia-profes', icon: ClipboardList, label: 'Asist. profes' },
   { href: '/finanzas', icon: TrendingUp, label: 'Finanzas' },
   { href: '/reportes', icon: BarChart3, label: 'Reportes', proOnly: true },
   { href: '/tienda', icon: ShoppingBag, label: 'Tienda', proOnly: true },

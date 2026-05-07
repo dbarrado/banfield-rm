@@ -455,19 +455,78 @@ export const demoCashMovements: CashMovement[] = [
 // PROFES Y ASIGNACIONES — cada profe puede coachear varias tiras
 // ──────────────────────────────────────────────────────────────────────────
 export const demoProfes: Profe[] = [
-  { id: 'pf-1',  full_name: 'Martín Olivera',     whatsapp: '1145001111', is_active: true },
-  { id: 'pf-2',  full_name: 'Pablo Quintana',     whatsapp: '1145002222', is_active: true },
-  { id: 'pf-3',  full_name: 'Diego Salinas',      whatsapp: '1145003333', is_active: true },
-  { id: 'pf-4',  full_name: 'Hernán Ledesma',     whatsapp: '1145004444', is_active: true },
-  { id: 'pf-5',  full_name: 'Marcos Cabezas',     whatsapp: '1145005555', is_active: true },
-  { id: 'pf-6',  full_name: 'Ariel Vázquez',      whatsapp: '1145006666', is_active: true },
+  // 3 profes con compliance completo, 3 con algo vencido, otros varios
+  { id: 'pf-1',  full_name: 'Martín Olivera',     dni: '32145678', birth_date: '1985-03-12', email: 'martin.olivera@gmail.com', whatsapp: '1145001111', start_date: '2018-03-01', title_certifications: 'Profesor de Educación Física (UNLP)', payment_method: 'factura', hourly_rate: 4500,
+    antecedentes_penales_url: '/demo-doc.pdf', antecedentes_penales_expires_at: '2026-09-15',
+    antecedentes_sexuales_url: '/demo-doc.pdf', antecedentes_sexuales_expires_at: '2026-09-15',
+    apto_psicofisico_url: '/demo-doc.pdf', apto_psicofisico_expires_at: '2026-12-31',
+    safeguarding_course_completed: true, safeguarding_course_date: '2025-08-10',
+    is_active: true },
+  { id: 'pf-2',  full_name: 'Pablo Quintana',     dni: '30987654', email: 'pquintana@gmail.com', whatsapp: '1145002222', start_date: '2020-06-01', title_certifications: 'DT Asoc. de Técnicos del Fútbol', payment_method: 'recibo', hourly_rate: 4000,
+    antecedentes_penales_url: '/demo-doc.pdf', antecedentes_penales_expires_at: '2026-06-01', // VENCE EN MENOS DE 30 DÍAS
+    antecedentes_sexuales_url: '/demo-doc.pdf', antecedentes_sexuales_expires_at: '2026-08-12',
+    apto_psicofisico_expires_at: '2026-04-15',  // VENCIDO
+    safeguarding_course_completed: false,
+    is_active: true },
+  { id: 'pf-3',  full_name: 'Diego Salinas',      dni: '28456789', email: 'dsalinas@yahoo.com', whatsapp: '1145003333', start_date: '2015-02-01', title_certifications: 'Profesor de Educación Física', payment_method: 'sueldo', monthly_salary: 380000,
+    antecedentes_penales_url: '/demo-doc.pdf', antecedentes_penales_expires_at: '2027-02-20',
+    antecedentes_sexuales_url: '/demo-doc.pdf', antecedentes_sexuales_expires_at: '2026-11-30',
+    apto_psicofisico_url: '/demo-doc.pdf', apto_psicofisico_expires_at: '2026-10-15',
+    safeguarding_course_completed: true, safeguarding_course_date: '2026-02-15',
+    is_active: true },
+  { id: 'pf-4',  full_name: 'Hernán Ledesma',     dni: '34567890', email: 'h.ledesma@gmail.com', whatsapp: '1145004444', start_date: '2022-09-01', payment_method: 'factura', hourly_rate: 3500,
+    antecedentes_penales_expires_at: '2026-07-20',
+    antecedentes_sexuales_expires_at: '2026-07-20',
+    apto_psicofisico_expires_at: '2026-09-01',
+    safeguarding_course_completed: true, safeguarding_course_date: '2025-11-05',
+    is_active: true },
+  { id: 'pf-5',  full_name: 'Marcos Cabezas',     dni: '36789012', email: 'mcabezas@gmail.com', whatsapp: '1145005555', start_date: '2024-03-01', payment_method: 'ad_honorem',
+    safeguarding_course_completed: false,  // FALTA curso
+    is_active: true },
+  { id: 'pf-6',  full_name: 'Ariel Vázquez',      dni: '29234567', whatsapp: '1145006666', start_date: '2017-08-01', is_active: true,
+    antecedentes_penales_expires_at: '2026-12-01', antecedentes_sexuales_expires_at: '2026-12-01', apto_psicofisico_expires_at: '2027-01-15',
+    safeguarding_course_completed: true, payment_method: 'recibo' },
   { id: 'pf-7',  full_name: 'Cristian Mendoza',   whatsapp: '1145007777', is_active: true },
-  { id: 'pf-8',  full_name: 'Gustavo Maldonado',  whatsapp: '1145008888', is_active: true },
+  { id: 'pf-8',  full_name: 'Gustavo Maldonado',  whatsapp: '1145008888', is_active: true,
+    antecedentes_penales_expires_at: '2025-12-01' /* VENCIDO */ },
   { id: 'pf-9',  full_name: 'Sergio Aguilar',     whatsapp: '1145009999', is_active: true },
   { id: 'pf-10', full_name: 'Ezequiel Cabrera',   whatsapp: '1145010101', is_active: true },
   { id: 'pf-11', full_name: 'Damián Roldán',      whatsapp: '1145011111', is_active: true },
   { id: 'pf-12', full_name: 'Lucas Iturralde',    whatsapp: '1145012121', is_active: true },
 ]
+
+// Helper: estado de compliance del profe
+export function getProfeComplianceStatus(profe: Profe): {
+  status: import('@/types').ProfeComplianceStatus
+  issues: { label: string; severity: 'high' | 'medium'; expires?: string }[]
+} {
+  const today = new Date('2026-05-07')
+  const issues: { label: string; severity: 'high' | 'medium'; expires?: string }[] = []
+
+  function checkExpiry(label: string, expiresAt?: string | null, isCritical = true) {
+    if (!expiresAt) {
+      issues.push({ label: `Falta ${label}`, severity: isCritical ? 'high' : 'medium' })
+      return
+    }
+    const exp = new Date(expiresAt)
+    const daysLeft = Math.floor((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+    if (daysLeft < 0) issues.push({ label: `${label} VENCIDO`, severity: 'high', expires: expiresAt })
+    else if (daysLeft <= 30) issues.push({ label: `${label} vence en ${daysLeft}d`, severity: 'medium', expires: expiresAt })
+  }
+
+  checkExpiry('Antecedentes penales', profe.antecedentes_penales_expires_at)
+  checkExpiry('Cert. delitos sexuales', profe.antecedentes_sexuales_expires_at)
+  checkExpiry('Apto psicofísico', profe.apto_psicofisico_expires_at, false)
+  if (!profe.safeguarding_course_completed) {
+    issues.push({ label: 'Curso safeguarding pendiente', severity: 'medium' })
+  }
+
+  const hasHigh = issues.some(i => i.severity === 'high')
+  const hasMed = issues.some(i => i.severity === 'medium')
+  const status: import('@/types').ProfeComplianceStatus =
+    hasHigh ? 'expired' : hasMed ? 'expiring_soon' : issues.length === 0 ? 'ok' : 'missing'
+  return { status, issues }
+}
 
 // Asignaciones: cada (categoría, tira) puede tener 1-2 profes; un profe puede estar en varias
 export const demoProfeAssignments: ProfeAssignment[] = [

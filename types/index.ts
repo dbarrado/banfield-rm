@@ -108,8 +108,51 @@ export interface Player {
 export interface Profe {
   id: string
   full_name: string
+  // Identidad
+  dni?: string | null
+  birth_date?: string | null
+  photo_url?: string | null
+  // Contacto
+  email?: string | null
   whatsapp: string | null
+  phone_alt?: string | null
+  emergency_contact_name?: string | null
+  emergency_contact_phone?: string | null
+  // Profesional
+  start_date?: string | null  // antigüedad en el club
+  title_certifications?: string | null  // ej: "Profesor de Educación Física"
+  matricula?: string | null
+  // COMPLIANCE — protección de menores (Argentina)
+  antecedentes_penales_url?: string | null
+  antecedentes_penales_expires_at?: string | null
+  antecedentes_sexuales_url?: string | null  // certificado delitos sexuales
+  antecedentes_sexuales_expires_at?: string | null
+  apto_psicofisico_url?: string | null
+  apto_psicofisico_expires_at?: string | null
+  safeguarding_course_completed?: boolean
+  safeguarding_course_date?: string | null
+  // Económico
+  payment_method?: 'recibo' | 'factura' | 'sueldo' | 'ad_honorem' | null
+  cbu_alias?: string | null
+  hourly_rate?: number | null
+  monthly_salary?: number | null
+  // Operativo
   is_active: boolean
+  notes?: string | null
+}
+
+export type ProfeComplianceStatus = 'ok' | 'expiring_soon' | 'expired' | 'missing'
+
+export interface ProfeAttendanceRecord {
+  id: string
+  profe_id: string
+  date: string
+  slot_id?: string  // referencia al cronograma
+  status: 'present' | 'absent' | 'late' | 'replaced'
+  replaced_by_id?: string | null
+  notes?: string | null
+  registered_by?: string | null
+  registered_at: string
 }
 
 export interface ProfeAssignment {

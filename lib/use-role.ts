@@ -56,7 +56,7 @@ export function getRoleNavItems(role: ActiveRole, dayOfWeek: number): { primary:
   if (role === 'admin') {
     return {
       primary: ['/dashboard', '/socios', '/asistencia', '/caja'],
-      secondary: ['/convocatoria', '/fixture', '/partidos', '/finanzas', '/reportes', '/tienda', '/invitar', '/config'],
+      secondary: ['/convocatoria', '/fixture', '/partidos', '/asistencia-profes', '/finanzas', '/reportes', '/tienda', '/invitar', '/config'],
     }
   }
   if (role === 'tesorero') {
@@ -66,17 +66,17 @@ export function getRoleNavItems(role: ActiveRole, dayOfWeek: number): { primary:
     }
   }
   if (role === 'coordinador') {
-    // Coordinador prioriza lo deportivo pero también ve tesorería
+    // Coordinador prioriza lo deportivo pero también ve tesorería + toma asistencia de profes
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
     if (isWeekend) {
       return {
-        primary: ['/dashboard', '/partidos', '/convocatoria', '/asistencia'],
-        secondary: ['/fixture', '/socios', '/finanzas', '/reportes', '/caja'],
+        primary: ['/dashboard', '/partidos', '/asistencia-profes', '/asistencia'],
+        secondary: ['/convocatoria', '/fixture', '/socios', '/finanzas', '/reportes', '/caja'],
       }
     }
     return {
-      primary: ['/dashboard', '/asistencia', '/convocatoria', '/fixture'],
-      secondary: ['/partidos', '/socios', '/finanzas', '/reportes', '/caja'],
+      primary: ['/dashboard', '/asistencia-profes', '/asistencia', '/convocatoria'],
+      secondary: ['/fixture', '/partidos', '/socios', '/finanzas', '/reportes', '/caja'],
     }
   }
   // Profe — adapta según día
