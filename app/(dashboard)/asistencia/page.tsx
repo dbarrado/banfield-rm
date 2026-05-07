@@ -32,10 +32,12 @@ export default function AsistenciaPage() {
   const initialGroup = liveSession?.group ?? upcomingSession?.group ?? 'group-a'
   const initialTira = (TIRA_GROUPS.find(g => g.id === initialGroup)?.tiras[0]) ?? 'metro'
 
+  // Multi-select: el profe arma la sesión real (sin rigidez de turno)
   const [selectedProfe, setSelectedProfe] = useState<string>('')
-  const [selectedCategory, setSelectedCategory] = useState(initialCategory)
-  const [selectedGroup, setSelectedGroup] = useState(initialGroup)
-  const [selectedTira, setSelectedTira] = useState<Tira>(initialTira)
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set([initialCategory]))
+  const initialTiras = (TIRA_GROUPS.find(g => g.id === initialGroup)?.tiras ?? ['metro']) as Tira[]
+  const [selectedTiras, setSelectedTiras] = useState<Set<Tira>>(new Set(initialTiras))
+  const sessionColor = Array.from(selectedTiras)[0] ? TIRA_COLORS[Array.from(selectedTiras)[0]] : 'var(--club-primary, #00843D)'
   const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({})
   const [closed, setClosed] = useState(false)
   const [log, setLog] = useState<{ action: 'open' | 'close' | 'reopen'; user: string; at: string }[]>([])
@@ -52,28 +54,44 @@ export default function AsistenciaPage() {
     ? Array.from(new Set(profeAssignments.map(a => a.category_id)))
     : activeCategories.map(c => c.id)
   const filteredCategories = activeCategories.filter(c => allowedCategoryIds.includes(c.id))
-  const effectiveCategory = filteredCategories.some(c => c.id === selectedCategory)
-    ? selectedCategory
-    : (filteredCategories[0]?.id ?? activeCategories[0].id)
 
-  // Tiras del grupo seleccionado (Metro+Liga1 o Liga2+Edefi)
-  const groupTiras = TIRA_GROUPS.find(g => g.id === selectedGroup)?.tiras ?? []
-  const tirasInCategory = ALL_TIRAS.filter(t => {
-    if (!groupTiras.includes(t)) return false
-    const hasPlayers = demoPlayers.some(p => p.category_id === effectiveCategory && p.tira === t)
-    if (!hasPlayers) return false
-    if (!selectedProfe) return true
-    return profeAssignments.some(a => a.category_id === effectiveCategory && a.tira === t)
-  })
+  // Helpers para multi-select
+  function toggleCat(catId: string) {
+    setSelectedCategories(prev => {
+      const next = new Set(prev)
+      next.has(catId) ? next.delete(catId) : next.add(catId)
+      return next
+    })
+    setAttendance({})
+  }
+  function toggleTira(t: Tira) {
+    setSelectedTiras(prev => {
+      const next = new Set(prev)
+      next.has(t) ? next.delete(t) : next.add(t)
+      return next
+    })
+    setAttendance({})
+  }
 
-  // Jugadores de TODAS las tiras del grupo (entrenan juntos)
+  // Jugadores: TODOS los que estén en las (categorías × tiras) seleccionadas — sin filtro de turno
   const players = demoPlayers.filter(p =>
-    p.category_id === effectiveCategory && groupTiras.includes(p.tira) && p.is_active
+    selectedCategories.has(p.category_id) && selectedTiras.has(p.tira) && p.is_active
   )
 
-  // Profes asignados a cualquiera de las tiras del grupo
+  // Agrupar por categoría para mostrar header de cat. en la lista
+  const playersByCategory = activeCategories
+    .filter(c => selectedCategories.has(c.id))
+    .map(c => ({
+      category: c,
+      players: players.filter(p => p.category_id === c.id),
+    }))
+    .filter(g => g.players.length > 0)
+
+  // Profes asignados a cualquiera de las (cat × tira) seleccionadas
   const profesAsignados = Array.from(new Set(
-    groupTiras.flatMap(t => getProfesForTira(effectiveCategory, t).map(p => p.id))
+    Array.from(selectedCategories).flatMap(catId =>
+      Array.from(selectedTiras).flatMap(t => getProfesForTira(catId, t).map(p => p.id))
+    )
   )).map(id => demoProfes.find(p => p.id === id)!).filter(Boolean)
 
   const today = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -118,14 +136,14 @@ export default function AsistenciaPage() {
             </div>
             <div className="space-y-1.5 max-h-44 overflow-y-auto">
               {sessionsToday.map((s, idx) => {
-                const isSelected = effectiveCategory === s.category_id && selectedGroup === s.group
+                const isSelected = selectedCategories.has(s.category_id) && (TIRA_GROUPS.find(g => g.id === s.group)?.tiras ?? []).every(t => selectedTiras.has(t))
                 return (
                   <button
                     key={`${s.category_id}-${s.group}-${idx}`}
                     onClick={() => {
-                      setSelectedCategory(s.category_id)
-                      setSelectedGroup(s.group)
-                      setSelectedTira(TIRA_GROUPS.find(g => g.id === s.group)!.tiras[0])
+                      const groupTiras = TIRA_GROUPS.find(g => g.id === s.group)?.tiras ?? []
+                      setSelectedCategories(new Set([s.category_id]))
+                      setSelectedTiras(new Set(groupTiras))
                       setAttendance({})
                       setClosed(false)
                     }}
@@ -160,43 +178,80 @@ export default function AsistenciaPage() {
         </Card>
       )}
 
-      {/* Selector profe */}
-      <select
-        value={selectedProfe}
-        onChange={e => { setSelectedProfe(e.target.value); setAttendance({}); }}
-        className="w-full px-3 py-2 rounded-lg border text-sm font-medium bg-white"
-      >
-        <option value="">Todos los profes</option>
-        {demoProfes.filter(p => p.is_active).map(p => (
-          <option key={p.id} value={p.id}>👤 {p.full_name}</option>
-        ))}
-      </select>
+      {/* Configurador de sesión */}
+      <Card className="border-0 shadow-sm" style={{ borderLeft: '4px solid var(--club-primary, #00843D)' }}>
+        <CardContent className="p-3 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold uppercase tracking-wider" style={{ fontFamily: "var(--font-barlow)" }}>
+              ¿Qué estás dando ahora?
+            </p>
+            <span className="text-[10px] text-muted-foreground">
+              {players.length} chico{players.length === 1 ? '' : 's'}
+            </span>
+          </div>
 
-      {/* Selector categoría */}
-      <select
-        value={effectiveCategory}
-        onChange={e => { setSelectedCategory(e.target.value); setAttendance({}); }}
-        className="w-full px-3 py-2 rounded-lg border text-sm font-medium bg-white"
-        style={{ borderColor: '#00843D', color: '#00843D' }}
-      >
-        {filteredCategories.map(c => <option key={c.id} value={c.id}>Categoría {c.name}</option>)}
-      </select>
+          {/* Profe a cargo */}
+          <div>
+            <label className="text-[10px] font-bold uppercase text-muted-foreground">Profe a cargo</label>
+            <select
+              value={selectedProfe}
+              onChange={e => setSelectedProfe(e.target.value)}
+              className="w-full mt-1 px-2.5 py-1.5 rounded border text-sm bg-white"
+            >
+              <option value="">— Sin firmar todavía —</option>
+              {demoProfes.filter(p => p.is_active).map(p => (
+                <option key={p.id} value={p.id}>👤 {p.full_name}</option>
+              ))}
+            </select>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Si te suplantó otro profe hoy, elegí su nombre. Queda registrado en la firma de la asistencia.
+            </p>
+          </div>
 
-      {/* Selector grupo (Metro+Liga1 o Liga2+Edefi) */}
-      <div className="flex gap-1.5">
-        {TIRA_GROUPS.map(g => (
-          <button
-            key={g.id}
-            onClick={() => { setSelectedGroup(g.id); setSelectedTira(g.tiras[0]); setAttendance({}); }}
-            className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold border transition-colors ${
-              selectedGroup === g.id ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'
-            }`}
-            style={selectedGroup === g.id ? { backgroundColor: g.color } : {}}
-          >
-            {g.name}
-          </button>
-        ))}
-      </div>
+          {/* Tiras (multi-select) */}
+          <div>
+            <label className="text-[10px] font-bold uppercase text-muted-foreground">Tiras en esta sesión</label>
+            <div className="flex gap-1 mt-1 flex-wrap">
+              {(['metro', 'liga1', 'liga2', 'edefi'] as Tira[]).map(t => {
+                const sel = selectedTiras.has(t)
+                return (
+                  <button
+                    key={t}
+                    onClick={() => toggleTira(t)}
+                    className={`px-2.5 py-1 rounded-full text-xs font-semibold border-2 ${sel ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`}
+                    style={sel ? { backgroundColor: TIRA_COLORS[t] } : {}}
+                  >
+                    {TIRA_LABELS[t]}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Categorías (multi-select) */}
+          <div>
+            <label className="text-[10px] font-bold uppercase text-muted-foreground">Categorías</label>
+            <div className="flex gap-1 mt-1 flex-wrap">
+              {filteredCategories.map(c => {
+                const sel = selectedCategories.has(c.id)
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => toggleCat(c.id)}
+                    className={`px-2.5 py-1 rounded-full text-xs font-semibold border-2 ${sel ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`}
+                    style={sel ? { backgroundColor: 'var(--club-primary, #00843D)' } : {}}
+                  >
+                    {c.name}
+                  </button>
+                )
+              })}
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Tocá las categorías que están entrenando ahora. Por la mañana es común que se agrupen varias.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Profes asignados a esta tira */}
       {profesAsignados.length > 0 && (
@@ -204,7 +259,7 @@ export default function AsistenciaPage() {
           <User size={12} className="text-muted-foreground flex-shrink-0" />
           <span className="text-muted-foreground">A cargo:</span>
           {profesAsignados.map((p, i) => (
-            <span key={p.id} className="font-semibold" style={{ color: (TIRA_GROUPS.find(g => g.id === selectedGroup)?.color ?? '#00843D') }}>
+            <span key={p.id} className="font-semibold" style={{ color: sessionColor }}>
               {p.full_name}{i < profesAsignados.length - 1 ? ',' : ''}
             </span>
           ))}
@@ -212,18 +267,18 @@ export default function AsistenciaPage() {
       )}
 
       {/* % vivo de asistencia */}
-      <Card className="border-0 shadow-sm" style={{ borderLeft: `4px solid ${(TIRA_GROUPS.find(g => g.id === selectedGroup)?.color ?? '#00843D')}` }}>
+      <Card className="border-0 shadow-sm" style={{ borderLeft: `4px solid ${sessionColor}` }}>
         <CardContent className="p-3">
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs font-semibold text-muted-foreground">Asistencia en vivo</p>
-            <p className="text-2xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: (TIRA_GROUPS.find(g => g.id === selectedGroup)?.color ?? '#00843D') }}>
+            <p className="text-2xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: sessionColor }}>
               {livePercent}%
             </p>
           </div>
           <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
             <div
               className="h-full rounded-full transition-all"
-              style={{ width: `${livePercent}%`, backgroundColor: (TIRA_GROUPS.find(g => g.id === selectedGroup)?.color ?? '#00843D') }}
+              style={{ width: `${livePercent}%`, backgroundColor: sessionColor }}
             />
           </div>
           <div className="flex gap-2 text-xs">

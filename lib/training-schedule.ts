@@ -39,12 +39,24 @@ export const TRAINING_SCHEDULE: Record<string, WeekSlot[]> = {
     { day: 4, start: '17:00', end: '18:30', group: 'group-a' },
   ],
   'cat-2014': [
+    // Mañana — turno escolar tarde
+    { day: 1, start: '09:00', end: '10:30', group: 'group-a' },
+    { day: 3, start: '09:00', end: '10:30', group: 'group-a' },
+    { day: 2, start: '09:00', end: '10:30', group: 'group-b' },
+    { day: 4, start: '09:00', end: '10:30', group: 'group-b' },
+    // Tarde — turno escolar mañana
     { day: 1, start: '16:00', end: '17:30', group: 'group-a' },
     { day: 3, start: '16:00', end: '17:30', group: 'group-a' },
     { day: 2, start: '16:00', end: '17:30', group: 'group-b' },
     { day: 4, start: '16:00', end: '17:30', group: 'group-b' },
   ],
   'cat-2015': [
+    // Mañana
+    { day: 1, start: '10:30', end: '11:30', group: 'group-a' },
+    { day: 3, start: '10:30', end: '11:30', group: 'group-a' },
+    { day: 2, start: '10:30', end: '11:30', group: 'group-b' },
+    { day: 4, start: '10:30', end: '11:30', group: 'group-b' },
+    // Tarde
     { day: 1, start: '17:30', end: '18:30', group: 'group-a' },
     { day: 3, start: '17:30', end: '18:30', group: 'group-a' },
     { day: 2, start: '17:30', end: '18:30', group: 'group-b' },
@@ -77,6 +89,7 @@ export type ActiveSession = {
   tiras: Tira[]
   start: string
   end: string
+  shift: 'morning' | 'afternoon'  // derivado de la hora — antes de 14:00 = mañana
   status: 'live' | 'upcoming' | 'past'
   starts_in_min?: number
 }
@@ -104,6 +117,7 @@ export function getSessionsForDay(now: Date, categories: { id: string; name: str
       } else if (nowMinutes >= startMin && nowMinutes <= endMin) {
         status = 'live'
       }
+      const shift: 'morning' | 'afternoon' = sh < 14 ? 'morning' : 'afternoon'
       sessions.push({
         category_id: cat.id,
         category_name: cat.name,
@@ -113,6 +127,7 @@ export function getSessionsForDay(now: Date, categories: { id: string; name: str
         tiras: group.tiras,
         start: slot.start,
         end: slot.end,
+        shift,
         status,
         starts_in_min: startsInMin,
       })
