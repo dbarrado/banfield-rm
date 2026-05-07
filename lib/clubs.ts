@@ -1,7 +1,7 @@
 import type { Club } from '@/types'
 
 // Lista de clubes demo. En producción vendría de Supabase tabla `clubs`.
-export const demoClubs: (Club & { referral_code: string; first_payment_at: string; successful_referrals: number })[] = [
+export const demoClubs: (Club & { referral_code: string; first_payment_at: string; successful_referrals: number; has_shop_addon?: boolean })[] = [
   {
     id: 'club-banfield-rm',
     name: 'Filial Banfield Ramos Mejía',
@@ -37,6 +37,7 @@ export const demoClubs: (Club & { referral_code: string; first_payment_at: strin
     referral_code: 'BRISAS-HD-K7M',
     first_payment_at: '2025-02-01', // muy antiguo
     successful_referrals: 5,
+    has_shop_addon: true, // Brisas tiene tienda activa (es Pro + addon)
   },
   {
     id: 'club-boca-rm',
