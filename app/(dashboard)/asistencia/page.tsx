@@ -3,10 +3,11 @@
 import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ClipboardList, CheckCircle2, XCircle, AlertCircle, User, Lock, Unlock, Clock, Radio } from 'lucide-react'
+import { ClipboardList, CheckCircle2, XCircle, AlertCircle, User, Lock, Unlock, Clock, Radio, Plus, X, Search, UserPlus } from 'lucide-react'
 import { demoPlayers, demoCategories, demoProfes, getAssignmentsForProfe, getProfesForTira } from '@/lib/demo-data'
 import { TIRA_LABELS, TIRA_COLORS, type Tira } from '@/types'
 import { getSessionsForDay, TIRA_GROUPS, tiraGroupOf } from '@/lib/training-schedule'
+import { getAvatarUrl } from '@/lib/avatars'
 
 type AttendanceStatus = 'present' | 'absent_unjustified' | 'absent_justified'
 
@@ -38,6 +39,9 @@ export default function AsistenciaPage() {
   const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({})
   const [closed, setClosed] = useState(false)
   const [log, setLog] = useState<{ action: 'open' | 'close' | 'reopen'; user: string; at: string }[]>([])
+  // Visitantes (jugadores de otra tira) y no anotados (sin ficha aún)
+  const [guests, setGuests] = useState<{ id: string; type: 'visitor' | 'unregistered'; name: string; tira?: Tira; categoryName?: string; notes?: string }[]>([])
+  const [showAddGuest, setShowAddGuest] = useState(false)
 
   const dayLabels = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
   const todayLabel = dayLabels[now.getDay()]
@@ -271,6 +275,71 @@ export default function AsistenciaPage() {
         })}
       </div>
 
+      {/* Visitantes y no anotados */}
+      {!closed && (
+        <>
+          <div className="flex items-center justify-between mt-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground" style={{ fontFamily: "var(--font-barlow)" }}>
+              Otros que vinieron ({guests.length})
+            </h3>
+            <button
+              onClick={() => setShowAddGuest(true)}
+              className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded text-white"
+              style={{ backgroundColor: '#7c3aed' }}
+            >
+              <Plus size={12} /> Agregar
+            </button>
+          </div>
+          <p className="text-[10px] text-muted-foreground -mt-2">
+            Jugadores de otra tira/categoría o chicos no anotados que están participando hoy. Cuenta como participación.
+          </p>
+
+          {guests.map(g => (
+            <Card key={g.id} className="border-0 shadow-sm" style={{ borderLeft: '4px solid #7c3aed' }}>
+              <CardContent className="p-2.5 flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ backgroundColor: '#7c3aed' }}>
+                  {g.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">{g.name}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    {g.type === 'visitor' && g.tira && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase text-white" style={{ backgroundColor: TIRA_COLORS[g.tira] }}>
+                        Visita de {TIRA_LABELS[g.tira]}
+                      </span>
+                    )}
+                    {g.type === 'unregistered' && (
+                      <Badge className="text-[10px] bg-amber-100 text-amber-700 border-0">
+                        ⚠️ NO ANOTADO
+                      </Badge>
+                    )}
+                    {g.categoryName && <span className="text-[10px] text-muted-foreground">Cat. {g.categoryName}</span>}
+                  </div>
+                  {g.notes && <p className="text-[10px] text-muted-foreground mt-0.5 italic">"{g.notes}"</p>}
+                </div>
+                <button
+                  onClick={() => setGuests(guests.filter(x => x.id !== g.id))}
+                  className="p-1 rounded text-red-400 hover:bg-red-50 flex-shrink-0"
+                >
+                  <X size={14} />
+                </button>
+              </CardContent>
+            </Card>
+          ))}
+        </>
+      )}
+
+      {/* Modal agregar visitante / no anotado */}
+      {showAddGuest && (
+        <AddGuestModal
+          onClose={() => setShowAddGuest(false)}
+          onAdd={(g) => {
+            setGuests([...guests, { ...g, id: `guest-${Date.now()}` }])
+            setShowAddGuest(false)
+          }}
+        />
+      )}
+
       {/* Log de aperturas/cierres */}
       {log.length > 0 && (
         <Card className="border-0 shadow-sm bg-gray-50">
@@ -339,6 +408,123 @@ export default function AsistenciaPage() {
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+function AddGuestModal({ onClose, onAdd }: {
+  onClose: () => void
+  onAdd: (g: { type: 'visitor' | 'unregistered'; name: string; tira?: Tira; categoryName?: string; notes?: string }) => void
+}) {
+  const [mode, setMode] = useState<'visitor' | 'unregistered'>('visitor')
+  const [search, setSearch] = useState('')
+  const [unregName, setUnregName] = useState('')
+  const [unregNotes, setUnregNotes] = useState('')
+
+  const matches = search.trim()
+    ? demoPlayers.filter(p =>
+        p.is_active &&
+        (p.full_name.toLowerCase().includes(search.toLowerCase()) || (p.dni ?? '').includes(search))
+      ).slice(0, 8)
+    : []
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-3" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="bg-white rounded-t-2xl md:rounded-2xl w-full max-w-md p-4 space-y-3 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold" style={{ fontFamily: "var(--font-barlow)" }}>AGREGAR PARTICIPANTE</h3>
+          <button onClick={onClose}><X size={20} /></button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-1.5">
+          <button onClick={() => setMode('visitor')}
+            className={`py-2 rounded-lg text-xs font-bold border ${mode === 'visitor' ? 'text-white border-transparent' : 'border-gray-200'}`}
+            style={mode === 'visitor' ? { backgroundColor: '#7c3aed' } : {}}>
+            <Search size={13} className="inline mr-1" /> Visita de otra tira
+          </button>
+          <button onClick={() => setMode('unregistered')}
+            className={`py-2 rounded-lg text-xs font-bold border ${mode === 'unregistered' ? 'text-white border-transparent' : 'border-gray-200'}`}
+            style={mode === 'unregistered' ? { backgroundColor: '#F59E0B' } : {}}>
+            <UserPlus size={13} className="inline mr-1" /> No anotado
+          </button>
+        </div>
+
+        {mode === 'visitor' ? (
+          <>
+            <div>
+              <label className="text-xs font-semibold mb-1 block">Buscar jugador del club</label>
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                autoFocus
+                placeholder="Apellido, nombre o DNI..."
+                className="w-full px-3 py-2.5 border rounded-lg text-sm"
+              />
+            </div>
+            {matches.length === 0 && search.trim() && (
+              <p className="text-xs text-muted-foreground text-center py-3">Sin resultados</p>
+            )}
+            <div className="space-y-1 max-h-60 overflow-y-auto">
+              {matches.map(p => {
+                const cat = demoCategories.find(c => c.id === p.category_id)
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => onAdd({ type: 'visitor', name: p.full_name, tira: p.tira, categoryName: cat?.name })}
+                    className="w-full text-left p-2 rounded-lg hover:bg-gray-50 border border-gray-200 flex items-center gap-2.5"
+                  >
+                    <div className="w-8 h-8 rounded-full overflow-hidden border-2 flex-shrink-0" style={{ borderColor: TIRA_COLORS[p.tira] }}>
+                      <img src={getAvatarUrl(p)} alt={p.full_name} className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate">{p.full_name}</p>
+                      <p className="text-[10px]">
+                        Cat. {cat?.name} · <span style={{ color: TIRA_COLORS[p.tira] }}>{TIRA_LABELS[p.tira]}</span>
+                      </p>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <label className="text-xs font-semibold mb-1 block">Nombre y apellido *</label>
+              <input
+                type="text"
+                value={unregName}
+                onChange={e => setUnregName(e.target.value)}
+                autoFocus
+                placeholder="Ej: Mateo Acuña"
+                className="w-full px-3 py-2.5 border rounded-lg text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold mb-1 block">Nota (opcional)</label>
+              <input
+                type="text"
+                value={unregNotes}
+                onChange={e => setUnregNotes(e.target.value)}
+                placeholder="Ej: hermano de X / a prueba / lo trajo el papá..."
+                className="w-full px-3 py-2.5 border rounded-lg text-sm"
+              />
+            </div>
+            <p className="text-[10px] text-muted-foreground bg-amber-50 p-2 rounded border border-amber-200">
+              ⚠️ Va a aparecer en el dashboard como "no anotado" para que admin lo siga (a prueba o pendiente de cobro).
+            </p>
+            <button
+              onClick={() => unregName.trim() && onAdd({ type: 'unregistered', name: unregName.trim(), notes: unregNotes.trim() || undefined })}
+              disabled={!unregName.trim()}
+              className="w-full py-3 rounded-xl text-white font-bold text-sm disabled:opacity-40"
+              style={{ backgroundColor: '#F59E0B' }}
+            >
+              AGREGAR NO ANOTADO
+            </button>
+          </>
+        )}
+      </div>
     </div>
   )
 }

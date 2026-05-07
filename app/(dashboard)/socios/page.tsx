@@ -33,42 +33,47 @@ export default function SociosPageWrapper() {
 
 function SociosPage() {
   const searchParams = useSearchParams()
-  const initialFilter = searchParams.get('filter') ?? 'todos'
-  const [filter, setFilter] = useState(initialFilter)
+  const initialFromUrl = searchParams.get('filter')
   const [search, setSearch] = useState('')
+  const [showDeudores, setShowDeudores] = useState(initialFromUrl === 'deudores')
+  const [selectedTira, setSelectedTira] = useState<string | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(
+    initialFromUrl && initialFromUrl.startsWith('cat-') ? initialFromUrl : null
+  )
+
   const deudores = useMemo(() => getPlayerDebts(demoPlayers, demoPayments), [])
-  const baseList = useMemo(() => {
-    if (filter === 'todos') return demoPlayers.filter(p => p.is_active)
-    if (filter === 'deudores') return deudores
-    if (filter.startsWith('tira-')) {
-      const tira = filter.replace('tira-', '')
-      return demoPlayers.filter(p => p.is_active && p.tira === tira)
-    }
-    // Si es un categoryId (ej: cat-2012)
-    return demoPlayers.filter(p => p.is_active && p.category_id === filter)
-  }, [filter, deudores])
+  const deudorIds = useMemo(() => new Set(deudores.map(d => d.id)), [deudores])
+
   const players = useMemo(() => {
-    if (!search.trim()) return baseList
-    const q = search.toLowerCase().trim()
-    return baseList.filter(p =>
-      p.full_name.toLowerCase().includes(q) ||
-      (p.dni ?? '').includes(q) ||
-      (p.tutor_name ?? '').toLowerCase().includes(q)
-    )
-  }, [baseList, search])
+    let list = demoPlayers.filter(p => p.is_active)
+    if (showDeudores) list = list.filter(p => deudorIds.has(p.id))
+    if (selectedTira) list = list.filter(p => p.tira === selectedTira)
+    if (selectedCategory) list = list.filter(p => p.category_id === selectedCategory)
+    if (search.trim()) {
+      const q = search.toLowerCase().trim()
+      list = list.filter(p =>
+        p.full_name.toLowerCase().includes(q) ||
+        (p.dni ?? '').includes(q) ||
+        (p.tutor_name ?? '').toLowerCase().includes(q)
+      )
+    }
+    return list
+  }, [showDeudores, selectedTira, selectedCategory, search, deudorIds])
+
+  const hasActiveFilters = showDeudores || selectedTira || selectedCategory || search.trim()
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Users size={22} style={{ color: '#00843D' }} />
-          <h1 className="text-2xl font-bold" style={{ fontFamily: "'Barlow Condensed', sans-serif", color: '#00843D' }}>
-            {filter === 'deudores' ? 'DEUDORES' : 'SOCIOS'}
+    <div className="p-3 md:p-6 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Users size={20} style={{ color: '#00843D' }} className="flex-shrink-0" />
+          <h1 className="text-2xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: '#00843D' }}>
+            SOCIOS
           </h1>
-          <Badge variant="outline">{players.length}</Badge>
+          <Badge variant="outline" className="flex-shrink-0">{players.length}</Badge>
         </div>
-        <Link href="/socios/nuevo" className="flex items-center gap-1 text-sm font-semibold px-3 py-2 rounded-lg text-white" style={{ backgroundColor: '#00843D' }}>
-          <Plus size={16} /> Nuevo
+        <Link href="/socios/nuevo" className="flex items-center gap-1 text-sm font-semibold px-3 py-2 rounded-lg text-white flex-shrink-0" style={{ backgroundColor: '#00843D' }}>
+          <Plus size={14} /> Nuevo
         </Link>
       </div>
 
@@ -92,38 +97,54 @@ function SociosPage() {
         )}
       </div>
 
-      {/* Filtros */}
+      {/* Filtros acumulativos */}
       <div className="space-y-2">
-        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-3 px-3">
-          <button onClick={() => setFilter('todos')} className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${filter === 'todos' ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`} style={filter === 'todos' ? { backgroundColor: '#00843D' } : {}}>
-            Todos ({demoPlayers.filter(p => p.is_active).length})
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <button
+            onClick={() => setShowDeudores(!showDeudores)}
+            className={`px-2.5 py-1 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${showDeudores ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`}
+            style={showDeudores ? { backgroundColor: '#DC2626' } : {}}
+          >
+            🚩 Deudores ({deudores.length})
           </button>
-          <button onClick={() => setFilter('deudores')} className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${filter === 'deudores' ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`} style={filter === 'deudores' ? { backgroundColor: '#DC2626' } : {}}>
-            Deudores ({deudores.length})
-          </button>
+          {hasActiveFilters && (
+            <button
+              onClick={() => { setShowDeudores(false); setSelectedTira(null); setSelectedCategory(null); setSearch(''); }}
+              className="px-2.5 py-1 rounded-full text-xs font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50"
+            >
+              <X size={11} className="inline" /> Limpiar
+            </button>
+          )}
         </div>
 
-        {/* Filtro por tira */}
+        {/* Tira */}
         <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-3 px-3">
-          <span className="text-[10px] font-bold uppercase text-muted-foreground self-center mr-1">Tira:</span>
+          <span className="text-[10px] font-bold uppercase text-muted-foreground self-center flex-shrink-0">Tira:</span>
           {(['metro', 'liga1', 'liga2', 'edefi'] as const).map(t => {
-            const sel = filter === `tira-${t}`
+            const sel = selectedTira === t
             return (
-              <button key={t} onClick={() => setFilter(sel ? 'todos' : `tira-${t}`)} className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${sel ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`} style={sel ? { backgroundColor: TIRA_COLORS[t] } : {}}>
+              <button key={t} onClick={() => setSelectedTira(sel ? null : t)}
+                className={`px-2.5 py-1 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${sel ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`}
+                style={sel ? { backgroundColor: TIRA_COLORS[t] } : {}}>
                 {TIRA_LABELS[t]}
               </button>
             )
           })}
         </div>
 
-        {/* Filtro por categoría */}
+        {/* Categoría */}
         <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-3 px-3">
-          <span className="text-[10px] font-bold uppercase text-muted-foreground self-center mr-1">Cat:</span>
-          {demoCategories.filter(c => c.is_active).map(cat => (
-            <button key={cat.id} onClick={() => setFilter(filter === cat.id ? 'todos' : cat.id)} className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${filter === cat.id ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`} style={filter === cat.id ? { backgroundColor: '#1d4ed8' } : {}}>
-              {cat.name}
-            </button>
-          ))}
+          <span className="text-[10px] font-bold uppercase text-muted-foreground self-center flex-shrink-0">Cat:</span>
+          {demoCategories.filter(c => c.is_active).map(cat => {
+            const sel = selectedCategory === cat.id
+            return (
+              <button key={cat.id} onClick={() => setSelectedCategory(sel ? null : cat.id)}
+                className={`px-2.5 py-1 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${sel ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`}
+                style={sel ? { backgroundColor: '#1d4ed8' } : {}}>
+                {cat.name}
+              </button>
+            )
+          })}
         </div>
       </div>
 

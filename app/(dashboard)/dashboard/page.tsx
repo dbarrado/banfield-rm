@@ -6,6 +6,7 @@ import {
   demoPayments,
   demoEvents,
   demoCategories,
+  demoGuestParticipations,
   getPlayerDebts,
   thisMonth,
 } from '@/lib/demo-data'
@@ -167,6 +168,40 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* No anotados que participaron */}
+      {demoGuestParticipations.filter(g => g.reason !== 'visit_other_tira').length > 0 && (
+        <Card className="border-0 shadow-sm" style={{ borderLeft: '4px solid #F59E0B', backgroundColor: '#fffbeb' }}>
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-bold uppercase tracking-wider text-amber-700 flex items-center gap-1.5" style={{ fontFamily: "var(--font-barlow)" }}>
+                ⚠️ Chicos no anotados que están participando
+              </p>
+              <span className="text-2xl font-bold text-amber-700" style={{ fontFamily: "var(--font-barlow)" }}>
+                {demoGuestParticipations.filter(g => g.reason !== 'visit_other_tira').length}
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground mb-2">A prueba o pendientes de regularizar el cobro.</p>
+            <div className="space-y-1">
+              {demoGuestParticipations.filter(g => g.reason !== 'visit_other_tira').slice(0, 4).map(g => {
+                const cat = demoCategories.find(c => c.id === g.category_id)
+                return (
+                  <div key={g.id} className="flex items-center justify-between text-xs py-1 border-b last:border-0">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold truncate">{g.full_name}</p>
+                      {g.notes && <p className="text-[10px] text-muted-foreground truncate italic">"{g.notes}"</p>}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-[10px] text-muted-foreground">Cat. {cat?.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{new Date(g.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Próximos partidos agrupados por tira/rival */}
       {groupedMatches.length > 0 && (

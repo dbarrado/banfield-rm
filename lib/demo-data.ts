@@ -484,6 +484,32 @@ export function getAssignmentsForProfe(profeId: string): ProfeAssignment[] {
   return demoProfeAssignments.filter(a => a.profe_id === profeId)
 }
 
+// ──────────────────────────────────────────────────────────────────────────
+// VISITANTES / NO ANOTADOS — chicos que participaron en clases pero no son socios todavía
+// (a prueba, hermanos, invitados, o control para que empiecen a abonar)
+// ──────────────────────────────────────────────────────────────────────────
+export type GuestParticipation = {
+  id: string
+  full_name: string
+  category_id: string
+  shifted_to: 'metro' | 'liga1' | 'liga2' | 'edefi'
+  date: string
+  reason: 'visit_other_tira' | 'unregistered_trial' | 'sibling' | 'invited'
+  // Si es de otra tira de la misma estructura
+  source_player_id?: string
+  source_tira?: 'metro' | 'liga1' | 'liga2' | 'edefi'
+  added_by_profe?: string | null
+  notes?: string | null
+}
+
+export const demoGuestParticipations: GuestParticipation[] = [
+  { id: 'guest-1', full_name: 'Mateo Acuña',     category_id: 'cat-2014', shifted_to: 'metro', date: '2026-05-05', reason: 'unregistered_trial', notes: 'Hermano de Lucas Fernández. Vino a probar.', added_by_profe: 'pf-6' },
+  { id: 'guest-2', full_name: 'Joaquín Pereyra', category_id: 'cat-2015', shifted_to: 'metro', date: '2026-05-04', reason: 'unregistered_trial', notes: 'Lo trajo el papá, quiere asociarse.', added_by_profe: 'pf-8' },
+  { id: 'guest-3', full_name: 'Lautaro Vargas',  category_id: 'cat-2014', shifted_to: 'liga1', date: '2026-05-03', reason: 'visit_other_tira', source_player_id: 'p-50', source_tira: 'liga2', added_by_profe: 'pf-7' },
+  { id: 'guest-4', full_name: 'Brian Núñez',     category_id: 'cat-2012', shifted_to: 'metro', date: '2026-05-02', reason: 'sibling', notes: 'Hermano de Tomás García', added_by_profe: 'pf-3' },
+  { id: 'guest-5', full_name: 'Tobías Ledesma',  category_id: 'cat-2016', shifted_to: 'metro', date: '2026-05-01', reason: 'unregistered_trial', notes: 'A prueba — pendiente registro', added_by_profe: 'pf-10' },
+]
+
 export const demoEligibilityConfig: EligibilityConfig = {
   id: 'ec-1',
   min_attendance_percentage: 50,
