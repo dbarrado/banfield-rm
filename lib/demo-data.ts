@@ -589,10 +589,58 @@ export const demoGuestParticipations: GuestParticipation[] = [
 
 export const demoEligibilityConfig: EligibilityConfig = {
   id: 'ec-1',
-  min_attendance_percentage: 50,
+  min_practice_percentage: 50,
+  min_match_percentage: 50,
   updated_at: '2026-03-01',
   updated_by: null,
 }
+
+// Log de cambios en umbrales (audit)
+export const demoEligibilityLog: import('@/types').EligibilityChangeLog[] = [
+  {
+    id: 'elog-1',
+    type: 'practice_threshold',
+    scope: 'club',
+    old_value: 60,
+    new_value: 50,
+    changed_by: 'Diego Barrado (Admin)',
+    changed_at: '2026-04-15T10:30:00',
+    reason: 'Bajada por contemplar permisos de colegio',
+  },
+  {
+    id: 'elog-2',
+    type: 'convocation_override',
+    scope: 'convocation',
+    convocation_id: 'conv-001',
+    category_name: '2014 Metro',
+    old_value: 50,
+    new_value: 70,
+    changed_by: 'Ariel Vázquez (Profe)',
+    changed_at: '2026-05-04T18:42:00',
+    reason: 'Convocatoria especial: solo elegibles top',
+  },
+  {
+    id: 'elog-3',
+    type: 'convocation_override',
+    scope: 'convocation',
+    convocation_id: 'conv-002',
+    category_name: '2012 Metro',
+    old_value: 50,
+    new_value: 30,
+    changed_by: 'Diego Salinas (Profe)',
+    changed_at: '2026-05-06T14:15:00',
+    reason: 'Partido amistoso, abrimos para más jugadores',
+  },
+  {
+    id: 'elog-4',
+    type: 'match_threshold',
+    scope: 'club',
+    old_value: 40,
+    new_value: 50,
+    changed_by: 'Diego Barrado (Admin)',
+    changed_at: '2026-03-01T09:00:00',
+  },
+]
 
 // ──────────────────────────────────────────────────────────────────────────
 // HELPERS

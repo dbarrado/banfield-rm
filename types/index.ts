@@ -208,9 +208,23 @@ export interface ConvocationPlayer {
 
 export interface EligibilityConfig {
   id: string
-  min_attendance_percentage: number
+  min_practice_percentage: number
+  min_match_percentage: number
   updated_at: string
   updated_by: string | null
+}
+
+export interface EligibilityChangeLog {
+  id: string
+  type: 'practice_threshold' | 'match_threshold' | 'convocation_override'
+  scope: 'club' | 'convocation'
+  convocation_id?: string
+  category_name?: string
+  old_value: number
+  new_value: number
+  changed_by: string  // nombre profe/admin
+  changed_at: string
+  reason?: string
 }
 
 export interface CashSession {

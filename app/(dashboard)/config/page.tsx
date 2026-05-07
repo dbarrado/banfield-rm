@@ -3,9 +3,9 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Settings, Users, ChevronRight, Edit2, Plus, X, Check, Trash2 } from 'lucide-react'
+import { Settings, Users, ChevronRight, Edit2, Plus, X, Check, Trash2, History } from 'lucide-react'
 import Link from 'next/link'
-import { demoCategories, demoFinanceCategories, demoEligibilityConfig, demoProfes } from '@/lib/demo-data'
+import { demoCategories, demoFinanceCategories, demoEligibilityConfig, demoEligibilityLog, demoProfes } from '@/lib/demo-data'
 
 const INITIAL_CAUSALES = [
   'Mala conducta',
@@ -24,9 +24,8 @@ const INITIAL_FEES = [
 ]
 
 export default function ConfigPage() {
-  const [threshold, setThreshold] = useState(demoEligibilityConfig.min_attendance_percentage)
-  const [editingThreshold, setEditingThreshold] = useState(false)
-  const [tempThreshold, setTempThreshold] = useState(String(threshold))
+  const [practiceThreshold, setPracticeThreshold] = useState(demoEligibilityConfig.min_practice_percentage)
+  const [matchThreshold, setMatchThreshold] = useState(demoEligibilityConfig.min_match_percentage)
 
   const [fees, setFees] = useState(INITIAL_FEES)
   const [editingFee, setEditingFee] = useState<string | null>(null)
@@ -92,48 +91,110 @@ export default function ConfigPage() {
         </Card>
       </Link>
 
-      {/* Elegibilidad */}
+      {/* Elegibilidad para partidos — DOS umbrales */}
       <Card className="border-0 shadow-sm">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground" style={{ fontFamily: "var(--font-barlow)" }}>
             ELEGIBILIDAD PARA PARTIDOS
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">Asistencia mínima requerida</p>
-            {editingThreshold ? (
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={tempThreshold}
-                  onChange={e => setTempThreshold(e.target.value)}
-                  className="w-16 px-2 py-1 border rounded text-sm text-right font-bold"
-                  autoFocus
-                />
-                <span className="text-sm font-bold">%</span>
-                <button onClick={() => { setThreshold(Number(tempThreshold)); setEditingThreshold(false); }} className="p-1 rounded text-green-600 hover:bg-green-50">
-                  <Check size={16} />
-                </button>
-                <button onClick={() => { setTempThreshold(String(threshold)); setEditingThreshold(false); }} className="p-1 rounded text-gray-400 hover:bg-gray-50">
-                  <X size={16} />
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: 'var(--club-primary, #00843D)' }}>
-                  {threshold}%
-                </span>
-                <button onClick={() => setEditingThreshold(true)} className="text-xs px-2 py-1 rounded border text-muted-foreground hover:bg-gray-50 flex items-center gap-1">
-                  <Edit2 size={11} /> Editar
-                </button>
-              </div>
-            )}
+        <CardContent className="space-y-3">
+          <p className="text-[11px] text-muted-foreground">
+            Definí los mínimos generales del club. Los profes pueden modificarlos en convocatorias puntuales —
+            cada cambio queda registrado abajo.
+          </p>
+
+          {/* Slider prácticas */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold flex items-center gap-1">🏃 Mínimo de prácticas</p>
+              <p className="text-lg font-bold" style={{ fontFamily: "var(--font-barlow)", color: 'var(--club-primary, #00843D)' }}>
+                {practiceThreshold}%
+              </p>
+            </div>
+            <input
+              type="range" min="0" max="100" step="5"
+              value={practiceThreshold}
+              onChange={e => setPracticeThreshold(Number(e.target.value))}
+              className="w-full accent-[#00843D]"
+            />
           </div>
-          <p className="text-[11px] text-muted-foreground mt-1.5">
-            Default global. Cada profe puede modificarlo en cada convocatoria puntual.
+
+          {/* Slider partidos */}
+          <div className="space-y-1.5 pt-2 border-t">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold flex items-center gap-1">⚽ Mínimo de partidos</p>
+              <p className="text-lg font-bold" style={{ fontFamily: "var(--font-barlow)", color: '#1d4ed8' }}>
+                {matchThreshold}%
+              </p>
+            </div>
+            <input
+              type="range" min="0" max="100" step="5"
+              value={matchThreshold}
+              onChange={e => setMatchThreshold(Number(e.target.value))}
+              className="w-full accent-blue-700"
+            />
+          </div>
+
+          {(practiceThreshold !== demoEligibilityConfig.min_practice_percentage ||
+            matchThreshold !== demoEligibilityConfig.min_match_percentage) && (
+            <button
+              onClick={() => alert(`✅ Umbrales actualizados (demo)\nPrácticas: ${practiceThreshold}%\nPartidos: ${matchThreshold}%\n\nQueda registrado en el log de cambios.`)}
+              className="w-full py-2 rounded-lg text-white font-bold text-sm"
+              style={{ backgroundColor: 'var(--club-primary, #00843D)' }}
+            >
+              GUARDAR CAMBIOS
+            </button>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Audit log — PC primary */}
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-1.5" style={{ fontFamily: "var(--font-barlow)" }}>
+            <History size={14} /> HISTORIAL DE CAMBIOS DE UMBRALES
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {demoEligibilityLog.map(log => {
+              const isOverride = log.scope === 'convocation'
+              const typeLabel = log.type === 'practice_threshold' ? '🏃 Prácticas (general)'
+                              : log.type === 'match_threshold' ? '⚽ Partidos (general)'
+                              : '🎯 Override en convocatoria'
+              return (
+                <div key={log.id} className={`p-2.5 rounded-lg border ${isOverride ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-200'}`}>
+                  <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">
+                    <Badge variant="outline" className="text-[10px]">
+                      {typeLabel}
+                    </Badge>
+                    <span className="text-[10px] text-muted-foreground">
+                      {new Date(log.changed_at).toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="font-mono font-bold text-red-500 line-through">{log.old_value}%</span>
+                    <span className="text-muted-foreground">→</span>
+                    <span className="font-mono font-bold" style={{ color: isOverride ? '#f59e0b' : '#00843D' }}>
+                      {log.new_value}%
+                    </span>
+                    {log.category_name && (
+                      <Badge className="text-[10px] bg-blue-100 text-blue-700 border-0 ml-1">
+                        Cat. {log.category_name}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Por <strong>{log.changed_by}</strong>
+                    {log.reason && <span className="italic"> · "{log.reason}"</span>}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-2 italic">
+            Solo el admin puede modificar los umbrales generales. Los profes pueden hacer overrides puntuales en cada convocatoria.
           </p>
         </CardContent>
       </Card>

@@ -18,9 +18,13 @@ export default function ConvocatoriaPage() {
   const [selectedTira, setSelectedTira] = useState<Tira | null>(null)
   const [selectedEvent, setSelectedEvent] = useState(demoEvents.filter(e => e.event_type === 'match')[0]?.id ?? '')
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [practiceThreshold, setPracticeThreshold] = useState(demoEligibilityConfig.min_attendance_percentage)
-  const [matchThreshold, setMatchThreshold] = useState(50)
+  const [practiceThreshold, setPracticeThreshold] = useState(demoEligibilityConfig.min_practice_percentage)
+  const [matchThreshold, setMatchThreshold] = useState(demoEligibilityConfig.min_match_percentage)
   const [view, setView] = useState<'list' | 'pitch'>('list')
+
+  const practiceModified = practiceThreshold !== demoEligibilityConfig.min_practice_percentage
+  const matchModified = matchThreshold !== demoEligibilityConfig.min_match_percentage
+  const anyModified = practiceModified || matchModified
 
   // Si hay profe seleccionado, limitar categorías y tiras a las que tiene asignadas
   const profeAssignments = selectedProfe ? getAssignmentsForProfe(selectedProfe) : []
@@ -197,8 +201,23 @@ export default function ConvocatoriaPage() {
             />
           </div>
           <p className="text-[10px] text-muted-foreground">
-            Default global: {demoEligibilityConfig.min_attendance_percentage}% · Un jugador es elegible si cumple <strong>ambos</strong>.
+            Default del club: 🏃 {demoEligibilityConfig.min_practice_percentage}% prácticas · ⚽ {demoEligibilityConfig.min_match_percentage}% partidos. Elegible si cumple <strong>ambos</strong>.
           </p>
+
+          {anyModified && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-[11px] text-amber-800 flex items-start gap-1.5">
+              <span>⚠️</span>
+              <div>
+                <p className="font-semibold">Vas a modificar el default del club</p>
+                <p className="text-amber-700">
+                  Los nuevos umbrales para esta convocatoria:
+                  {practiceModified && <> 🏃 <strong>{practiceThreshold}%</strong></>}
+                  {matchModified && <> ⚽ <strong>{matchThreshold}%</strong></>}
+                  . Al guardar, queda registro en el log con tu nombre y motivo.
+                </p>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
