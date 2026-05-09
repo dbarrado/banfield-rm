@@ -220,6 +220,7 @@ export function getCurrentClub(): Club {
 export function setCurrentClub(clubId: string) {
   if (typeof window === 'undefined') return
   localStorage.setItem(CURRENT_CLUB_KEY, clubId)
-  // Recargar para que se apliquen los datos del nuevo club
-  window.location.reload()
+  // Navegar al dashboard del nuevo club. No usar reload() porque conserva la URL actual,
+  // y si estabas mirando un partido/socio de otro club, esa pantalla quedaría desfasada.
+  window.location.href = '/dashboard'
 }

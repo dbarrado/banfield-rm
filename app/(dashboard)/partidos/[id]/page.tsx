@@ -84,6 +84,14 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
 
   const [titularesIds, setTitularesIds] = useState<string[]>(initialTitulares.map(p => p.id))
   const [suplentesIds, setSuplentesIds] = useState<string[]>(initialSuplentes.map(p => p.id))
+  // Posición asignada por jugador en la formación actual (puede diferir de primary_position
+  // cuando se completa un slot con un jugador de otra posición)
+  const [formationAssignments, setFormationAssignments] = useState<Record<string, Position>>(() => {
+    const m: Record<string, Position> = {}
+    // Asignación inicial: cada jugador queda en su primary_position (que coincide con cómo se llenaron los slots)
+    for (const p of initialTitulares) m[p.id] = p.primary_position
+    return m
+  })
   const [cards, setCards] = useState<Record<string, CardStatus>>({})
   const [matchComment, setMatchComment] = useState('')
   const [swap, setSwap] = useState<{ titularId?: string; suplenteId?: string } | null>(null)
@@ -159,6 +167,8 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
       .filter((p): p is typeof allOfCat[number] => Boolean(p))
 
     const newTit: string[] = []
+    // Mapping {playerId → posición asignada en esta formación} — clave para el render visual
+    const assignments: Record<string, Position> = {}
 
     // Pasada 1: cubrir slots con jugadores del pool cuya primary_position coincida
     for (const [posCode, count] of Object.entries(f.slots)) {
@@ -166,30 +176,42 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
         .filter(p => p.primary_position === posCode)
         .filter(p => !newTit.includes(p.id))
         .slice(0, count)
-      newTit.push(...candidates.map(p => p.id))
+      for (const c of candidates) {
+        newTit.push(c.id)
+        assignments[c.id] = posCode as Position
+      }
     }
 
     // Pasada 2: si quedan slots vacíos, completar con jugadores cuya secondary_position coincida
     for (const [posCode, count] of Object.entries(f.slots)) {
-      const filled = newTit.filter(id => {
-        const p = pool.find(x => x.id === id)
-        return p?.primary_position === posCode || (p?.secondary_positions ?? []).includes(posCode as Position)
-      }).length
+      const filled = newTit.filter(id => assignments[id] === posCode).length
       const missing = count - filled
       if (missing > 0) {
         const candidates = pool
           .filter(p => (p.secondary_positions ?? []).includes(posCode as Position))
           .filter(p => !newTit.includes(p.id))
           .slice(0, missing)
-        newTit.push(...candidates.map(p => p.id))
+        for (const c of candidates) {
+          newTit.push(c.id)
+          assignments[c.id] = posCode as Position
+        }
       }
     }
 
-    // Pasada 3: si todavía faltan, completar con cualquier jugador del pool (mantiene la convocatoria)
-    const totalSlots = Object.values(f.slots).reduce((s, n) => s + n, 0)
-    if (newTit.length < totalSlots) {
-      const remaining = pool.filter(p => !newTit.includes(p.id))
-      newTit.push(...remaining.slice(0, totalSlots - newTit.length).map(p => p.id))
+    // Pasada 3: si todavía faltan, completar con cualquier jugador del pool y asignarlo al slot vacío
+    const slotEntries = Object.entries(f.slots) as [Position, number][]
+    for (const [posCode, count] of slotEntries) {
+      const filled = newTit.filter(id => assignments[id] === posCode).length
+      const missing = count - filled
+      if (missing > 0) {
+        const candidates = pool
+          .filter(p => !newTit.includes(p.id))
+          .slice(0, missing)
+        for (const c of candidates) {
+          newTit.push(c.id)
+          assignments[c.id] = posCode  // forzar la posición de la formación
+        }
+      }
     }
 
     // Suplentes = el resto del pool actual (mantiene a todos los convocados)
@@ -197,6 +219,7 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
 
     setTitularesIds(newTit)
     setSuplentesIds(newSup)
+    setFormationAssignments(assignments)
     setCurrentFormation(f)
   }
 
@@ -210,8 +233,13 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
   const suplentes = suplentesIds.map(id => allOfCat.find(p => p.id === id)!).filter(Boolean)
 
   // Agrupados por posición principal
+  // Agrupar titulares por la posición ASIGNADA en la formación actual (no por primary_position).
+  // Esto permite que cambiar de formación re-distribuya visualmente a los jugadores en cancha.
   const titularesByPos: Record<Position, typeof titulares> = { arquero: [], defensor: [], mediocampista: [], delantero: [] }
-  for (const t of titulares) titularesByPos[t.primary_position].push(t)
+  for (const t of titulares) {
+    const assignedPos = formationAssignments[t.id] ?? t.primary_position
+    titularesByPos[assignedPos].push(t)
+  }
 
   const date = new Date(event!.scheduled_at)
 
