@@ -10,6 +10,8 @@ import { useCurrentClub } from '@/lib/use-current-club'
 import { POSITION_LABELS, POSITION_COLORS, type Position } from '@/types'
 import { getAvatarUrl } from '@/lib/avatars'
 import { getSportFormat, FORMATIONS, getDefaultFormation, type SportCode, type Formation } from '@/lib/sports'
+import { getMatchConfig, saveMatchConfig, type MatchConfig } from '@/lib/match-config'
+import { Settings } from 'lucide-react'
 
 type CardStatus = 'none' | 'yellow' | 'red'
 
@@ -68,8 +70,17 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
     const remaining = allOfCat.filter(p => !initialTitulares.includes(p))
     initialTitulares.push(...remaining.slice(0, expectedTitulares - initialTitulares.length))
   }
-  const maxSubs = format.players_on_field > 9 ? 5 : 3
+  // Config de máximos por club + deporte (con override editable inline)
+  const initialMatchCfg = useMemo(() => getMatchConfig(eventClubId, sportCode), [eventClubId, sportCode])
+  const [matchCfg, setMatchCfg] = useState<MatchConfig>(initialMatchCfg)
+  const [showCfgEditor, setShowCfgEditor] = useState(false)
+  const maxSubs = matchCfg.suplentes
   const initialSuplentes = allOfCat.filter(p => !initialTitulares.includes(p)).slice(0, maxSubs)
+
+  function updateMatchCfg(next: MatchConfig) {
+    setMatchCfg(next)
+    saveMatchConfig(eventClubId, sportCode, next)
+  }
 
   const [titularesIds, setTitularesIds] = useState<string[]>(initialTitulares.map(p => p.id))
   const [suplentesIds, setSuplentesIds] = useState<string[]>(initialSuplentes.map(p => p.id))
@@ -309,6 +320,46 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
               )
             })}
           </div>
+        )}
+
+        {/* Config de máximos de convocatoria (editable inline + persistente por club + deporte) */}
+        <div className="flex items-center gap-2 flex-wrap text-[11px]">
+          <button
+            onClick={() => setShowCfgEditor(!showCfgEditor)}
+            className="flex items-center gap-1 px-2 py-1 rounded border border-gray-200 hover:bg-gray-50 text-muted-foreground"
+          >
+            <Settings size={11} />
+            <strong>{matchCfg.titulares}</strong> tit. + <strong>{matchCfg.suplentes}</strong> sup.
+          </button>
+          <span className="text-muted-foreground">máximo de convocados</span>
+        </div>
+
+        {showCfgEditor && (
+          <Card className="border-0 shadow-sm bg-gray-50">
+            <CardContent className="p-2.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-bold uppercase text-muted-foreground">Máximo de convocados — {sportCode}</p>
+                <button onClick={() => setShowCfgEditor(false)} className="text-muted-foreground"><X size={12} /></button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-[11px]">
+                  <span className="text-muted-foreground">Titulares</span>
+                  <input type="number" min={1} max={30} value={matchCfg.titulares}
+                    onChange={e => updateMatchCfg({ ...matchCfg, titulares: Math.max(1, Math.min(30, Number(e.target.value) || 1)) })}
+                    className="w-full mt-0.5 px-2 py-1 border rounded text-sm font-bold text-center" />
+                </label>
+                <label className="text-[11px]">
+                  <span className="text-muted-foreground">Suplentes</span>
+                  <input type="number" min={0} max={20} value={matchCfg.suplentes}
+                    onChange={e => updateMatchCfg({ ...matchCfg, suplentes: Math.max(0, Math.min(20, Number(e.target.value) || 0)) })}
+                    className="w-full mt-0.5 px-2 py-1 border rounded text-sm font-bold text-center" />
+                </label>
+              </div>
+              <p className="text-[10px] text-muted-foreground italic">
+                Se guarda por club + actividad. También editable desde Configuración.
+              </p>
+            </CardContent>
+          </Card>
         )}
 
         <p className="text-[10px] text-muted-foreground -mt-1 flex items-center gap-1">

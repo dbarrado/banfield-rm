@@ -6,6 +6,9 @@ import { Badge } from '@/components/ui/badge'
 import { Settings, Users, ChevronRight, Edit2, Plus, X, Check, Trash2, History, Volleyball, Calendar } from 'lucide-react'
 import Link from 'next/link'
 import { demoCategories, demoFinanceCategories, demoEligibilityConfig, demoEligibilityLog, demoProfes } from '@/lib/demo-data'
+import { useCurrentClub } from '@/lib/use-current-club'
+import { getMatchConfig, saveMatchConfig, DEFAULT_MATCH_CONFIG, resetMatchConfig } from '@/lib/match-config'
+import type { SportCode } from '@/lib/sports'
 
 const INITIAL_CAUSALES = [
   'Mala conducta',
@@ -24,8 +27,28 @@ const INITIAL_FEES = [
 ]
 
 export default function ConfigPage() {
+  const club = useCurrentClub()
   const [practiceThreshold, setPracticeThreshold] = useState(demoEligibilityConfig.min_practice_percentage)
   const [matchThreshold, setMatchThreshold] = useState(demoEligibilityConfig.min_match_percentage)
+
+  // Máximos de convocatoria por deporte (persisten por club + sportCode)
+  const matchSports: SportCode[] = Object.keys(DEFAULT_MATCH_CONFIG) as SportCode[]
+  const [matchConfigs, setMatchConfigs] = useState<Record<string, { titulares: number; suplentes: number }>>({})
+  // Cargar al primer render
+  useState(() => {
+    if (typeof window === 'undefined') return
+    const next: Record<string, { titulares: number; suplentes: number }> = {}
+    for (const sc of matchSports) next[sc] = getMatchConfig(club.id, sc)
+    setMatchConfigs(next)
+    return undefined
+  })
+
+  function updateMatchSport(sc: string, field: 'titulares' | 'suplentes', value: number) {
+    const cur = matchConfigs[sc] ?? DEFAULT_MATCH_CONFIG[sc]
+    const next = { ...cur, [field]: value }
+    setMatchConfigs(prev => ({ ...prev, [sc]: next }))
+    saveMatchConfig(club.id, sc, next)
+  }
 
   const [fees, setFees] = useState(INITIAL_FEES)
   const [editingFee, setEditingFee] = useState<string | null>(null)
@@ -228,6 +251,46 @@ export default function ConfigPage() {
           <p className="text-[10px] text-muted-foreground mt-2 italic">
             Solo el admin puede modificar los umbrales generales. Los profes pueden hacer overrides puntuales en cada convocatoria.
           </p>
+        </CardContent>
+      </Card>
+
+      {/* Máximos de convocatoria por deporte */}
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground" style={{ fontFamily: "var(--font-barlow)" }}>
+            MÁXIMOS DE CONVOCATORIA POR ACTIVIDAD
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-[11px] text-muted-foreground">
+            Cuántos titulares y suplentes admite cada actividad para este club. También se puede ajustar desde la pantalla del partido.
+          </p>
+          {matchSports.map(sc => {
+            const cfg = matchConfigs[sc] ?? DEFAULT_MATCH_CONFIG[sc]
+            const def = DEFAULT_MATCH_CONFIG[sc]
+            const overridden = cfg.titulares !== def.titulares || cfg.suplentes !== def.suplentes
+            const sportLabels: Record<string, string> = {
+              football_11: 'Fútbol 11', baby_6: 'Baby 6', baby_5: 'Baby 5', futsal: 'Futsal',
+              hockey_field: 'Hockey', volleyball: 'Vóley', basketball: 'Básquet',
+              rugby_7: 'Rugby 7s', rugby_15: 'Rugby 15', handball_7: 'Handball',
+            }
+            return (
+              <div key={sc} className="flex items-center gap-2 py-1.5 border-b last:border-0">
+                <p className="text-sm font-medium flex-1 truncate">{sportLabels[sc] ?? sc}</p>
+                {overridden && <Badge variant="outline" className="text-[9px] text-blue-700 border-blue-200">Custom</Badge>}
+                <div className="flex items-center gap-1.5">
+                  <label className="text-[10px] text-muted-foreground">Tit.</label>
+                  <input type="number" min={1} max={30} value={cfg.titulares}
+                    onChange={e => updateMatchSport(sc, 'titulares', Math.max(1, Math.min(30, Number(e.target.value) || 1)))}
+                    className="w-12 px-1.5 py-1 border rounded text-xs text-right font-bold" />
+                  <label className="text-[10px] text-muted-foreground">Sup.</label>
+                  <input type="number" min={0} max={20} value={cfg.suplentes}
+                    onChange={e => updateMatchSport(sc, 'suplentes', Math.max(0, Math.min(20, Number(e.target.value) || 0)))}
+                    className="w-12 px-1.5 py-1 border rounded text-xs text-right font-bold" />
+                </div>
+              </div>
+            )
+          })}
         </CardContent>
       </Card>
 
