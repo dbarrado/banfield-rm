@@ -140,17 +140,52 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
   }
 
   function applyFormation(f: Formation) {
-    // Reasignar titulares de acuerdo a slots
+    // Mantener el pool de jugadores ya convocados (titulares + suplentes actuales)
+    // y reorganizarlo según la nueva formación. NO traer jugadores nuevos del pool global.
+    const currentPoolIds = [...titularesIds, ...suplentesIds]
+    const pool = currentPoolIds
+      .map(id => allOfCat.find(p => p.id === id))
+      .filter((p): p is typeof allOfCat[number] => Boolean(p))
+
     const newTit: string[] = []
+
+    // Pasada 1: cubrir slots con jugadores del pool cuya primary_position coincida
     for (const [posCode, count] of Object.entries(f.slots)) {
-      const candidates = allOfCat
+      const candidates = pool
         .filter(p => p.primary_position === posCode)
         .filter(p => !newTit.includes(p.id))
         .slice(0, count)
       newTit.push(...candidates.map(p => p.id))
     }
+
+    // Pasada 2: si quedan slots vacíos, completar con jugadores cuya secondary_position coincida
+    for (const [posCode, count] of Object.entries(f.slots)) {
+      const filled = newTit.filter(id => {
+        const p = pool.find(x => x.id === id)
+        return p?.primary_position === posCode || (p?.secondary_positions ?? []).includes(posCode as Position)
+      }).length
+      const missing = count - filled
+      if (missing > 0) {
+        const candidates = pool
+          .filter(p => (p.secondary_positions ?? []).includes(posCode as Position))
+          .filter(p => !newTit.includes(p.id))
+          .slice(0, missing)
+        newTit.push(...candidates.map(p => p.id))
+      }
+    }
+
+    // Pasada 3: si todavía faltan, completar con cualquier jugador del pool (mantiene la convocatoria)
+    const totalSlots = Object.values(f.slots).reduce((s, n) => s + n, 0)
+    if (newTit.length < totalSlots) {
+      const remaining = pool.filter(p => !newTit.includes(p.id))
+      newTit.push(...remaining.slice(0, totalSlots - newTit.length).map(p => p.id))
+    }
+
+    // Suplentes = el resto del pool actual (mantiene a todos los convocados)
+    const newSup = currentPoolIds.filter(id => !newTit.includes(id))
+
     setTitularesIds(newTit)
-    setSuplentesIds(allOfCat.filter(p => !newTit.includes(p.id)).slice(0, maxSubs).map(p => p.id))
+    setSuplentesIds(newSup)
     setCurrentFormation(f)
   }
 
