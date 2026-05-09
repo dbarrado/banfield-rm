@@ -7,7 +7,9 @@ import { ArrowLeft, Trophy, CheckCircle2, XCircle, AlertCircle, Clock, MessageCi
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { demoEvents, demoCategories, demoPlayers } from '@/lib/demo-data'
-import { POSITION_LABELS, POSITION_COLORS, TIRA_COLORS, TIRA_LABELS } from '@/types'
+import { POSITION_LABELS, POSITION_COLORS } from '@/types'
+import { getTiraLabel, getTiraColor } from '@/lib/tiras'
+import type { SportCode } from '@/lib/sports'
 
 type AvailabilityStatus =
   | 'pending'              // sin definir aún
@@ -139,8 +141,8 @@ export default function AsistenciaPartidoPage({ params }: { params: Promise<{ id
                         <span className="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase text-white" style={{ backgroundColor: POSITION_COLORS[p.primary_position] }}>
                           {POSITION_LABELS[p.primary_position]}
                         </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase text-white" style={{ backgroundColor: TIRA_COLORS[p.tira] }}>
-                          {TIRA_LABELS[p.tira]}
+                        <span className="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase text-white" style={{ backgroundColor: getTiraColor(p.tira, (cat?.sport_format_code ?? 'football_11') as SportCode) }}>
+                          {getTiraLabel(p.tira, (cat?.sport_format_code ?? 'football_11') as SportCode)}
                         </span>
                       </div>
                     </div>

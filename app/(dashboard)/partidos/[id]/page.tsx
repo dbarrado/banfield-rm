@@ -16,10 +16,14 @@ type CardStatus = 'none' | 'yellow' | 'red'
 export default function PartidoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const club = useCurrentClub()
-  const clubPlayers = useMemo(() => getPlayersForClub(club.id), [club.id])
-  const clubCategories = useMemo(() => getCategoriesForClub(club.id), [club.id])
   const event = demoEvents.find(e => e.id === id && e.event_type === 'match')
   if (!event) notFound()
+  // Filtrar jugadores y categorías por el CLUB DEL EVENTO (no del usuario activo).
+  // Esto garantiza que el partido siempre muestre los jugadores correctos aunque
+  // el usuario haya abierto el partido desde otro contexto.
+  const eventClubId = event!.club_id ?? club.id
+  const clubPlayers = useMemo(() => getPlayersForClub(eventClubId), [eventClubId])
+  const clubCategories = useMemo(() => getCategoriesForClub(eventClubId), [eventClubId])
 
   const cat = clubCategories.find(c => c.id === event!.category_id)
   // Formato de juego de la categoría (cada cat puede tener distinto)
@@ -41,7 +45,7 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
                    : sportCode === 'volleyball'   ? { arquero: 0, defensor: 2, mediocampista: 1, delantero: 3 }
                    : sportCode === 'basketball'   ? { arquero: 0, defensor: 2, mediocampista: 1, delantero: 2 }
                    : sportCode === 'rugby_7'      ? { arquero: 0, defensor: 3, mediocampista: 2, delantero: 2 }
-                   : sportCode === 'rugby_15'     ? { arquero: 1, defensor: 5, mediocampista: 4, delantero: 5 }
+                   : sportCode === 'rugby_15'     ? { arquero: 0, defensor: 6, mediocampista: 4, delantero: 5 }
                    : sportCode === 'handball_7'   ? { arquero: 1, defensor: 2, mediocampista: 1, delantero: 3 }
                    :                                 { arquero: 1, defensor: 4, mediocampista: 4, delantero: 2 }
 

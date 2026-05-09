@@ -7,8 +7,10 @@ import { ArrowLeft, MessageCircle, Camera, Plus, Trophy, AlertCircle, Star, Awar
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { demoPlayers, demoCategories, demoPayments, demoEvents, demoAttendance, getDetailedAttendanceStats, thisMonth, getSiblings, getSiblingDiscount, demoSiblingDiscountConfig } from '@/lib/demo-data'
-import { POSITION_LABELS, POSITION_COLORS, TIRA_LABELS, TIRA_COLORS, type Position } from '@/types'
+import { POSITION_LABELS, POSITION_COLORS, type Position } from '@/types'
 import { getAvatarUrl } from '@/lib/avatars'
+import { getTiraLabel, getTiraColor } from '@/lib/tiras'
+import type { SportCode } from '@/lib/sports'
 
 const ALL_POSITIONS: Position[] = ['arquero', 'defensor', 'mediocampista', 'delantero']
 
@@ -46,6 +48,9 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
 
   const player = initialPlayer!
   const cat = demoCategories.find(c => c.id === player.category_id)
+  const playerSportCode = (cat?.sport_format_code ?? 'football_11') as SportCode
+  const tiraLabel = getTiraLabel(player.tira, playerSportCode)
+  const tiraColor = getTiraColor(player.tira, playerSportCode)
   const stats = getDetailedAttendanceStats(player.id, player.category_id)
   const WEEKDAY_NAMES = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
   const payments = demoPayments.filter(p => p.player_id === player.id).sort((a, b) => b.paid_at.localeCompare(a.paid_at))
@@ -75,7 +80,7 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
   return (
     <div className="pb-4">
       {/* Header con foto grande */}
-      <div className="relative" style={{ background: `linear-gradient(135deg, ${TIRA_COLORS[player.tira]} 0%, ${TIRA_COLORS[player.tira]}dd 100%)` }}>
+      <div className="relative" style={{ background: `linear-gradient(135deg, ${tiraColor} 0%, ${tiraColor}dd 100%)` }}>
         <Link href="/socios" className="absolute top-3 left-3 text-white p-2 rounded-full bg-black/20 hover:bg-black/30 z-10">
           <ArrowLeft size={18} />
         </Link>
@@ -98,7 +103,7 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
               className="absolute bottom-0 right-0 w-9 h-9 rounded-full bg-white shadow-md flex items-center justify-center"
               title="Cambiar foto"
             >
-              <Camera size={16} style={{ color: TIRA_COLORS[player.tira] }} />
+              <Camera size={16} style={{ color: tiraColor }} />
             </button>
             <input
               ref={fileInputRef}
@@ -117,7 +122,7 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
               Cat. {cat?.name}
             </Badge>
             <Badge className="text-white border-0 text-xs" style={{ backgroundColor: 'rgba(255,255,255,0.25)' }}>
-              {TIRA_LABELS[player.tira]}
+              {tiraLabel}
             </Badge>
             <Badge className="text-white border-0 text-xs font-bold" style={{ backgroundColor: POSITION_COLORS[primaryPos] }}>
               {POSITION_LABELS[primaryPos]}
@@ -159,12 +164,12 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
             <div>
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-semibold">📅 Año (acumulado)</span>
-                <span className="text-xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: TIRA_COLORS[player.tira] }}>
+                <span className="text-xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: tiraColor }}>
                   {stats.year.percentage}%
                 </span>
               </div>
               <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div className="h-full rounded-full" style={{ width: `${stats.year.percentage}%`, backgroundColor: TIRA_COLORS[player.tira] }} />
+                <div className="h-full rounded-full" style={{ width: `${stats.year.percentage}%`, backgroundColor: tiraColor }} />
               </div>
               <p className="text-[10px] text-muted-foreground mt-1">
                 {stats.year.presentes} presentes / {stats.year.total} elegibles
@@ -499,7 +504,7 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Tira</span>
-                <span className="font-semibold" style={{ color: TIRA_COLORS[player.tira] }}>{TIRA_LABELS[player.tira]}</span>
+                <span className="font-semibold" style={{ color: tiraColor }}>{tiraLabel}</span>
               </div>
             </div>
           </CardContent>

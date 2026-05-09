@@ -14,6 +14,8 @@ import {
   getEventsForClub,
 } from '@/lib/demo-data'
 import { TIRA_LABELS, TIRA_COLORS, type Tira } from '@/types'
+import { getTiraLabel, getTiraColor } from '@/lib/tiras'
+import type { SportCode } from '@/lib/sports'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { demoClubs } from '@/lib/clubs'
 import { getReferralActivationStatus, getReferralProgress } from '@/lib/referrals'
@@ -276,8 +278,9 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {groupedMatches.map(g => {
               const date = new Date(g.date)
-              const tiraColor = g.tira ? TIRA_COLORS[g.tira] : '#9ca3af'
-              const tiraLabel = g.tira ? TIRA_LABELS[g.tira] : '—'
+              const sc = (club.default_sport_code ?? 'football_11') as SportCode
+              const tiraColor = g.tira ? getTiraColor(g.tira, sc) : '#9ca3af'
+              const tiraLabel = g.tira ? getTiraLabel(g.tira, sc) : '—'
               return (
                 <Card key={g.key} className="border-0 shadow-sm" style={{ borderLeft: `4px solid ${tiraColor}` }}>
                   <CardContent className="p-3 space-y-1.5">
