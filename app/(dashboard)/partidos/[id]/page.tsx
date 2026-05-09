@@ -297,19 +297,76 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
                 const opacity = sportCode === 'basketball' || sportCode === 'volleyball' || sportCode === 'handball_7' ? 0.85 : 0.7
                 switch (sportCode) {
                   case 'football_11':
-                  case 'baby_5':
-                  case 'baby_6':
-                  case 'futsal':
+                    // Cancha completa de fútbol 11 — área grande 50-150 ancho × 35 alto, área chica 75-125 × 15
                     return (
                       <>
                         <rect x="5" y="5" width="190" height="290" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
                         <line x1="5" y1="150" x2="195" y2="150" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
-                        <circle cx="100" cy="150" r="20" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <circle cx="100" cy="150" r="22" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
                         <circle cx="100" cy="150" r="1" fill={stroke} opacity={opacity} />
-                        <rect x="50" y="5" width="100" height="35" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
-                        <rect x="50" y="260" width="100" height="35" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
-                        <rect x="75" y="5" width="50" height="15" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
-                        <rect x="75" y="280" width="50" height="15" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <rect x="50" y="5" width="100" height="40" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <rect x="50" y="255" width="100" height="40" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <rect x="73" y="5" width="54" height="16" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <rect x="73" y="279" width="54" height="16" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        {/* Punto de penal */}
+                        <circle cx="100" cy="33" r="0.8" fill={stroke} opacity={opacity} />
+                        <circle cx="100" cy="267" r="0.8" fill={stroke} opacity={opacity} />
+                      </>
+                    )
+                  case 'baby_6':
+                    // Cancha 6 vs 6 — más chica, área proporcional, sin área grande
+                    return (
+                      <>
+                        <rect x="20" y="20" width="160" height="260" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <line x1="20" y1="150" x2="180" y2="150" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <circle cx="100" cy="150" r="16" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <circle cx="100" cy="150" r="1" fill={stroke} opacity={opacity} />
+                        {/* Áreas más chicas */}
+                        <rect x="65" y="20" width="70" height="28" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <rect x="65" y="252" width="70" height="28" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        {/* Arcos chicos */}
+                        <line x1="88" y1="18" x2="112" y2="18" stroke={stroke} strokeWidth="2" opacity={opacity} />
+                        <line x1="88" y1="282" x2="112" y2="282" stroke={stroke} strokeWidth="2" opacity={opacity} />
+                        <text x="100" y="100" textAnchor="middle" fill={stroke} opacity={opacity * 0.4} fontSize="6" fontFamily="Arial">BABY 6</text>
+                      </>
+                    )
+                  case 'baby_5':
+                    // Cancha 5 vs 5 — aún más chica, sin áreas (solo arcos)
+                    return (
+                      <>
+                        <rect x="30" y="30" width="140" height="240" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <line x1="30" y1="150" x2="170" y2="150" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <circle cx="100" cy="150" r="14" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <circle cx="100" cy="150" r="1" fill={stroke} opacity={opacity} />
+                        {/* Semicírculos del arquero */}
+                        <path d="M 78 30 A 22 22 0 0 0 122 30" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <path d="M 78 270 A 22 22 0 0 1 122 270" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        {/* Arcos chicos */}
+                        <line x1="90" y1="28" x2="110" y2="28" stroke={stroke} strokeWidth="2" opacity={opacity} />
+                        <line x1="90" y1="272" x2="110" y2="272" stroke={stroke} strokeWidth="2" opacity={opacity} />
+                        <text x="100" y="100" textAnchor="middle" fill={stroke} opacity={opacity * 0.4} fontSize="6" fontFamily="Arial">BABY 5</text>
+                      </>
+                    )
+                  case 'futsal':
+                    // Cancha futsal indoor — semicírculos del área (no rectangular como fútbol)
+                    return (
+                      <>
+                        <rect x="15" y="15" width="170" height="270" fill="none" stroke={stroke} strokeWidth="1" opacity={opacity} />
+                        <line x1="15" y1="150" x2="185" y2="150" stroke={stroke} strokeWidth="1" opacity={opacity} />
+                        <circle cx="100" cy="150" r="18" fill="none" stroke={stroke} strokeWidth="1" opacity={opacity} />
+                        <circle cx="100" cy="150" r="1" fill={stroke} opacity={opacity} />
+                        {/* Áreas semi-circulares 6m (futsal característica) */}
+                        <path d="M 70 15 A 30 30 0 0 0 130 15" fill="none" stroke={stroke} strokeWidth="1" opacity={opacity} />
+                        <path d="M 70 285 A 30 30 0 0 1 130 285" fill="none" stroke={stroke} strokeWidth="1" opacity={opacity} />
+                        {/* Línea de doble penal 10m */}
+                        <line x1="95" y1="60" x2="105" y2="60" stroke={stroke} strokeWidth="0.8" opacity={opacity * 0.8} />
+                        <line x1="95" y1="240" x2="105" y2="240" stroke={stroke} strokeWidth="0.8" opacity={opacity * 0.8} />
+                        {/* Punto de penal 6m */}
+                        <circle cx="100" cy="40" r="0.8" fill={stroke} opacity={opacity} />
+                        <circle cx="100" cy="260" r="0.8" fill={stroke} opacity={opacity} />
+                        {/* Arcos */}
+                        <line x1="90" y1="13" x2="110" y2="13" stroke={stroke} strokeWidth="2.5" opacity={opacity} />
+                        <line x1="90" y1="287" x2="110" y2="287" stroke={stroke} strokeWidth="2.5" opacity={opacity} />
                       </>
                     )
                   case 'hockey_field':
