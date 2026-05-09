@@ -1219,8 +1219,11 @@ for (const ms of FICT_MATCH_SPECS) {
 
 demoEvents.push(...fictionalEvents)
 
+// Clubes legacy comparten el set de datos sin club_id (los 450 chicos de fútbol)
+const LEGACY_CLUB_IDS = new Set(['club-banfield-rm', 'club-boca-rm', 'club-brisas'])
+
 export function getEventsForClub(clubId?: string): Event[] {
-  if (!clubId || clubId === 'club-banfield-rm' || clubId === 'club-boca-rm' || clubId === 'club-brisas') {
+  if (!clubId || LEGACY_CLUB_IDS.has(clubId)) {
     return demoEvents.filter(e => !e.club_id)
   }
   return demoEvents.filter(e => e.club_id === clubId)
@@ -1230,17 +1233,20 @@ export function getEventsForClub(clubId?: string): Event[] {
 // HELPERS de filtro por club
 // ──────────────────────────────────────────────────────────────────────────
 export function getCategoriesForClub(clubId?: string): Category[] {
-  if (!clubId || clubId === 'club-banfield-rm' || clubId === 'club-boca-rm') {
-    return demoCategories.filter(c => !c.club_id) // legacy = sin club_id
+  if (!clubId || LEGACY_CLUB_IDS.has(clubId)) {
+    return demoCategories.filter(c => !c.club_id)
   }
-  return demoCategories.filter(c => c.club_id === clubId)
+  const filtered = demoCategories.filter(c => c.club_id === clubId)
+  // Fallback defensivo: si el club no tiene categorías propias, usar legacy para evitar pantallas rotas
+  return filtered.length > 0 ? filtered : demoCategories.filter(c => !c.club_id)
 }
 
 export function getPlayersForClub(clubId?: string): Player[] {
-  if (!clubId || clubId === 'club-banfield-rm' || clubId === 'club-boca-rm') {
-    return demoPlayers.filter(p => !p.club_id) // legacy = sin club_id
+  if (!clubId || LEGACY_CLUB_IDS.has(clubId)) {
+    return demoPlayers.filter(p => !p.club_id)
   }
-  return demoPlayers.filter(p => p.club_id === clubId)
+  const filtered = demoPlayers.filter(p => p.club_id === clubId)
+  return filtered.length > 0 ? filtered : demoPlayers.filter(p => !p.club_id)
 }
 
 export { thisMonth, lastMonth }
