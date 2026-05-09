@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ClipboardList, CheckCircle2, XCircle, AlertCircle, User, Lock, Unlock, Clock, Radio, Plus, X, Search, UserPlus, MapPin, Sparkles, Circle } from 'lucide-react'
-import { demoPlayers, demoCategories, demoProfes, getAssignmentsForProfe, getProfesForTira } from '@/lib/demo-data'
+import { demoProfes, getAssignmentsForProfe, getProfesForTira, getPlayersForClub, getCategoriesForClub } from '@/lib/demo-data'
+import { useCurrentClub } from '@/lib/use-current-club'
 import { TIRA_LABELS, TIRA_COLORS, type Tira } from '@/types'
 import { getSessionsForDay, TIRA_GROUPS, tiraGroupOf } from '@/lib/training-schedule'
 import { getActiveSlotForNow, getNextSlotForDay, type TrainingSlot } from '@/lib/training-roster'
@@ -28,7 +29,10 @@ function isPresentForEligibility(s: AttendanceStatus): boolean {
 const ALL_TIRAS: Tira[] = ['metro', 'liga1', 'liga2', 'edefi']
 
 export default function AsistenciaPage() {
-  const activeCategories = demoCategories.filter(c => c.is_active)
+  const club = useCurrentClub()
+  const clubPlayers = useMemo(() => getPlayersForClub(club.id), [club.id])
+  const clubCategories = useMemo(() => getCategoriesForClub(club.id), [club.id])
+  const activeCategories = clubCategories.filter(c => c.is_active)
 
   // Sesiones del día actual (hoy)
   const now = new Date()
@@ -98,7 +102,7 @@ export default function AsistenciaPage() {
   }
 
   // Jugadores: TODOS los que estén en las (categorías × tiras) seleccionadas — sin filtro de turno
-  const players = demoPlayers.filter(p =>
+  const players = clubPlayers.filter(p =>
     selectedCategories.has(p.category_id) && selectedTiras.has(p.tira) && p.is_active
   )
 
@@ -231,7 +235,7 @@ export default function AsistenciaPage() {
               <span className="flex items-center gap-1"><MapPin size={10} className="text-purple-600" /> Cancha {nextSlot.court}</span>
               <span className="text-muted-foreground">·</span>
               {nextSlot.category_ids.map(cid => {
-                const c = demoCategories.find(x => x.id === cid)
+                const c = clubCategories.find(x => x.id === cid)
                 return c ? <Badge key={cid} className="text-[10px] bg-purple-100 text-purple-700 border-0">{c.name}</Badge> : null
               })}
               {nextSlot.tiras.map(t => (
@@ -515,6 +519,8 @@ export default function AsistenciaPage() {
       {/* Modal agregar visitante / no anotado */}
       {showAddGuest && (
         <AddGuestModal
+          allPlayers={clubPlayers}
+          allCategories={clubCategories}
           onClose={() => setShowAddGuest(false)}
           onAdd={(g) => {
             setGuests([...guests, { ...g, id: `guest-${Date.now()}` }])
@@ -605,7 +611,9 @@ export default function AsistenciaPage() {
   )
 }
 
-function AddGuestModal({ onClose, onAdd }: {
+function AddGuestModal({ allPlayers, allCategories, onClose, onAdd }: {
+  allPlayers: ReturnType<typeof getPlayersForClub>
+  allCategories: ReturnType<typeof getCategoriesForClub>
   onClose: () => void
   onAdd: (g: { type: 'visitor' | 'unregistered'; name: string; tira?: Tira; categoryName?: string; notes?: string }) => void
 }) {
@@ -615,7 +623,7 @@ function AddGuestModal({ onClose, onAdd }: {
   const [unregNotes, setUnregNotes] = useState('')
 
   const matches = search.trim()
-    ? demoPlayers.filter(p =>
+    ? allPlayers.filter(p =>
         p.is_active &&
         (p.full_name.toLowerCase().includes(search.toLowerCase()) || (p.dni ?? '').includes(search))
       ).slice(0, 8)
@@ -660,7 +668,7 @@ function AddGuestModal({ onClose, onAdd }: {
             )}
             <div className="space-y-1 max-h-60 overflow-y-auto">
               {matches.map(p => {
-                const cat = demoCategories.find(c => c.id === p.category_id)
+                const cat = allCategories.find(c => c.id === p.category_id)
                 return (
                   <button
                     key={p.id}

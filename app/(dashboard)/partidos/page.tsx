@@ -4,10 +4,15 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Trophy, MapPin, Calendar, ClipboardList, Star, Users } from 'lucide-react'
 import Link from 'next/link'
-import { demoEvents, demoCategories, demoPlayers } from '@/lib/demo-data'
+import { useMemo } from 'react'
+import { demoEvents, getPlayersForClub, getCategoriesForClub } from '@/lib/demo-data'
+import { useCurrentClub } from '@/lib/use-current-club'
 import { TIRA_LABELS, TIRA_COLORS, type Tira } from '@/types'
 
 export default function PartidosPage() {
+  const club = useCurrentClub()
+  const clubPlayers = useMemo(() => getPlayersForClub(club.id), [club.id])
+  const clubCategories = useMemo(() => getCategoriesForClub(club.id), [club.id])
   const today = new Date('2026-05-07')
   const todayStr = today.toISOString().split('T')[0]
 
@@ -86,12 +91,12 @@ export default function PartidosPage() {
 
           <div className="space-y-2">
             {g.matches.map(m => {
-              const cat = demoCategories.find(c => c.id === m.category_id)
+              const cat = clubCategories.find(c => c.id === m.category_id)
               const tiraFromId = m.id.match(/ev-match-\d+-(\w+)-/)?.[1] as Tira | undefined
               // inferir tira desde mayoría de jugadores de la categoría si no viene del id
               let tira: Tira | null = tiraFromId ?? null
               if (!tira) {
-                const playersOfCat = demoPlayers.filter(p => p.category_id === m.category_id)
+                const playersOfCat = clubPlayers.filter(p => p.category_id === m.category_id)
                 const counts: Record<string, number> = {}
                 for (const p of playersOfCat) counts[p.tira] = (counts[p.tira] || 0) + 1
                 tira = (Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] as Tira | null) ?? 'metro'

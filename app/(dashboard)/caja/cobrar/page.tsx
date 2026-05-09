@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Search, Users, MessageCircle, Plus, X, Check, CreditCard, Banknote, UserPlus, Clock, Smartphone, Camera, Sparkles, Image as ImageIcon, Loader2, AlertCircle, QrCode } from 'lucide-react'
-import { demoPlayers, demoCategories, getSiblings } from '@/lib/demo-data'
+import { demoPlayers, demoCategories, getSiblings, getPlayersForClub, getCategoriesForClub } from '@/lib/demo-data'
+import { useCurrentClub } from '@/lib/use-current-club'
 import { generateBillingsForPeriod, loadBillingConfig, getOutstandingAmount, type Billing } from '@/lib/billings'
 import dynamic from 'next/dynamic'
 const QrScanner = dynamic(() => import('@/components/qr-scanner').then(m => m.QrScanner), { ssr: false })
@@ -18,6 +19,9 @@ type Contact = { name: string; whatsapp: string; relation?: string; isPrimary?: 
 const RECENT_KEY = 'plantel_recent_cobros'
 
 export default function CobrarPage() {
+  const club = useCurrentClub()
+  const clubPlayers = useMemo(() => getPlayersForClub(club.id), [club.id])
+  const clubCategories = useMemo(() => getCategoriesForClub(club.id), [club.id])
   const today = new Date()
   const period = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
   const cfg = useMemo(() => loadBillingConfig(), [])
@@ -63,14 +67,14 @@ export default function CobrarPage() {
     const q = query.trim().toLowerCase()
     if (q.length < 2) return []
     const isDni = /^\d{4,}$/.test(q)
-    return demoPlayers
+    return clubPlayers
       .filter(p => p.is_active)
       .filter(p => {
         if (isDni) return p.dni?.includes(q)
         return p.full_name.toLowerCase().includes(q)
       })
       .slice(0, 8)
-  }, [query])
+  }, [query, clubPlayers])
 
   // Parsea el QR del carnet → "PLANTEL|<player_id>|<dni>|..."
   function handleQrScan(decodedText: string) {

@@ -8,9 +8,10 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Users, Plus, MessageCircle, Search, X } from 'lucide-react'
 import Link from 'next/link'
-import { demoPlayers, demoPayments, demoCategories, getPlayerDebts, thisMonth } from '@/lib/demo-data'
+import { demoPayments, getPlayerDebts, thisMonth, getPlayersForClub, getCategoriesForClub } from '@/lib/demo-data'
 import { POSITION_LABELS, POSITION_COLORS, TIRA_LABELS, TIRA_COLORS } from '@/types'
 import { getAvatarUrl } from '@/lib/avatars'
+import { useCurrentClub } from '@/lib/use-current-club'
 
 function getPaymentStatus(playerId: string) {
   const paid = demoPayments.filter(p => p.player_id === playerId && p.period === thisMonth && p.fee_type === 'actividad')
@@ -32,6 +33,9 @@ export default function SociosPageWrapper() {
 }
 
 function SociosPage() {
+  const club = useCurrentClub()
+  const clubPlayers = useMemo(() => getPlayersForClub(club.id), [club.id])
+  const clubCategories = useMemo(() => getCategoriesForClub(club.id), [club.id])
   const searchParams = useSearchParams()
   const initialFromUrl = searchParams.get('filter')
   const [search, setSearch] = useState('')
@@ -41,11 +45,11 @@ function SociosPage() {
     initialFromUrl && initialFromUrl.startsWith('cat-') ? initialFromUrl : null
   )
 
-  const deudores = useMemo(() => getPlayerDebts(demoPlayers, demoPayments), [])
+  const deudores = useMemo(() => getPlayerDebts(clubPlayers, demoPayments), [clubPlayers])
   const deudorIds = useMemo(() => new Set(deudores.map(d => d.id)), [deudores])
 
   const players = useMemo(() => {
-    let list = demoPlayers.filter(p => p.is_active)
+    let list = clubPlayers.filter(p => p.is_active)
     if (showDeudores) list = list.filter(p => deudorIds.has(p.id))
     if (selectedTira) list = list.filter(p => p.tira === selectedTira)
     if (selectedCategory) list = list.filter(p => p.category_id === selectedCategory)
@@ -58,7 +62,7 @@ function SociosPage() {
       )
     }
     return list
-  }, [showDeudores, selectedTira, selectedCategory, search, deudorIds])
+  }, [showDeudores, selectedTira, selectedCategory, search, deudorIds, clubPlayers])
 
   const hasActiveFilters = showDeudores || selectedTira || selectedCategory || search.trim()
 
@@ -135,7 +139,7 @@ function SociosPage() {
         {/* Categoría */}
         <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-3 px-3">
           <span className="text-[10px] font-bold uppercase text-muted-foreground self-center flex-shrink-0">Cat:</span>
-          {demoCategories.filter(c => c.is_active).map(cat => {
+          {clubCategories.filter(c => c.is_active).map(cat => {
             const sel = selectedCategory === cat.id
             return (
               <button key={cat.id} onClick={() => setSelectedCategory(sel ? null : cat.id)}
@@ -152,7 +156,7 @@ function SociosPage() {
       <div className="space-y-1.5 overflow-x-hidden">
         {players.map(player => {
           const status = getPaymentStatus(player.id)
-          const cat = demoCategories.find(c => c.id === player.category_id)
+          const cat = clubCategories.find(c => c.id === player.category_id)
           const waMsg = encodeURIComponent(`Hola ${player.tutor_name}, te recordamos que ${player.full_name} tiene una deuda pendiente con el Club Banfield Ramos Mejía.`)
           const statusDot = { 'al-dia': '#00843D', proximo: '#F59E0B', deudor: '#DC2626' }[status]
           return (

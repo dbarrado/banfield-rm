@@ -1,11 +1,12 @@
 'use client'
 
-import { use, useState } from 'react'
+import { use, useMemo, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { ArrowLeft, Trophy, MapPin, Calendar, ClipboardList, Star, Edit2, ArrowUpDown, AlertTriangle, Ban, MessageSquare, X, UserPlus, Search, Move } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { demoEvents, demoCategories, demoPlayers } from '@/lib/demo-data'
+import { demoEvents, getPlayersForClub, getCategoriesForClub } from '@/lib/demo-data'
+import { useCurrentClub } from '@/lib/use-current-club'
 import { POSITION_LABELS, POSITION_COLORS, type Position } from '@/types'
 import { getAvatarUrl } from '@/lib/avatars'
 import { getSportFormat, FORMATIONS, getDefaultFormation, type SportCode, type Formation } from '@/lib/sports'
@@ -14,15 +15,18 @@ type CardStatus = 'none' | 'yellow' | 'red'
 
 export default function PartidoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  const club = useCurrentClub()
+  const clubPlayers = useMemo(() => getPlayersForClub(club.id), [club.id])
+  const clubCategories = useMemo(() => getCategoriesForClub(club.id), [club.id])
   const event = demoEvents.find(e => e.id === id && e.event_type === 'match')
   if (!event) notFound()
 
-  const cat = demoCategories.find(c => c.id === event!.category_id)
+  const cat = clubCategories.find(c => c.id === event!.category_id)
   // Formato de juego de la categoría (cada cat puede tener distinto)
   const sportCode = (cat?.sport_format_code ?? 'football_11') as SportCode
   const format = getSportFormat(sportCode)
   const POSITIONS: Position[] = ['arquero', 'defensor', 'mediocampista', 'delantero']
-  const allOfCat = demoPlayers.filter(p => p.category_id === event!.category_id)
+  const allOfCat = clubPlayers.filter(p => p.category_id === event!.category_id)
 
   // Estructura de titulares según el formato:
   // football_11: 1 arq + 4 def + 4 med + 2 del = 11
