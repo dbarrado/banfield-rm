@@ -1,16 +1,17 @@
 'use client'
 
+import { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Users, TrendingUp, AlertTriangle, Calendar, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import {
-  demoPlayers,
   demoPayments,
-  demoEvents,
-  demoCategories,
   demoGuestParticipations,
   getPlayerDebts,
   thisMonth,
+  getPlayersForClub,
+  getCategoriesForClub,
+  getEventsForClub,
 } from '@/lib/demo-data'
 import { TIRA_LABELS, TIRA_COLORS, type Tira } from '@/types'
 import { useCurrentClub } from '@/lib/use-current-club'
@@ -20,7 +21,11 @@ import { Gift, Sparkles } from 'lucide-react'
 
 export default function DashboardPage() {
   const club = useCurrentClub()
-  const baseSocios = club.total_socios ?? demoPlayers.filter(p => p.is_active).length
+  const clubPlayers = useMemo(() => getPlayersForClub(club.id), [club.id])
+  const clubCategories = useMemo(() => getCategoriesForClub(club.id), [club.id])
+  const clubEvents = useMemo(() => getEventsForClub(club.id), [club.id])
+
+  const baseSocios = club.total_socios ?? clubPlayers.filter(p => p.is_active).length
   // Escala los datos demo proporcionalmente al tamaño del club
   const scale = baseSocios / 450
   const totalSocios = baseSocios
@@ -31,7 +36,7 @@ export default function DashboardPage() {
   const incomePercent = Math.round((monthlyIncome / target) * 100)
   // Próximos partidos agrupados: por (fecha, rival, tira) — todas las categorías que juegan ese día contra ese rival con esa tira
   const today = new Date('2026-05-07')
-  const allUpcoming = demoEvents
+  const allUpcoming = clubEvents
     .filter(e => e.event_type === 'match' && !e.is_suspended && new Date(e.scheduled_at) > today)
     .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
 
@@ -50,14 +55,14 @@ export default function DashboardPage() {
     const dateOnly = m.scheduled_at.split('T')[0]
     const time = m.scheduled_at.split('T')[1]?.slice(0, 5) ?? '—'
     // Inferir tira: la mayoría de la categoría
-    const playersOfCat = demoPlayers.filter(p => p.category_id === m.category_id)
+    const playersOfCat = clubPlayers.filter(p => p.category_id === m.category_id)
     const tiraCount: Record<string, number> = {}
     for (const p of playersOfCat) tiraCount[p.tira] = (tiraCount[p.tira] || 0) + 1
     // Inferir tira por id del evento si tiene patrón
     const tiraFromId = m.id.match(/ev-match-\d+-(\w+)-/)?.[1] as Tira | undefined
     const tira = tiraFromId ?? (Object.entries(tiraCount).sort((a, b) => b[1] - a[1])[0]?.[0] as Tira | null)
     const key = `${dateOnly}-${m.rival}-${tira}`
-    const cat = demoCategories.find(c => c.id === m.category_id)
+    const cat = clubCategories.find(c => c.id === m.category_id)
     if (!groupsMap.has(key)) {
       groupsMap.set(key, {
         key,
@@ -82,7 +87,7 @@ export default function DashboardPage() {
     }
     if (groupedMatches.length === 4) break
   }
-  const deudoresCount = getPlayerDebts(demoPlayers, demoPayments).length
+  const deudoresCount = getPlayerDebts(clubPlayers, demoPayments).length
 
   // Referrals
   const fullClub = demoClubs.find(c => c.id === club.id)
@@ -243,7 +248,7 @@ export default function DashboardPage() {
             <p className="text-[11px] text-muted-foreground mb-2">A prueba o pendientes de regularizar el cobro.</p>
             <div className="space-y-1">
               {demoGuestParticipations.filter(g => g.reason !== 'visit_other_tira').slice(0, 4).map(g => {
-                const cat = demoCategories.find(c => c.id === g.category_id)
+                const cat = clubCategories.find(c => c.id === g.category_id)
                 return (
                   <div key={g.id} className="flex items-center justify-between text-xs py-1 border-b last:border-0">
                     <div className="min-w-0 flex-1">
