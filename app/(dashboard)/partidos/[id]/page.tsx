@@ -277,12 +277,29 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
           </div>
 
           {(() => {
-            const layouts: Record<string, { y: number }> = {
-              arquero: { y: 92 },
-              defensor: { y: 70 },
-              mediocampista: { y: 45 },
-              delantero: { y: 18 },
-            }
+            const layouts: Record<string, { y: number }> = (() => {
+              switch (sportCode) {
+                case 'football_11':
+                case 'baby_5':
+                case 'baby_6':
+                case 'futsal':
+                  return { arquero: { y: 92 }, defensor: { y: 70 }, mediocampista: { y: 45 }, delantero: { y: 18 } }
+                case 'hockey_field':
+                  return { arquero: { y: 90 }, defensor: { y: 68 }, mediocampista: { y: 42 }, delantero: { y: 18 } }
+                case 'volleyball':
+                  return { arquero: { y: 75 }, defensor: { y: 75 }, mediocampista: { y: 50 }, delantero: { y: 25 } }
+                case 'basketball':
+                  return { arquero: { y: 80 }, defensor: { y: 80 }, mediocampista: { y: 50 }, delantero: { y: 20 } }
+                case 'rugby_15':
+                  return { arquero: { y: 90 }, defensor: { y: 70 }, mediocampista: { y: 45 }, delantero: { y: 20 } }
+                case 'rugby_7':
+                  return { arquero: { y: 85 }, defensor: { y: 80 }, mediocampista: { y: 50 }, delantero: { y: 25 } }
+                case 'handball_7':
+                  return { arquero: { y: 90 }, defensor: { y: 70 }, mediocampista: { y: 50 }, delantero: { y: 25 } }
+                default:
+                  return { arquero: { y: 92 }, defensor: { y: 70 }, mediocampista: { y: 45 }, delantero: { y: 18 } }
+              }
+            })()
             return POSITIONS.flatMap(pos => {
               const players = titularesByPos[pos]
               return players.map((p, i) => {

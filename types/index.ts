@@ -226,6 +226,7 @@ export interface Event {
   created_by: string | null
   created_at: string
   category?: Category
+  club_id?: string  // si no está, se asume Banfield (legacy)
 }
 
 export interface Attendance {

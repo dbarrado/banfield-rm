@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Trophy, MapPin, Calendar, ClipboardList, Star, Users } from 'lucide-react'
 import Link from 'next/link'
 import { useMemo } from 'react'
-import { demoEvents, getPlayersForClub, getCategoriesForClub } from '@/lib/demo-data'
+import { getEventsForClub, getPlayersForClub, getCategoriesForClub } from '@/lib/demo-data'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { TIRA_LABELS, TIRA_COLORS, type Tira } from '@/types'
 
@@ -13,11 +13,12 @@ export default function PartidosPage() {
   const club = useCurrentClub()
   const clubPlayers = useMemo(() => getPlayersForClub(club.id), [club.id])
   const clubCategories = useMemo(() => getCategoriesForClub(club.id), [club.id])
+  const clubEvents = useMemo(() => getEventsForClub(club.id), [club.id])
   const today = new Date('2026-05-07')
   const todayStr = today.toISOString().split('T')[0]
 
   // Partidos de hoy y los próximos 7 días
-  const matches = demoEvents
+  const matches = clubEvents
     .filter(e => e.event_type === 'match' && !e.is_suspended)
     .map(m => ({
       ...m,

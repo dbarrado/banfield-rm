@@ -1078,6 +1078,136 @@ for (const spec of CLUB_GEN_SPECS) {
 demoPlayers.push(...fictionalPlayers)
 
 // ──────────────────────────────────────────────────────────────────────────
+// PARTIDOS DE CLUBES FICTICIOS — ~3-5 partidos por club, mezcla pasados/próximos
+// ──────────────────────────────────────────────────────────────────────────
+type FictMatchSpec = {
+  clubId: string
+  rivales: string[]
+  venueHome: string
+  venueAway: (rival: string) => string
+  // dia preferido de juego: 0=domingo, 6=sabado, etc.
+  matchDays: number[]
+}
+
+const FICT_MATCH_SPECS: FictMatchSpec[] = [
+  {
+    clubId: 'club-pequenas-estrellas',
+    rivales: ['Lomas Athletic', 'Sociedad Hebraica', 'Banco Nación', 'Banco Hipotecario', 'Pinocho'],
+    venueHome: 'Cancha Pequeñas Estrellas — Lanús',
+    venueAway: (r) => `Cancha de ${r}`,
+    matchDays: [6], // sábado
+  },
+  {
+    clubId: 'club-san-marcos',
+    rivales: ['Pinocho', 'Boca Futsal', 'Hebraica', 'Hindú Futsal', 'Ferro Futsal'],
+    venueHome: 'Polideportivo San Marcos — Vicente López',
+    venueAway: (r) => `Estadio ${r}`,
+    matchDays: [5, 6], // viernes y sábado (futsal mixto)
+  },
+  {
+    clubId: 'club-las-halcones',
+    rivales: ['GEBA', 'Belgrano Athletic', 'Lomas AC', "St. Catherine's", 'San Fernando'],
+    venueHome: 'Cancha de Hockey Las Halcones — San Isidro',
+    venueAway: (r) => `Cancha de ${r}`,
+    matchDays: [6, 0], // sábado y domingo
+  },
+  {
+    clubId: 'club-voley-ituzaingo',
+    rivales: ['Italiano', 'GEVA', 'River Volley', 'Boca Volley', 'Ciudad de Buenos Aires'],
+    venueHome: 'Polideportivo Vóley Ituzaingó',
+    venueAway: (r) => `Estadio ${r}`,
+    matchDays: [5, 6], // viernes y sábado
+  },
+  {
+    clubId: 'club-baskets-quilmes',
+    rivales: ['Atenas', 'Náutico Hacoaj', 'Obras Sanitarias', 'Argentino de Castelar', 'Quilmes BC'],
+    venueHome: 'Estadio Báskets Quilmes',
+    venueAway: (r) => `Estadio ${r}`,
+    matchDays: [6, 0],
+  },
+  {
+    clubId: 'club-tigres-rugby',
+    rivales: ['CASI', 'SIC', 'Belgrano AC', 'Hindú', 'Pucará'],
+    venueHome: 'Cancha Tigres — Pilar',
+    venueAway: (r) => `Cancha de ${r}`,
+    matchDays: [6],
+  },
+  {
+    clubId: 'club-lobos-rugby',
+    rivales: ['CASI', 'SIC', 'Hindú', 'Pucará', 'La Plata RC'],
+    venueHome: 'Cancha Lobos — Tandil',
+    venueAway: (r) => `Cancha de ${r}`,
+    matchDays: [6],
+  },
+  {
+    clubId: 'club-handball-norte',
+    rivales: ['River', 'Vélez', 'SAG Villa Ballester', 'Ferrocarril Oeste', 'Dorrego'],
+    venueHome: 'Polideportivo Handball Norte — San Fernando',
+    venueAway: (r) => `Estadio ${r}`,
+    matchDays: [6, 0],
+  },
+]
+
+const fictionalEvents: Event[] = []
+let fictEvIdCounter = 1
+const todayFict = new Date('2026-05-09')
+
+for (const ms of FICT_MATCH_SPECS) {
+  const cats = fictionalCategories.filter(c => c.club_id === ms.clubId)
+  if (cats.length === 0) continue
+  const rng = makeRng(ms.clubId.length * 31 + ms.rivales.length)
+
+  // Helper: día siguiente que coincida con uno de matchDays a partir de offset (positivo o negativo)
+  function findMatchDate(offsetDays: number): Date {
+    const d = new Date(todayFict)
+    d.setDate(todayFict.getDate() + offsetDays)
+    // ajustar al matchDay más cercano hacia adelante
+    for (let i = 0; i < 7; i++) {
+      if (ms.matchDays.includes(d.getDay())) return d
+      d.setDate(d.getDate() + 1)
+    }
+    return d
+  }
+
+  // 2 pasados (-21 y -7 días aprox), 3 próximos (+7, +14, +21 días)
+  const offsets = [-21, -7, 7, 14, 21]
+  offsets.forEach((off, idx) => {
+    const cat = cats[idx % cats.length]
+    const matchDate = findMatchDate(off)
+    const isHome = idx % 2 === 0
+    const rival = ms.rivales[idx % ms.rivales.length]
+    const venue = isHome ? ms.venueHome : ms.venueAway(rival)
+    const horarios = ['10:00', '11:30', '14:00', '15:30', '17:00']
+    const hora = horarios[Math.floor(rng() * horarios.length)]
+    const dateStr = matchDate.toISOString().split('T')[0]
+
+    fictionalEvents.push({
+      id: `ev-fict-${ms.clubId.slice(-6)}-${fictEvIdCounter++}`,
+      category_id: cat.id,
+      event_type: 'match',
+      scheduled_at: `${dateStr}T${hora}:00`,
+      is_suspended: false,
+      suspension_reason: null,
+      rival,
+      venue,
+      is_home: isHome,
+      created_by: null,
+      created_at: '2026-04-01',
+      club_id: ms.clubId,
+    })
+  })
+}
+
+demoEvents.push(...fictionalEvents)
+
+export function getEventsForClub(clubId?: string): Event[] {
+  if (!clubId || clubId === 'club-banfield-rm' || clubId === 'club-boca-rm' || clubId === 'club-brisas') {
+    return demoEvents.filter(e => !e.club_id)
+  }
+  return demoEvents.filter(e => e.club_id === clubId)
+}
+
+// ──────────────────────────────────────────────────────────────────────────
 // HELPERS de filtro por club
 // ──────────────────────────────────────────────────────────────────────────
 export function getCategoriesForClub(clubId?: string): Category[] {

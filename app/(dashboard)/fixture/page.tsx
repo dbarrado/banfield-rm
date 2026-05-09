@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, MapPin, Trophy, Plus, X, CloudRain, Edit2 } from 'lucide-react'
-import { demoEvents, demoCategories, demoPlayers } from '@/lib/demo-data'
+import { getEventsForClub, getCategoriesForClub, getPlayersForClub } from '@/lib/demo-data'
+import { useCurrentClub } from '@/lib/use-current-club'
 import { TIRA_LABELS, TIRA_COLORS } from '@/types'
 
 type FixtureMatch = {
@@ -18,6 +19,10 @@ type FixtureMatch = {
 }
 
 export default function FixturePage() {
+  const club = useCurrentClub()
+  const demoCategories = getCategoriesForClub(club.id)
+  const demoPlayers = getPlayersForClub(club.id)
+  const demoEvents = getEventsForClub(club.id)
   const initialMatches = demoEvents
     .filter(e => e.event_type === 'match')
     .map(e => ({
@@ -117,6 +122,8 @@ export default function FixturePage() {
 
       {showAdd && (
         <NewMatchModal
+          categories={demoCategories}
+          players={demoPlayers}
           onClose={() => setShowAdd(false)}
           onSubmit={(newMatches) => {
             const withIds = newMatches.map((m, i) => ({ ...m, id: `ev-new-${Date.now()}-${i}` }))
@@ -130,7 +137,9 @@ export default function FixturePage() {
   )
 }
 
-function NewMatchModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (matches: any[]) => void }) {
+function NewMatchModal({ onClose, onSubmit, categories, players }: { onClose: () => void; onSubmit: (matches: any[]) => void; categories: any[]; players: any[] }) {
+  const demoCategories = categories
+  const demoPlayers = players
   const ALL_TIRAS: ('metro' | 'liga1' | 'liga2' | 'edefi')[] = ['metro', 'liga1', 'liga2', 'edefi']
   const [tira, setTira] = useState<'metro' | 'liga1' | 'liga2' | 'edefi'>('metro')
   const [rival, setRival] = useState('')
