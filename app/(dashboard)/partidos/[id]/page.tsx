@@ -54,12 +54,20 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
   const med = allOfCat.filter(p => p.primary_position === 'mediocampista')
   const del = allOfCat.filter(p => p.primary_position === 'delantero')
 
-  const initialTitulares = [
+  const initialTitulares: typeof allOfCat = [
     ...arq.slice(0, slotsByPos.arquero),
     ...def.slice(0, slotsByPos.defensor),
     ...med.slice(0, slotsByPos.mediocampista),
     ...del.slice(0, slotsByPos.delantero),
   ]
+  // Si falta gente para completar el equipo (porque la distribución de posiciones
+  // de la categoría no llegó a llenar los slots), completar con jugadores
+  // disponibles de cualquier posición. Garantiza que siempre haya `players_on_field` titulares.
+  const expectedTitulares = format.players_on_field
+  if (initialTitulares.length < expectedTitulares) {
+    const remaining = allOfCat.filter(p => !initialTitulares.includes(p))
+    initialTitulares.push(...remaining.slice(0, expectedTitulares - initialTitulares.length))
+  }
   const maxSubs = format.players_on_field > 9 ? 5 : 3
   const initialSuplentes = allOfCat.filter(p => !initialTitulares.includes(p)).slice(0, maxSubs)
 

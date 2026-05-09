@@ -71,6 +71,27 @@ export default function ConvocatoriaPage() {
     })
   }
 
+  // Cálculo de cuántos jugadores convocar según el deporte de la categoría del partido
+  const eventCat = demoCategories.find(c => c.id === effectiveCategory)
+  const sportCode = eventCat?.sport_format_code ?? 'football_11'
+  const targetByPos = sportCode === 'football_11'  ? { titulares: 11, suplentes: 5 }
+                    : sportCode === 'baby_6'       ? { titulares: 6,  suplentes: 3 }
+                    : sportCode === 'baby_5'       ? { titulares: 5,  suplentes: 3 }
+                    : sportCode === 'futsal'       ? { titulares: 5,  suplentes: 5 }
+                    : sportCode === 'hockey_field' ? { titulares: 11, suplentes: 5 }
+                    : sportCode === 'volleyball'   ? { titulares: 6,  suplentes: 6 }
+                    : sportCode === 'basketball'   ? { titulares: 5,  suplentes: 5 }
+                    : sportCode === 'rugby_7'      ? { titulares: 7,  suplentes: 5 }
+                    : sportCode === 'rugby_15'     ? { titulares: 15, suplentes: 8 }
+                    : sportCode === 'handball_7'   ? { titulares: 7,  suplentes: 7 }
+                    :                                 { titulares: 11, suplentes: 5 }
+  const targetTotal = targetByPos.titulares + targetByPos.suplentes
+  const targetMin = targetByPos.titulares
+  const selectedCount = selected.size
+  const selectedPercent = Math.min(100, Math.round((selectedCount / targetTotal) * 100))
+  const reachedMin = selectedCount >= targetMin
+  const reachedMax = selectedCount >= targetTotal
+
   function saveConvocatoria() {
     const now = new Date().toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
     setSavedAt(now)
@@ -233,12 +254,20 @@ export default function ConvocatoriaPage() {
 
       {/* Resumen de convocados + toggle de vista */}
       {selected.size > 0 && (
-        <Card className="border-0 shadow-sm" style={{ borderLeft: '4px solid #00843D' }}>
+        <Card className="border-0 shadow-sm" style={{ borderLeft: `4px solid ${reachedMin ? '#00843D' : '#F59E0B'}` }}>
           <CardContent className="p-3">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-bold" style={{ fontFamily: "var(--font-barlow)" }}>
-                CONVOCADOS ({selected.size})
-              </p>
+            <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+              <div className="flex items-baseline gap-1.5">
+                <p className="text-xs font-bold uppercase" style={{ fontFamily: "var(--font-barlow)", color: '#00843D' }}>
+                  Convocados
+                </p>
+                <p className="text-2xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: reachedMin ? '#00843D' : '#F59E0B' }}>
+                  {selectedCount}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  / {targetTotal} <span className="text-[10px]">(min {targetMin})</span>
+                </p>
+              </div>
               <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
                 <button onClick={() => setView('list')} className={`px-2 py-1 rounded ${view === 'list' ? 'bg-white shadow-sm' : ''}`}>
                   <List size={14} />
@@ -248,6 +277,28 @@ export default function ConvocatoriaPage() {
                 </button>
               </div>
             </div>
+
+            {/* Barra de progreso */}
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-2">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${selectedPercent}%`,
+                  backgroundColor: reachedMax ? '#16a34a' : reachedMin ? '#00843D' : '#F59E0B',
+                }}
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground -mt-1 mb-2">
+              {!reachedMin && (
+                <>Te faltan <strong>{targetMin - selectedCount}</strong> jugadores para llegar al mínimo de titulares ({targetMin}).</>
+              )}
+              {reachedMin && !reachedMax && (
+                <>✓ Mínimo de titulares cubierto. Podés sumar hasta <strong>{targetTotal - selectedCount}</strong> suplentes más.</>
+              )}
+              {reachedMax && (
+                <>✓ Convocatoria completa ({targetByPos.titulares} titulares + {targetByPos.suplentes} suplentes).</>
+              )}
+            </p>
             <div className="flex flex-wrap gap-1.5">
               {selectedByPosition.map(({ position, count }) => (
                 <div
