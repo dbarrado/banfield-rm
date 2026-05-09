@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <path d="M50 5 L90 20 V50 C90 75 50 95 50 95 C50 95 10 75 10 50 V20 Z" fill="#1e40af" stroke="#f59e0b" stroke-width="3"/>
+  <path d="M50 5 L90 20 V50 C90 75 50 95 50 95 C50 95 10 75 10 50 V20 Z" fill="url(#g1)" opacity="0.3"/>
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.2"/>
+    </linearGradient>
+  </defs>
+  <path d="M50 22 L55 40 L74 40 L59 51 L65 70 L50 58 L35 70 L41 51 L26 40 L45 40 Z" fill="#f59e0b"/>
+  <circle cx="50" cy="78" r="7" fill="#fff" stroke="#1e40af" stroke-width="1.5"/>
+  <path d="M50 71 L52 76 L57 76 L53 79 L55 84 L50 81 L45 84 L47 79 L43 76 L48 76 Z" fill="#1e40af" transform="scale(0.5) translate(50, 110)"/>
+  <text x="50" y="92" text-anchor="middle" font-family="Arial Black, sans-serif" font-size="6" fill="#f59e0b" font-weight="900">PE LANÚS</text>
+</svg>

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <path d="M50 5 L90 20 V50 C90 75 50 95 50 95 C50 95 10 75 10 50 V20 Z" fill="#16a34a" stroke="#fbbf24" stroke-width="3"/>
+  <path d="M50 5 L90 20 V50 C90 75 50 95 50 95 C50 95 10 75 10 50 V20 Z" fill="url(#g4)" opacity="0.3"/>
+  <defs>
+    <linearGradient id="g4" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.2"/>
+    </linearGradient>
+  </defs>
+  <!-- Pelota de vóley -->
+  <circle cx="50" cy="45" r="20" fill="#fff" stroke="#fbbf24" stroke-width="2"/>
+  <path d="M50 25 Q45 35 50 65" stroke="#16a34a" stroke-width="1.5" fill="none"/>
+  <path d="M50 25 Q55 35 50 65" stroke="#16a34a" stroke-width="1.5" fill="none"/>
+  <path d="M30 45 Q40 40 70 50" stroke="#16a34a" stroke-width="1.5" fill="none"/>
+  <path d="M30 50 Q40 50 70 45" stroke="#16a34a" stroke-width="1.5" fill="none"/>
+  <!-- Red -->
+  <line x1="20" y1="75" x2="80" y2="75" stroke="#fbbf24" stroke-width="2"/>
+  <line x1="20" y1="70" x2="80" y2="70" stroke="#fbbf24" stroke-width="1"/>
+  <g stroke="#fbbf24" stroke-width="0.8">
+    <line x1="25" y1="70" x2="25" y2="75"/>
+    <line x1="35" y1="70" x2="35" y2="75"/>
+    <line x1="45" y1="70" x2="45" y2="75"/>
+    <line x1="55" y1="70" x2="55" y2="75"/>
+    <line x1="65" y1="70" x2="65" y2="75"/>
+    <line x1="75" y1="70" x2="75" y2="75"/>
+  </g>
+  <text x="50" y="89" text-anchor="middle" font-family="Arial Black, sans-serif" font-size="6" fill="#fbbf24" font-weight="900">ITUZAINGÓ</text>
+</svg>

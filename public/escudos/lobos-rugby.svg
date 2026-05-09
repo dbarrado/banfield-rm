@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <path d="M50 5 L90 20 V50 C90 75 50 95 50 95 C50 95 10 75 10 50 V20 Z" fill="#7c2d12" stroke="#fef3c7" stroke-width="3"/>
+  <path d="M50 5 L90 20 V50 C90 75 50 95 50 95 C50 95 10 75 10 50 V20 Z" fill="url(#g7)" opacity="0.3"/>
+  <defs>
+    <linearGradient id="g7" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fef3c7" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.3"/>
+    </linearGradient>
+  </defs>
+  <!-- Lobo silueta -->
+  <path d="M30 30 L35 22 L40 30 L50 28 L60 30 L65 22 L70 30 L72 45 Q65 52 50 52 Q35 52 28 45 Z" fill="#fef3c7"/>
+  <circle cx="42" cy="38" r="2.5" fill="#000"/>
+  <circle cx="58" cy="38" r="2.5" fill="#000"/>
+  <path d="M46 44 L50 48 L54 44" stroke="#000" stroke-width="1.8" fill="none"/>
+  <path d="M48 48 L46 52 M52 48 L54 52" stroke="#000" stroke-width="1.5" fill="none"/>
+  <!-- Pelota oval -->
+  <ellipse cx="50" cy="72" rx="14" ry="7" fill="#fef3c7" stroke="#000" stroke-width="1.5"/>
+  <line x1="40" y1="72" x2="60" y2="72" stroke="#7c2d12" stroke-width="1"/>
+  <line x1="46" y1="69" x2="46" y2="75" stroke="#7c2d12" stroke-width="0.8"/>
+  <line x1="50" y1="69" x2="50" y2="75" stroke="#7c2d12" stroke-width="0.8"/>
+  <line x1="54" y1="69" x2="54" y2="75" stroke="#7c2d12" stroke-width="0.8"/>
+  <text x="50" y="89" text-anchor="middle" font-family="Arial Black, sans-serif" font-size="6" fill="#fef3c7" font-weight="900">TANDIL</text>
+</svg>

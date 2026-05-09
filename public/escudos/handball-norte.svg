@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <path d="M50 5 L90 20 V50 C90 75 50 95 50 95 C50 95 10 75 10 50 V20 Z" fill="#0891b2" stroke="#fef08a" stroke-width="3"/>
+  <path d="M50 5 L90 20 V50 C90 75 50 95 50 95 C50 95 10 75 10 50 V20 Z" fill="url(#g8)" opacity="0.3"/>
+  <defs>
+    <linearGradient id="g8" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.2"/>
+    </linearGradient>
+  </defs>
+  <!-- Mano lanzando -->
+  <path d="M28 55 Q30 35 38 32 L42 35 L42 55 Z" fill="#fef08a"/>
+  <path d="M38 32 L40 25 Q44 24 44 28 L42 35 Z" fill="#fef08a"/>
+  <path d="M42 35 L46 28 Q50 28 49 32 L46 38 Z" fill="#fef08a"/>
+  <path d="M46 38 L52 32 Q55 33 53 37 L49 42 Z" fill="#fef08a"/>
+  <!-- Pelota handball -->
+  <circle cx="68" cy="40" r="11" fill="#fef08a" stroke="#000" stroke-width="1.5"/>
+  <path d="M68 29 Q63 35 68 51" stroke="#0891b2" stroke-width="1" fill="none"/>
+  <path d="M68 29 Q73 35 68 51" stroke="#0891b2" stroke-width="1" fill="none"/>
+  <path d="M57 40 Q63 38 79 40" stroke="#0891b2" stroke-width="1" fill="none"/>
+  <!-- Norte (estrella del norte) -->
+  <path d="M50 70 L52 75 L57 75 L53 78 L55 83 L50 80 L45 83 L47 78 L43 75 L48 75 Z" fill="#fef08a"/>
+  <text x="50" y="91" text-anchor="middle" font-family="Arial Black, sans-serif" font-size="6" fill="#fef08a" font-weight="900">NORTE</text>
+</svg>

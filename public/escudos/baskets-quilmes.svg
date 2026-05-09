@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <path d="M50 5 L90 20 V50 C90 75 50 95 50 95 C50 95 10 75 10 50 V20 Z" fill="#1e3a8a" stroke="#ea580c" stroke-width="3"/>
+  <path d="M50 5 L90 20 V50 C90 75 50 95 50 95 C50 95 10 75 10 50 V20 Z" fill="url(#g5)" opacity="0.3"/>
+  <defs>
+    <linearGradient id="g5" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.2"/>
+    </linearGradient>
+  </defs>
+  <!-- Pelota de básquet -->
+  <circle cx="50" cy="50" r="22" fill="#ea580c" stroke="#000" stroke-width="2"/>
+  <path d="M28 50 H72" stroke="#000" stroke-width="1.8" fill="none"/>
+  <path d="M50 28 V72" stroke="#000" stroke-width="1.8" fill="none"/>
+  <path d="M32 35 Q50 50 32 65" stroke="#000" stroke-width="1.5" fill="none"/>
+  <path d="M68 35 Q50 50 68 65" stroke="#000" stroke-width="1.5" fill="none"/>
+  <text x="50" y="89" text-anchor="middle" font-family="Arial Black, sans-serif" font-size="6" fill="#ea580c" font-weight="900">QUILMES</text>
+</svg>

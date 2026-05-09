@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Search, Users, MessageCircle, Plus, X, Check, CreditCard, Banknote, UserPlus, Clock, Smartphone, Camera, Sparkles, Image as ImageIcon, Loader2, AlertCircle, QrCode } from 'lucide-react'
-import { demoPlayers, demoCategories, getSiblings, getPlayersForClub, getCategoriesForClub } from '@/lib/demo-data'
+import { getSiblings, getPlayersForClub, getCategoriesForClub } from '@/lib/demo-data'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { generateBillingsForPeriod, loadBillingConfig, getOutstandingAmount, type Billing } from '@/lib/billings'
 import dynamic from 'next/dynamic'
@@ -85,7 +85,7 @@ export default function CobrarPage() {
       return
     }
     const playerId = parts[1]
-    const player = demoPlayers.find(p => p.id === playerId)
+    const player = clubPlayers.find(p => p.id === playerId)
     if (!player) {
       setScanError(`No se encontró el socio (ID: ${playerId})`)
       return
@@ -118,7 +118,7 @@ export default function CobrarPage() {
   const total = baseTotal + mpSurcharge
 
   // ── Contactos disponibles del primer player (suficiente para WhatsApp) ─
-  const primaryPlayer = demoPlayers.find(p => p.id === selectedPlayerIds[0])
+  const primaryPlayer = clubPlayers.find(p => p.id === selectedPlayerIds[0])
   const availableContacts: Contact[] = useMemo(() => {
     if (!primaryPlayer) return []
     const list: Contact[] = []
@@ -174,7 +174,7 @@ export default function CobrarPage() {
           : b.adjustments,
       }
     }))
-    const playerNames = selectedPlayerIds.map(id => demoPlayers.find(p => p.id === id)?.full_name ?? '?')
+    const playerNames = selectedPlayerIds.map(id => clubPlayers.find(p => p.id === id)?.full_name ?? '?')
     const next = [{ at: today.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }), players: playerNames, total }, ...recent].slice(0, 5)
     setRecent(next)
     try { localStorage.setItem(RECENT_KEY, JSON.stringify(next)) } catch {}
@@ -226,7 +226,7 @@ export default function CobrarPage() {
 
   function buildWhatsAppLink(c: Contact) {
     const periods = billingsToCharge.map(b => b.period).join(', ')
-    const playerNames = selectedPlayerIds.map(id => demoPlayers.find(p => p.id === id)?.full_name.split(' ')[0]).join(' y ')
+    const playerNames = selectedPlayerIds.map(id => clubPlayers.find(p => p.id === id)?.full_name.split(' ')[0]).join(' y ')
     const text = `✅ ${c.name}, recibimos tu pago de $${total.toLocaleString('es-AR')} por la cuota ${periods} de ${playerNames}. ¡Gracias! — Filial Banfield Ramos Mejía.`
     return `https://wa.me/${c.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`
   }
@@ -300,7 +300,7 @@ export default function CobrarPage() {
 
           <div className="space-y-1.5">
             {matches.map(p => {
-              const cat = demoCategories.find(c => c.id === p.category_id)
+              const cat = clubCategories.find(c => c.id === p.category_id)
               const siblings = getSiblings(p.id)
               const familySize = 1 + siblings.length
               const familyIds = [p.id, ...siblings.map((s: any) => s.id)]
@@ -378,7 +378,7 @@ export default function CobrarPage() {
 
           <div className="space-y-1.5">
             {selectedPlayerIds.map(pid => {
-              const player = demoPlayers.find(p => p.id === pid)!
+              const player = clubPlayers.find(p => p.id === pid)!
               const playerBillings = billingsForSelected.filter(b => b.player_id === pid)
               return (
                 <Card key={pid} className="border-0 shadow-sm">
