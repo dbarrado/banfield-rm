@@ -18,16 +18,18 @@ export interface Club {
 
 export type Shift = 'morning' | 'afternoon'
 
-export type Tira = 'metro' | 'liga1' | 'liga2' | 'edefi'
+// Tira ahora es string flexible — el tipado real lo da SPORT_TIRAS en lib/tiras.ts
+export type Tira = string
 
-export const TIRA_LABELS: Record<Tira, string> = {
+// MANTENER por compatibilidad legacy con Banfield/Boca (fútbol AFA):
+export const TIRA_LABELS: Record<string, string> = {
   metro: 'Metro',
   liga1: 'Liga 1',
   liga2: 'Liga 2',
   edefi: 'Edefi',
 }
 
-export const TIRA_COLORS: Record<Tira, string> = {
+export const TIRA_COLORS: Record<string, string> = {
   metro: '#1d4ed8',
   liga1: '#00843D',
   liga2: '#C9A84C',

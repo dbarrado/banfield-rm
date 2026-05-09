@@ -1,4 +1,6 @@
 import type { Player, Category, Payment, Event, Attendance, CashSession, CashMovement, FinanceCategory, EligibilityConfig, Position, Tira, Profe, ProfeAssignment } from '@/types'
+import { SPORT_TIRAS } from './tiras'
+import type { SportCode } from './sports'
 
 export const DEMO_MODE = true
 
@@ -1027,8 +1029,25 @@ for (const spec of CLUB_GEN_SPECS) {
       const secondary = pickSecondaryForSpec(primary)
       const tutorDniBase = 20000000 + Math.floor(rng() * 25000000)
       const aptoOk = rng() < 0.75
-      // Tira: usar 'metro' por default para simplificar (los clubes ficticios no compiten en tiras AFA)
-      const tira: Tira = 'metro'
+      // Tira: distribuir según el deporte del club (~50% top, 30% segunda, 20% inferiores)
+      const sportTiras = SPORT_TIRAS[spec.sportFormat as SportCode] ?? []
+      let tira: Tira = 'metro'
+      if (sportTiras.length > 0) {
+        const r = rng()
+        if (sportTiras.length === 1) {
+          tira = sportTiras[0].code
+        } else if (sportTiras.length === 2) {
+          tira = r < 0.6 ? sportTiras[0].code : sportTiras[1].code
+        } else if (sportTiras.length === 3) {
+          tira = r < 0.5 ? sportTiras[0].code : r < 0.8 ? sportTiras[1].code : sportTiras[2].code
+        } else {
+          // 4+ tiras: 50% top, 30% segunda, 15% tercera, 5% resto
+          if (r < 0.5) tira = sportTiras[0].code
+          else if (r < 0.8) tira = sportTiras[1].code
+          else if (r < 0.95) tira = sportTiras[2].code
+          else tira = sportTiras[3].code
+        }
+      }
 
       fictionalPlayers.push({
         id: `p-fict-${fictPlayerCounter++}`,

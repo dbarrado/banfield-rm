@@ -18,6 +18,8 @@ export default function ConvocatoriaPage() {
   const [selectedTira, setSelectedTira] = useState<Tira | null>(null)
   const [selectedEvent, setSelectedEvent] = useState(demoEvents.filter(e => e.event_type === 'match')[0]?.id ?? '')
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  // Flujo guardar → enviar: primero guardar localmente, después enviar por WhatsApp
+  const [savedAt, setSavedAt] = useState<string | null>(null)
   const [practiceThreshold, setPracticeThreshold] = useState(demoEligibilityConfig.min_practice_percentage)
   const [matchThreshold, setMatchThreshold] = useState(demoEligibilityConfig.min_match_percentage)
   const [view, setView] = useState<'list' | 'pitch'>('list')
@@ -60,11 +62,19 @@ export default function ConvocatoriaPage() {
   })
 
   function togglePlayer(id: string) {
+    // Si modifico la selección, vuelvo a estado "no guardado" (hay que guardar de nuevo)
+    if (savedAt) setSavedAt(null)
     setSelected(prev => {
       const next = new Set(prev)
       next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
+  }
+
+  function saveConvocatoria() {
+    const now = new Date().toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+    setSavedAt(now)
+    // En producción: persistir en Supabase tabla `convocations` con created_by, event_id, jugadores, override de umbrales
   }
 
   const selectedPlayers = playersWithStats.filter(p => selected.has(p.id))
@@ -429,17 +439,42 @@ export default function ConvocatoriaPage() {
         )
       })}
 
-      {/* Botón WhatsApp sticky */}
+      {/* Botones sticky — flujo: 1) Guardar  2) Enviar por WhatsApp */}
       {selected.size > 0 && (
-        <div className="sticky bottom-20 md:bottom-4 pt-2">
-          <button
-            onClick={generateWhatsApp}
-            className="w-full py-3 rounded-xl font-bold text-sm md:text-base text-white flex items-center justify-center gap-2 shadow-lg"
-            style={{ backgroundColor: '#25D366' }}
-          >
-            <MessageCircle size={18} />
-            ENVIAR ({selected.size}) por WhatsApp
-          </button>
+        <div className="sticky bottom-20 md:bottom-4 pt-2 space-y-2">
+          {!savedAt ? (
+            <button
+              onClick={saveConvocatoria}
+              className="w-full py-3 rounded-xl font-bold text-sm md:text-base text-white flex items-center justify-center gap-2 shadow-lg"
+              style={{ backgroundColor: 'var(--club-primary, #00843D)' }}
+            >
+              <CheckCircle2 size={18} />
+              GUARDAR CONVOCATORIA ({selected.size})
+            </button>
+          ) : (
+            <>
+              <Card className="border-0 shadow-sm bg-green-50 border-l-4 border-l-green-600">
+                <CardContent className="p-2.5 flex items-center gap-2">
+                  <CheckCircle2 size={18} className="text-green-700 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-green-800">Convocatoria guardada</p>
+                    <p className="text-[11px] text-green-700">{selected.size} jugadores · {savedAt}</p>
+                  </div>
+                  <button onClick={() => setSavedAt(null)} className="text-[11px] text-green-700 underline">
+                    Editar
+                  </button>
+                </CardContent>
+              </Card>
+              <button
+                onClick={generateWhatsApp}
+                className="w-full py-3 rounded-xl font-bold text-sm md:text-base text-white flex items-center justify-center gap-2 shadow-lg"
+                style={{ backgroundColor: '#25D366' }}
+              >
+                <MessageCircle size={18} />
+                ENVIAR por WhatsApp
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

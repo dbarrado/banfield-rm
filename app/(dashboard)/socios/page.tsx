@@ -9,9 +9,11 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Users, Plus, MessageCircle, Search, X } from 'lucide-react'
 import Link from 'next/link'
 import { demoPayments, getPlayerDebts, thisMonth, getPlayersForClub, getCategoriesForClub } from '@/lib/demo-data'
-import { POSITION_LABELS, POSITION_COLORS, TIRA_LABELS, TIRA_COLORS } from '@/types'
+import { POSITION_LABELS, POSITION_COLORS } from '@/types'
 import { getAvatarUrl } from '@/lib/avatars'
 import { useCurrentClub } from '@/lib/use-current-club'
+import { getTirasForSport, getTiraLabel, getTiraColor } from '@/lib/tiras'
+import type { SportCode } from '@/lib/sports'
 
 function getPaymentStatus(playerId: string) {
   const paid = demoPayments.filter(p => p.player_id === playerId && p.period === thisMonth && p.fee_type === 'actividad')
@@ -44,6 +46,13 @@ function SociosPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(
     initialFromUrl && initialFromUrl.startsWith('cat-') ? initialFromUrl : null
   )
+
+  const clubSportCode = (club.default_sport_code ?? 'football_11') as SportCode
+  const clubTiras = useMemo(() => getTirasForSport(clubSportCode), [clubSportCode])
+  function playerSport(p: { category_id: string }): SportCode {
+    const c = clubCategories.find(cc => cc.id === p.category_id)
+    return (c?.sport_format_code ?? clubSportCode) as SportCode
+  }
 
   const deudores = useMemo(() => getPlayerDebts(clubPlayers, demoPayments), [clubPlayers])
   const deudorIds = useMemo(() => new Set(deudores.map(d => d.id)), [deudores])
@@ -124,13 +133,13 @@ function SociosPage() {
         {/* Tira */}
         <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-3 px-3">
           <span className="text-[10px] font-bold uppercase text-muted-foreground self-center flex-shrink-0">Tira:</span>
-          {(['metro', 'liga1', 'liga2', 'edefi'] as const).map(t => {
-            const sel = selectedTira === t
+          {clubTiras.map(t => {
+            const sel = selectedTira === t.code
             return (
-              <button key={t} onClick={() => setSelectedTira(sel ? null : t)}
+              <button key={t.code} onClick={() => setSelectedTira(sel ? null : t.code)}
                 className={`px-2.5 py-1 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${sel ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`}
-                style={sel ? { backgroundColor: TIRA_COLORS[t] } : {}}>
-                {TIRA_LABELS[t]}
+                style={sel ? { backgroundColor: t.color } : {}}>
+                {t.label}
               </button>
             )
           })}
@@ -161,7 +170,7 @@ function SociosPage() {
           const statusDot = { 'al-dia': '#00843D', proximo: '#F59E0B', deudor: '#DC2626' }[status]
           return (
             <Link key={player.id} href={`/socios/${player.id}`} className="block">
-              <Card className="border-0 shadow-sm hover:shadow-md transition-shadow active:scale-[0.99]" style={{ borderLeft: `3px solid ${TIRA_COLORS[player.tira]}` }}>
+              <Card className="border-0 shadow-sm hover:shadow-md transition-shadow active:scale-[0.99]" style={{ borderLeft: `3px solid ${getTiraColor(player.tira, playerSport(player))}` }}>
                 <CardContent className="p-2 flex items-center gap-2 min-w-0">
                   {/* Avatar */}
                   <div className="relative flex-shrink-0">
@@ -180,8 +189,8 @@ function SociosPage() {
                   <div className="flex-1 min-w-0 overflow-hidden">
                     <p className="text-sm font-semibold truncate leading-tight">{player.full_name}</p>
                     <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                      <span className="font-bold" style={{ color: TIRA_COLORS[player.tira] }}>
-                        {TIRA_LABELS[player.tira]}
+                      <span className="font-bold" style={{ color: getTiraColor(player.tira, playerSport(player)) }}>
+                        {getTiraLabel(player.tira, playerSport(player))}
                       </span>
                       <span> · Cat. {cat?.name ?? '—'} · </span>
                       <span className="font-bold" style={{ color: POSITION_COLORS[player.primary_position] }}>

@@ -7,6 +7,8 @@ import { ClipboardList, CheckCircle2, XCircle, AlertCircle, User, Lock, Unlock, 
 import { demoProfes, getAssignmentsForProfe, getProfesForTira, getPlayersForClub, getCategoriesForClub } from '@/lib/demo-data'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { TIRA_LABELS, TIRA_COLORS, type Tira } from '@/types'
+import { getTiraLabel, getTiraColor, getTirasForSport } from '@/lib/tiras'
+import type { SportCode } from '@/lib/sports'
 import { getSessionsForDay, TIRA_GROUPS, tiraGroupOf } from '@/lib/training-schedule'
 import { getActiveSlotForNow, getNextSlotForDay, type TrainingSlot } from '@/lib/training-roster'
 import { getAvatarUrl } from '@/lib/avatars'
@@ -33,6 +35,12 @@ export default function AsistenciaPage() {
   const clubPlayers = useMemo(() => getPlayersForClub(club.id), [club.id])
   const clubCategories = useMemo(() => getCategoriesForClub(club.id), [club.id])
   const activeCategories = clubCategories.filter(c => c.is_active)
+  const clubSportCode = (club.default_sport_code ?? 'football_11') as SportCode
+  const clubTiras = getTirasForSport(clubSportCode)
+  function playerSport(p: { category_id: string }): SportCode {
+    const c = clubCategories.find(cc => cc.id === p.category_id)
+    return (c?.sport_format_code ?? clubSportCode) as SportCode
+  }
 
   // Sesiones del día actual (hoy)
   const now = new Date()
@@ -239,8 +247,8 @@ export default function AsistenciaPage() {
                 return c ? <Badge key={cid} className="text-[10px] bg-purple-100 text-purple-700 border-0">{c.name}</Badge> : null
               })}
               {nextSlot.tiras.map(t => (
-                <Badge key={t} className="text-[10px] border-0 text-white" style={{ backgroundColor: TIRA_COLORS[t] }}>
-                  {TIRA_LABELS[t]}
+                <Badge key={t} className="text-[10px] border-0 text-white" style={{ backgroundColor: getTiraColor(t, clubSportCode) }}>
+                  {getTiraLabel(t, clubSportCode)}
                 </Badge>
               ))}
             </div>
@@ -302,16 +310,16 @@ export default function AsistenciaPage() {
           <div>
             <label className="text-[10px] font-bold uppercase text-muted-foreground">Tiras en esta sesión</label>
             <div className="flex gap-1 mt-1 flex-wrap">
-              {(['metro', 'liga1', 'liga2', 'edefi'] as Tira[]).map(t => {
+              {(clubTiras.length > 0 ? clubTiras.map(x => x.code) : (['metro', 'liga1', 'liga2', 'edefi'] as string[])).map(t => {
                 const sel = selectedTiras.has(t)
                 return (
                   <button
                     key={t}
                     onClick={() => toggleTira(t)}
                     className={`px-2.5 py-1 rounded-full text-xs font-semibold border-2 ${sel ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`}
-                    style={sel ? { backgroundColor: TIRA_COLORS[t] } : {}}
+                    style={sel ? { backgroundColor: getTiraColor(t, clubSportCode) } : {}}
                   >
-                    {TIRA_LABELS[t]}
+                    {getTiraLabel(t, clubSportCode)}
                   </button>
                 )
               })}
@@ -427,8 +435,8 @@ export default function AsistenciaPage() {
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm truncate">{player.full_name}</p>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase text-white" style={{ backgroundColor: TIRA_COLORS[player.tira] }}>
-                      {TIRA_LABELS[player.tira]}
+                    <span className="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase text-white" style={{ backgroundColor: getTiraColor(player.tira, playerSport(player)) }}>
+                      {getTiraLabel(player.tira, playerSport(player))}
                     </span>
                     <span className="text-[10px] text-muted-foreground">Conv: {player.convocation_count}</span>
                   </div>
@@ -491,8 +499,8 @@ export default function AsistenciaPage() {
                   <p className="text-sm font-semibold truncate">{g.name}</p>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     {g.type === 'visitor' && g.tira && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase text-white" style={{ backgroundColor: TIRA_COLORS[g.tira] }}>
-                        Visita de {TIRA_LABELS[g.tira]}
+                      <span className="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase text-white" style={{ backgroundColor: getTiraColor(g.tira, clubSportCode) }}>
+                        Visita de {getTiraLabel(g.tira, clubSportCode)}
                       </span>
                     )}
                     {g.type === 'unregistered' && (
@@ -669,19 +677,20 @@ function AddGuestModal({ allPlayers, allCategories, onClose, onAdd }: {
             <div className="space-y-1 max-h-60 overflow-y-auto">
               {matches.map(p => {
                 const cat = allCategories.find(c => c.id === p.category_id)
+                const sc = (cat?.sport_format_code ?? 'football_11') as SportCode
                 return (
                   <button
                     key={p.id}
                     onClick={() => onAdd({ type: 'visitor', name: p.full_name, tira: p.tira, categoryName: cat?.name })}
                     className="w-full text-left p-2 rounded-lg hover:bg-gray-50 border border-gray-200 flex items-center gap-2.5"
                   >
-                    <div className="w-8 h-8 rounded-full overflow-hidden border-2 flex-shrink-0" style={{ borderColor: TIRA_COLORS[p.tira] }}>
+                    <div className="w-8 h-8 rounded-full overflow-hidden border-2 flex-shrink-0" style={{ borderColor: getTiraColor(p.tira, sc) }}>
                       <img src={getAvatarUrl(p)} alt={p.full_name} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold truncate">{p.full_name}</p>
                       <p className="text-[10px]">
-                        Cat. {cat?.name} · <span style={{ color: TIRA_COLORS[p.tira] }}>{TIRA_LABELS[p.tira]}</span>
+                        Cat. {cat?.name} · <span style={{ color: getTiraColor(p.tira, sc) }}>{getTiraLabel(p.tira, sc)}</span>
                       </p>
                     </div>
                   </button>
