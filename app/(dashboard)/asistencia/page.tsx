@@ -128,6 +128,17 @@ export default function AsistenciaPage() {
     setAttendance(prev => ({ ...prev, [playerId]: status }))
   }
 
+  // Cycle por tap en toda la ficha: unmarked → present → late → absent → unmarked
+  function cycleStatus(playerId: string) {
+    const current = getStatus(playerId)
+    const next: AttendanceStatus =
+      current === 'unmarked' ? 'present' :
+      current === 'present' ? 'late' :
+      current === 'late' ? 'absent_unjustified' :
+      'unmarked'
+    setAttendance(prev => ({ ...prev, [playerId]: next }))
+  }
+
   // Tarde cuenta como presente para %; sin marcar cuenta como ausente
   const presentCount = players.filter(p => isPresentForEligibility(getStatus(p.id))).length
   const lateCount = players.filter(p => getStatus(p.id) === 'late').length
@@ -380,7 +391,7 @@ export default function AsistenciaPage() {
       </Card>
 
       <p className="text-[11px] text-muted-foreground">
-        Tap para cambiar estado: Presente → Ausente → Justificado.
+        Tocá toda la ficha para ciclar: <strong>Vino</strong> → <strong>Tarde</strong> → <strong>No vino</strong> → sin marcar. O usá los botones para ir directo.
       </p>
 
       {/* Lista */}
@@ -391,8 +402,20 @@ export default function AsistenciaPage() {
         {players.map(player => {
           const status = getStatus(player.id)
           const { color } = statusConfig[status]
+          // Fondo tenue según estado para que la ficha "se pinte"
+          const cardBg =
+            status === 'present' ? '#dcfce7' :
+            status === 'late' ? '#fef3c7' :
+            status === 'absent_unjustified' ? '#fee2e2' :
+            status === 'absent_justified' ? '#dbeafe' :
+            '#ffffff'
           return (
-            <Card key={player.id} className="border-0 shadow-sm" style={{ borderLeft: `4px solid ${color}` }}>
+            <Card
+              key={player.id}
+              className={`border-0 shadow-sm transition-colors ${closed ? '' : 'cursor-pointer active:scale-[0.99]'}`}
+              style={{ borderLeft: `4px solid ${color}`, backgroundColor: cardBg }}
+              onClick={() => !closed && cycleStatus(player.id)}
+            >
               <CardContent className="p-2.5 flex items-center gap-2.5">
                 <div className="w-10 h-10 rounded-full overflow-hidden border-2 flex-shrink-0 bg-white" style={{ borderColor: color }}>
                   <img src={getAvatarUrl(player)} alt={player.full_name} className="w-full h-full object-cover" />
@@ -406,26 +429,26 @@ export default function AsistenciaPage() {
                     <span className="text-[10px] text-muted-foreground">Conv: {player.convocation_count}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
+                <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
                   <button
                     onClick={() => !closed && setStatus(player.id, status === 'present' ? 'unmarked' : 'present')}
                     disabled={closed}
-                    title="Presente"
-                    className={`w-8 h-8 rounded-md flex items-center justify-center border ${status === 'present' ? 'text-white border-transparent' : 'border-gray-200 text-gray-400'}`}
+                    title="Vino"
+                    className={`w-8 h-8 rounded-md flex items-center justify-center border ${status === 'present' ? 'text-white border-transparent' : 'border-gray-200 text-gray-400 bg-white'}`}
                     style={status === 'present' ? { backgroundColor: '#00843D' } : {}}
                   ><CheckCircle2 size={15} /></button>
                   <button
                     onClick={() => !closed && setStatus(player.id, status === 'late' ? 'unmarked' : 'late')}
                     disabled={closed}
                     title="Llegó tarde"
-                    className={`w-8 h-8 rounded-md flex items-center justify-center border ${status === 'late' ? 'text-white border-transparent' : 'border-gray-200 text-gray-400'}`}
+                    className={`w-8 h-8 rounded-md flex items-center justify-center border ${status === 'late' ? 'text-white border-transparent' : 'border-gray-200 text-gray-400 bg-white'}`}
                     style={status === 'late' ? { backgroundColor: '#F59E0B' } : {}}
                   ><Clock size={15} /></button>
                   <button
                     onClick={() => !closed && setStatus(player.id, status === 'absent_unjustified' ? 'unmarked' : 'absent_unjustified')}
                     disabled={closed}
-                    title="Ausente"
-                    className={`w-8 h-8 rounded-md flex items-center justify-center border ${status === 'absent_unjustified' ? 'text-white border-transparent' : 'border-gray-200 text-gray-400'}`}
+                    title="No vino"
+                    className={`w-8 h-8 rounded-md flex items-center justify-center border ${status === 'absent_unjustified' ? 'text-white border-transparent' : 'border-gray-200 text-gray-400 bg-white'}`}
                     style={status === 'absent_unjustified' ? { backgroundColor: '#DC2626' } : {}}
                   ><XCircle size={15} /></button>
                 </div>

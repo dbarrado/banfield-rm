@@ -77,6 +77,7 @@ export interface Category {
   name: string
   birth_year: number
   sport_format_code?: string  // ej: 'football_11', 'baby_5', 'baby_6', 'futsal'
+  club_id?: string  // si está presente, esta categoría pertenece a un club específico
   is_active: boolean
   created_at: string
 }
@@ -105,6 +106,7 @@ export interface Player {
   convocation_count: number
   created_at: string
   category?: Category
+  club_id?: string  // si no está, se asume Banfield Ramos Mejía (legacy)
 }
 
 export interface Profe {

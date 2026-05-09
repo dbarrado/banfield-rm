@@ -322,15 +322,33 @@ is_active
 | Plan | Precio | Incluye |
 | --- | --- | --- |
 | **Free trial** | 7 días | Producto completo |
-| **Club** | USD 30–45/mes | Operacional: socios, asistencia, convocatorias, partidos, caja, cobros, carnet |
-| **Pro** | USD 70–100/mes | Club + reportes avanzados, P&L, audit logs, hash chain en ledger, multi-club |
-| **Tienda add-on** | USD 25/mes | Catálogo + carrito + checkout + admin de pedidos |
+| **Plan Club** | USD 35/mes | Operacional simple: socios (1 deporte), asistencia (1 cancha), convocatorias, partidos, caja diaria, cobranzas con MP/transferencia/efectivo, OCR comprobantes, WhatsApp, referidos, flag de apto médico simple |
+| **Plan Pro** | USD 60/mes | Todo Club + carnet digital QR + compliance de profes (antecedentes/apto psicofísico/safeguarding con archivos y vencimientos) + apto médico avanzado del socio + multi-cancha + multi-deporte + cronograma completo + asistencia de profes + reportes/P&L + audit logs + hash chain + multi-club |
+| **Tienda add-on** | USD 25/mes | Catálogo + carrito + checkout + admin pedidos. Suma a cualquier plan. |
+
+**Filosofía del packaging:** Plan Club es suficiente para no churnear, insuficiente para no querer crecer. El upgrade a Pro lo gatilla el éxito del Club (más chicos, más canchas, más profes, exigencia de compliance, necesidad de reportes).
+
+**Promo Fase A (early adopters, hasta 30/6/2026):**
+- 12 meses por el precio de 9 si firman compromiso anual (~USD 26/mes efectivo año 1)
+- Price-lock 12 meses: no sube en marzo 2027
+- Onboarding white-glove gratis (migración asistida)
 
 **Programa de referidos:**
 - Cada referido que pasa el trial → +1 mes bonificado al referente
-- Si el referido contrata Pro+Shop, el referente sube a Pro+Shop ese mes
+- Si el referido contrata Pro+Tienda, el referente sube a Pro+Tienda ese mes
 - Hito 5 referidos exitosos → +3 meses adicionales
 - Hito 10 referidos exitosos → +12 meses adicionales
+
+**Comparativa con competidores cono sur:**
+
+| | Plan Club Plantel | Clupik ProLiga | TeamSnap club | Plan Pro Plantel |
+| --- | --- | --- | --- | --- |
+| USD/mes | 35 | ~40 | 80 | 60 |
+| Carnet QR escaneable | ❌ | ❌ | ❌ | ✅ |
+| Compliance argentino | ❌ | ❌ | ❌ | ✅ |
+| Multi-deporte | ❌ | ✅ | ❌ | ✅ |
+| Cobro fila mobile-first | ✅ | ❌ | ❌ | ✅ |
+| Mercado Pago first-class | ✅ | ❌ | ❌ | ✅ |
 
 ---
 
