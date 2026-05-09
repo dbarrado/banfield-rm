@@ -367,7 +367,8 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
         </p>
 
         <div className="relative w-full overflow-hidden rounded-xl shadow-lg" style={{ aspectRatio: '2/3', maxWidth: 480, margin: '0 auto' }}>
-          <div className="absolute inset-0" style={(() => {
+          {/* Background de la cancha — pointer-events: none para que los clicks pasen a los jugadores */}
+          <div className="absolute inset-0 pointer-events-none" style={(() => {
             // Background por deporte
             switch (sportCode) {
               case 'volleyball':
