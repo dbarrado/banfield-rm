@@ -33,10 +33,16 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
   // baby_6:      1 arq + 2 def + 2 med + 1 del = 6
   // baby_5:      1 arq + 1 def + 1 med + 2 del = 5  (variable)
   // futsal:      1 arq + 1 def + 2 med + 1 del = 5
-  const slotsByPos = sportCode === 'football_11' ? { arquero: 1, defensor: 4, mediocampista: 4, delantero: 2 }
-                   : sportCode === 'baby_6'      ? { arquero: 1, defensor: 2, mediocampista: 2, delantero: 1 }
-                   : sportCode === 'baby_5'      ? { arquero: 1, defensor: 1, mediocampista: 1, delantero: 2 }
-                   : sportCode === 'futsal'      ? { arquero: 1, defensor: 1, mediocampista: 2, delantero: 1 }
+  const slotsByPos = sportCode === 'football_11'  ? { arquero: 1, defensor: 4, mediocampista: 4, delantero: 2 }
+                   : sportCode === 'baby_6'       ? { arquero: 1, defensor: 2, mediocampista: 2, delantero: 1 }
+                   : sportCode === 'baby_5'       ? { arquero: 1, defensor: 1, mediocampista: 1, delantero: 2 }
+                   : sportCode === 'futsal'       ? { arquero: 1, defensor: 1, mediocampista: 2, delantero: 1 }
+                   : sportCode === 'hockey_field' ? { arquero: 1, defensor: 4, mediocampista: 3, delantero: 3 }
+                   : sportCode === 'volleyball'   ? { arquero: 0, defensor: 2, mediocampista: 1, delantero: 3 }
+                   : sportCode === 'basketball'   ? { arquero: 0, defensor: 2, mediocampista: 1, delantero: 2 }
+                   : sportCode === 'rugby_7'      ? { arquero: 0, defensor: 3, mediocampista: 2, delantero: 2 }
+                   : sportCode === 'rugby_15'     ? { arquero: 1, defensor: 5, mediocampista: 4, delantero: 5 }
+                   : sportCode === 'handball_7'   ? { arquero: 1, defensor: 2, mediocampista: 1, delantero: 3 }
                    :                                 { arquero: 1, defensor: 4, mediocampista: 4, delantero: 2 }
 
   const arq = allOfCat.filter(p => p.primary_position === 'arquero')
@@ -263,16 +269,148 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
         </p>
 
         <div className="relative w-full overflow-hidden rounded-xl shadow-lg" style={{ aspectRatio: '2/3', maxWidth: 480, margin: '0 auto' }}>
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, #16a34a 0%, #15803d 100%)' }}>
+          <div className="absolute inset-0" style={(() => {
+            // Background por deporte
+            switch (sportCode) {
+              case 'volleyball':
+              case 'basketball':
+              case 'futsal':
+              case 'handball_7':
+                // Pisos indoor: madera clara
+                return { background: 'linear-gradient(180deg, #d4a574 0%, #b8895a 100%)' }
+              case 'hockey_field':
+                // Hockey césped sintético: verde más oscuro
+                return { background: 'linear-gradient(180deg, #166534 0%, #14532d 100%)' }
+              case 'rugby_7':
+              case 'rugby_15':
+              case 'football_11':
+              case 'baby_5':
+              case 'baby_6':
+              default:
+                // Césped natural
+                return { background: 'linear-gradient(180deg, #16a34a 0%, #15803d 100%)' }
+            }
+          })()}>
             <svg viewBox="0 0 200 300" className="w-full h-full">
-              <rect x="5" y="5" width="190" height="290" fill="none" stroke="white" strokeWidth="0.8" opacity="0.7" />
-              <line x1="5" y1="150" x2="195" y2="150" stroke="white" strokeWidth="0.8" opacity="0.7" />
-              <circle cx="100" cy="150" r="20" fill="none" stroke="white" strokeWidth="0.8" opacity="0.7" />
-              <circle cx="100" cy="150" r="1" fill="white" opacity="0.7" />
-              <rect x="50" y="5" width="100" height="35" fill="none" stroke="white" strokeWidth="0.8" opacity="0.7" />
-              <rect x="50" y="260" width="100" height="35" fill="none" stroke="white" strokeWidth="0.8" opacity="0.7" />
-              <rect x="75" y="5" width="50" height="15" fill="none" stroke="white" strokeWidth="0.8" opacity="0.7" />
-              <rect x="75" y="280" width="50" height="15" fill="none" stroke="white" strokeWidth="0.8" opacity="0.7" />
+              {(() => {
+                const stroke = sportCode === 'basketball' || sportCode === 'volleyball' || sportCode === 'handball_7' ? '#1f2937' : 'white'
+                const opacity = sportCode === 'basketball' || sportCode === 'volleyball' || sportCode === 'handball_7' ? 0.85 : 0.7
+                switch (sportCode) {
+                  case 'football_11':
+                  case 'baby_5':
+                  case 'baby_6':
+                  case 'futsal':
+                    return (
+                      <>
+                        <rect x="5" y="5" width="190" height="290" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <line x1="5" y1="150" x2="195" y2="150" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <circle cx="100" cy="150" r="20" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <circle cx="100" cy="150" r="1" fill={stroke} opacity={opacity} />
+                        <rect x="50" y="5" width="100" height="35" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <rect x="50" y="260" width="100" height="35" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <rect x="75" y="5" width="50" height="15" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <rect x="75" y="280" width="50" height="15" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                      </>
+                    )
+                  case 'hockey_field':
+                    return (
+                      <>
+                        <rect x="5" y="5" width="190" height="290" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <line x1="5" y1="150" x2="195" y2="150" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <line x1="5" y1="80" x2="195" y2="80" stroke={stroke} strokeWidth="0.5" opacity={opacity * 0.6} strokeDasharray="2,2" />
+                        <line x1="5" y1="220" x2="195" y2="220" stroke={stroke} strokeWidth="0.5" opacity={opacity * 0.6} strokeDasharray="2,2" />
+                        <path d="M 60 5 A 40 40 0 0 0 140 5" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <path d="M 60 295 A 40 40 0 0 1 140 295" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <rect x="92" y="2" width="16" height="6" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <rect x="92" y="292" width="16" height="6" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                      </>
+                    )
+                  case 'volleyball':
+                    return (
+                      <>
+                        <rect x="20" y="20" width="160" height="260" fill="none" stroke={stroke} strokeWidth="1.2" opacity={opacity} />
+                        <line x1="20" y1="150" x2="180" y2="150" stroke={stroke} strokeWidth="2.5" opacity={opacity} />
+                        {/* Red representada con líneas verticales */}
+                        {[28, 38, 48, 58, 68, 78, 88, 98, 108, 118, 128, 138, 148, 158, 168].map(x => (
+                          <line key={x} x1={x} y1="146" x2={x} y2="154" stroke={stroke} strokeWidth="0.5" opacity={opacity * 0.8} />
+                        ))}
+                        <line x1="20" y1="100" x2="180" y2="100" stroke={stroke} strokeWidth="0.8" opacity={opacity * 0.6} strokeDasharray="3,2" />
+                        <line x1="20" y1="200" x2="180" y2="200" stroke={stroke} strokeWidth="0.8" opacity={opacity * 0.6} strokeDasharray="3,2" />
+                        <text x="100" y="80" textAnchor="middle" fill={stroke} opacity={opacity * 0.5} fontSize="8" fontFamily="Arial">ATAQUE</text>
+                        <text x="100" y="225" textAnchor="middle" fill={stroke} opacity={opacity * 0.5} fontSize="8" fontFamily="Arial">DEFENSA</text>
+                      </>
+                    )
+                  case 'basketball':
+                    return (
+                      <>
+                        <rect x="10" y="10" width="180" height="280" fill="none" stroke={stroke} strokeWidth="1" opacity={opacity} />
+                        <line x1="10" y1="150" x2="190" y2="150" stroke={stroke} strokeWidth="1" opacity={opacity} />
+                        <circle cx="100" cy="150" r="18" fill="none" stroke={stroke} strokeWidth="1" opacity={opacity} />
+                        {/* Aros */}
+                        <line x1="90" y1="10" x2="110" y2="10" stroke={stroke} strokeWidth="2" opacity={opacity} />
+                        <line x1="90" y1="290" x2="110" y2="290" stroke={stroke} strokeWidth="2" opacity={opacity} />
+                        {/* Líneas de tiro libre */}
+                        <rect x="75" y="10" width="50" height="50" fill="none" stroke={stroke} strokeWidth="1" opacity={opacity} />
+                        <rect x="75" y="240" width="50" height="50" fill="none" stroke={stroke} strokeWidth="1" opacity={opacity} />
+                        <circle cx="100" cy="60" r="14" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity * 0.7} strokeDasharray="2,2" />
+                        <circle cx="100" cy="240" r="14" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity * 0.7} strokeDasharray="2,2" />
+                        {/* Arcos de 3 puntos */}
+                        <path d="M 30 10 L 30 50 A 70 70 0 0 0 170 50 L 170 10" fill="none" stroke={stroke} strokeWidth="1" opacity={opacity} />
+                        <path d="M 30 290 L 30 250 A 70 70 0 0 1 170 250 L 170 290" fill="none" stroke={stroke} strokeWidth="1" opacity={opacity} />
+                      </>
+                    )
+                  case 'rugby_7':
+                  case 'rugby_15':
+                    return (
+                      <>
+                        <rect x="5" y="5" width="190" height="290" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        {/* In-goal areas */}
+                        <line x1="5" y1="35" x2="195" y2="35" stroke={stroke} strokeWidth="1.5" opacity={opacity} />
+                        <line x1="5" y1="265" x2="195" y2="265" stroke={stroke} strokeWidth="1.5" opacity={opacity} />
+                        {/* Líneas de 22m */}
+                        <line x1="5" y1="80" x2="195" y2="80" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <line x1="5" y1="220" x2="195" y2="220" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        {/* Mitad */}
+                        <line x1="5" y1="150" x2="195" y2="150" stroke={stroke} strokeWidth="1.2" opacity={opacity} />
+                        {/* Líneas de 10m punteadas */}
+                        <line x1="5" y1="120" x2="195" y2="120" stroke={stroke} strokeWidth="0.5" opacity={opacity * 0.6} strokeDasharray="3,3" />
+                        <line x1="5" y1="180" x2="195" y2="180" stroke={stroke} strokeWidth="0.5" opacity={opacity * 0.6} strokeDasharray="3,3" />
+                        {/* Postes H */}
+                        <line x1="92" y1="5" x2="92" y2="35" stroke={stroke} strokeWidth="1.2" opacity={opacity} />
+                        <line x1="108" y1="5" x2="108" y2="35" stroke={stroke} strokeWidth="1.2" opacity={opacity} />
+                        <line x1="92" y1="265" x2="92" y2="295" stroke={stroke} strokeWidth="1.2" opacity={opacity} />
+                        <line x1="108" y1="265" x2="108" y2="295" stroke={stroke} strokeWidth="1.2" opacity={opacity} />
+                      </>
+                    )
+                  case 'handball_7':
+                    return (
+                      <>
+                        <rect x="10" y="10" width="180" height="280" fill="none" stroke={stroke} strokeWidth="1" opacity={opacity} />
+                        <line x1="10" y1="150" x2="190" y2="150" stroke={stroke} strokeWidth="1" opacity={opacity} />
+                        {/* Áreas semi-circulares (6 metros) */}
+                        <path d="M 50 10 A 50 50 0 0 0 150 10" fill="none" stroke={stroke} strokeWidth="1.2" opacity={opacity} />
+                        <path d="M 50 290 A 50 50 0 0 1 150 290" fill="none" stroke={stroke} strokeWidth="1.2" opacity={opacity} />
+                        {/* Línea 9m punteada */}
+                        <path d="M 35 10 A 65 65 0 0 0 165 10" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity * 0.7} strokeDasharray="3,3" />
+                        <path d="M 35 290 A 65 65 0 0 1 165 290" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity * 0.7} strokeDasharray="3,3" />
+                        {/* Arcos */}
+                        <line x1="92" y1="8" x2="108" y2="8" stroke={stroke} strokeWidth="2.5" opacity={opacity} />
+                        <line x1="92" y1="292" x2="108" y2="292" stroke={stroke} strokeWidth="2.5" opacity={opacity} />
+                        {/* Línea 7m */}
+                        <line x1="95" y1="40" x2="105" y2="40" stroke={stroke} strokeWidth="1" opacity={opacity} />
+                        <line x1="95" y1="260" x2="105" y2="260" stroke={stroke} strokeWidth="1" opacity={opacity} />
+                      </>
+                    )
+                  default:
+                    return (
+                      <>
+                        <rect x="5" y="5" width="190" height="290" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <line x1="5" y1="150" x2="195" y2="150" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                        <circle cx="100" cy="150" r="20" fill="none" stroke={stroke} strokeWidth="0.8" opacity={opacity} />
+                      </>
+                    )
+                }
+              })()}
             </svg>
           </div>
 
