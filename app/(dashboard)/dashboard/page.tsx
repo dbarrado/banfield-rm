@@ -17,6 +17,7 @@ import { TIRA_LABELS, TIRA_COLORS, type Tira } from '@/types'
 import { getTiraLabel, getTiraColor } from '@/lib/tiras'
 import type { SportCode } from '@/lib/sports'
 import { useCurrentClub } from '@/lib/use-current-club'
+import { useActiveRole } from '@/lib/use-role'
 import { demoClubs } from '@/lib/clubs'
 import { getReferralActivationStatus, getReferralProgress } from '@/lib/referrals'
 import { Gift, Sparkles } from 'lucide-react'
@@ -96,12 +97,25 @@ export default function DashboardPage() {
   const referralActive = fullClub ? getReferralActivationStatus(fullClub.first_payment_at).active : false
   const referralProgress = fullClub ? getReferralProgress(club.id) : null
 
-  const quickActions = [
-    { label: 'Tomar asistencia', href: '/asistencia', color: club.primary_color },
-    { label: 'Nueva convocatoria', href: '/convocatoria', color: '#1d4ed8' },
-    { label: 'Registrar pago', href: '/socios', color: club.secondary_color },
-    { label: 'Abrir caja', href: '/caja', color: '#7c3aed' },
-  ]
+  const [activeRole] = useActiveRole()
+  // Acciones rápidas filtradas por rol — los profes no manejan dinero, los tesoreros priorizan caja
+  const allActions = {
+    asistencia:    { label: 'Tomar asistencia',  href: '/asistencia',   color: club.primary_color },
+    convocatoria:  { label: 'Nueva convocatoria', href: '/convocatoria', color: '#1d4ed8' },
+    cobrar:        { label: 'Cobrar cuota',       href: '/caja/cobrar',  color: club.secondary_color },
+    caja:          { label: 'Abrir caja',         href: '/caja',         color: '#7c3aed' },
+    cobranzas:     { label: 'Ver cobranzas',      href: '/cobranzas',    color: '#dc2626' },
+    asistProfes:   { label: 'Asistencia profes',  href: '/asistencia-profes', color: '#0891b2' },
+    fixture:       { label: 'Fixture',            href: '/fixture',       color: '#7c2d12' },
+    socios:        { label: 'Socios',             href: '/socios',        color: club.primary_color },
+  }
+  const actionsByRole: Record<typeof activeRole, (keyof typeof allActions)[]> = {
+    admin:        ['asistencia', 'convocatoria', 'cobrar', 'caja'],
+    profe:        ['asistencia', 'convocatoria', 'fixture', 'socios'],
+    tesorero:     ['cobrar', 'caja', 'cobranzas', 'socios'],
+    coordinador:  ['asistencia', 'asistProfes', 'convocatoria', 'cobrar'],
+  }
+  const quickActions = (actionsByRole[activeRole] ?? actionsByRole.admin).map(k => allActions[k])
 
   return (
     <div className="p-3 md:p-6 space-y-4">
