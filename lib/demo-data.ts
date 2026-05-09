@@ -816,4 +816,282 @@ export function getMatchAttendanceStats(playerId: string) {
   return { played, total: totalMatches, percentage }
 }
 
+// ──────────────────────────────────────────────────────────────────────────
+// CLUBES FICTICIOS POR DEPORTE — datos demo para grabación multi-deporte
+// Cada club tiene categorías + jugadores con club_id apuntando al club
+// correspondiente. Las posiciones se mapean al type Position genérico
+// (arquero/defensor/mediocampista/delantero) — ver mapeo por deporte abajo.
+// ──────────────────────────────────────────────────────────────────────────
+
+const NOMBRES_FEM = [
+  'Sofía','Martina','Camila','Valentina','Catalina','Mía','Emma','Lucía','Olivia','Isabella',
+  'Julieta','Renata','Antonella','Pilar','Delfina','Bianca','Agustina','Florencia','Victoria','Luna',
+  'Paloma','Abril','Malena','Ámbar','Constanza','Manuela','Josefina','Zoe','Helena','Clara',
+]
+
+// PRNG separado para no afectar la generación legacy de Banfield
+function makeRng(seed: number) {
+  let s = seed
+  return function () {
+    s = (s + 0x6d2b79f5) | 0
+    let t = s
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+type ClubGenSpec = {
+  clubId: string
+  sportFormat: string
+  isFemale?: boolean
+  rngSeed: number
+  // distribución posiciones (arquero, defensor, mediocampista, delantero)
+  positionDist: [number, number, number, number]
+  categories: Array<{ id: string; name: string; birth_year: number; count: number }>
+}
+
+const CLUB_GEN_SPECS: ClubGenSpec[] = [
+  // Pequeñas Estrellas — baby_6 — 4 categorías por año (2017-2020)
+  {
+    clubId: 'club-pequenas-estrellas',
+    sportFormat: 'baby_6',
+    rngSeed: 101,
+    positionDist: [10, 30, 35, 25],
+    categories: [
+      { id: 'cat-pe-2017', name: '2017', birth_year: 2017, count: 26 },
+      { id: 'cat-pe-2018', name: '2018', birth_year: 2018, count: 25 },
+      { id: 'cat-pe-2019', name: '2019', birth_year: 2019, count: 23 },
+      { id: 'cat-pe-2020', name: '2020', birth_year: 2020, count: 21 },
+    ],
+  },
+  // San Marcos — futsal — Sub-13 a Adulto (5 cats)
+  {
+    clubId: 'club-san-marcos',
+    sportFormat: 'futsal',
+    rngSeed: 202,
+    positionDist: [12, 28, 30, 30], // futsal: arquero, cierre, ala, pivote
+    categories: [
+      { id: 'cat-sm-sub13', name: 'Sub-13', birth_year: 2013, count: 18 },
+      { id: 'cat-sm-sub15', name: 'Sub-15', birth_year: 2011, count: 18 },
+      { id: 'cat-sm-sub17', name: 'Sub-17', birth_year: 2009, count: 16 },
+      { id: 'cat-sm-sub19', name: 'Sub-19', birth_year: 2007, count: 14 },
+      { id: 'cat-sm-adulto', name: 'Adulto', birth_year: 2000, count: 14 },
+    ],
+  },
+  // Las Halcones — hockey femenino — Sub-12 a Primera (5 cats)
+  {
+    clubId: 'club-las-halcones',
+    sportFormat: 'hockey_field',
+    isFemale: true,
+    rngSeed: 303,
+    positionDist: [10, 30, 35, 25], // arquera, back, mediocampista, delantera
+    categories: [
+      { id: 'cat-lh-sub12', name: 'Sub-12', birth_year: 2014, count: 16 },
+      { id: 'cat-lh-sub14', name: 'Sub-14', birth_year: 2012, count: 16 },
+      { id: 'cat-lh-sub16', name: 'Sub-16', birth_year: 2010, count: 14 },
+      { id: 'cat-lh-sub18', name: 'Sub-18', birth_year: 2008, count: 14 },
+      { id: 'cat-lh-primera', name: 'Primera', birth_year: 2002, count: 12 },
+    ],
+  },
+  // Vóley Ituzaingó — volleyball — Mini, Sub-12, Sub-14, Sub-16
+  {
+    clubId: 'club-voley-ituzaingo',
+    sportFormat: 'volleyball',
+    rngSeed: 404,
+    positionDist: [8, 25, 35, 32], // libero(arquero), central(def), armadora(medio), punta/opuesto(del)
+    categories: [
+      { id: 'cat-vi-mini', name: 'Mini', birth_year: 2016, count: 12 },
+      { id: 'cat-vi-sub12', name: 'Sub-12', birth_year: 2014, count: 12 },
+      { id: 'cat-vi-sub14', name: 'Sub-14', birth_year: 2012, count: 12 },
+      { id: 'cat-vi-sub16', name: 'Sub-16', birth_year: 2010, count: 12 },
+    ],
+  },
+  // Báskets Quilmes — basketball — U-10 a U-18 (5 cats)
+  {
+    clubId: 'club-baskets-quilmes',
+    sportFormat: 'basketball',
+    rngSeed: 505,
+    positionDist: [0, 35, 35, 30], // base/escolta(def), alero(medio), ala-pivot/pivot(del); no hay arquero
+    categories: [
+      { id: 'cat-bq-u10', name: 'U-10', birth_year: 2016, count: 14 },
+      { id: 'cat-bq-u12', name: 'U-12', birth_year: 2014, count: 14 },
+      { id: 'cat-bq-u14', name: 'U-14', birth_year: 2012, count: 14 },
+      { id: 'cat-bq-u16', name: 'U-16', birth_year: 2010, count: 14 },
+      { id: 'cat-bq-u18', name: 'U-18', birth_year: 2008, count: 12 },
+    ],
+  },
+  // Tigres Rugby Seven — rugby_7 — Sub-15, Sub-17, Sub-19, Senior (4 cats)
+  {
+    clubId: 'club-tigres-rugby',
+    sportFormat: 'rugby_7',
+    rngSeed: 606,
+    positionDist: [0, 35, 35, 30], // pilares/segunda(def), medios(medio), centros/wings(del)
+    categories: [
+      { id: 'cat-tr-sub15', name: 'Sub-15', birth_year: 2011, count: 14 },
+      { id: 'cat-tr-sub17', name: 'Sub-17', birth_year: 2009, count: 14 },
+      { id: 'cat-tr-sub19', name: 'Sub-19', birth_year: 2007, count: 12 },
+      { id: 'cat-tr-senior', name: 'Senior', birth_year: 2000, count: 12 },
+    ],
+  },
+  // Lobos Rugby Club — rugby_15 — Sub-15, Sub-17, Sub-19, M19, Primera (5 cats)
+  {
+    clubId: 'club-lobos-rugby',
+    sportFormat: 'rugby_15',
+    rngSeed: 707,
+    positionDist: [0, 40, 30, 30],
+    categories: [
+      { id: 'cat-lr-sub15', name: 'Sub-15', birth_year: 2011, count: 22 },
+      { id: 'cat-lr-sub17', name: 'Sub-17', birth_year: 2009, count: 22 },
+      { id: 'cat-lr-sub19', name: 'Sub-19', birth_year: 2007, count: 20 },
+      { id: 'cat-lr-m19', name: 'M19', birth_year: 2006, count: 20 },
+      { id: 'cat-lr-primera', name: 'Primera', birth_year: 1998, count: 18 },
+    ],
+  },
+  // Handball Norte — handball_7 — Cadetes, Juveniles, Mayores (3 cats)
+  {
+    clubId: 'club-handball-norte',
+    sportFormat: 'handball_7',
+    rngSeed: 808,
+    positionDist: [12, 30, 30, 28], // portero, lateral/central(def/medio), extremo/pivote(del)
+    categories: [
+      { id: 'cat-hn-cadetes', name: 'Cadetes', birth_year: 2010, count: 14 },
+      { id: 'cat-hn-juveniles', name: 'Juveniles', birth_year: 2008, count: 14 },
+      { id: 'cat-hn-mayores', name: 'Mayores', birth_year: 2002, count: 12 },
+    ],
+  },
+]
+
+// Generar categorías de clubes ficticios
+const fictionalCategories: Category[] = []
+for (const spec of CLUB_GEN_SPECS) {
+  for (const cat of spec.categories) {
+    fictionalCategories.push({
+      id: cat.id,
+      name: cat.name,
+      birth_year: cat.birth_year,
+      sport_format_code: spec.sportFormat,
+      club_id: spec.clubId,
+      is_active: true,
+      created_at: '2026-01-15',
+    })
+  }
+}
+demoCategories.push(...fictionalCategories)
+
+// Generar jugadores de clubes ficticios
+const fictionalPlayers: Player[] = []
+let fictPlayerCounter = 10000 // empezar bien lejos de los IDs legacy
+let fictDniBase = 55000000
+
+for (const spec of CLUB_GEN_SPECS) {
+  const rng = makeRng(spec.rngSeed)
+  const nombres = spec.isFemale ? NOMBRES_FEM : NOMBRES
+  const [pArq, pDef, pMed, pDel] = spec.positionDist
+
+  function pickPosForSpec(): Position {
+    const r = rng() * 100
+    if (r < pArq) return 'arquero'
+    if (r < pArq + pDef) return 'defensor'
+    if (r < pArq + pDef + pMed) return 'mediocampista'
+    return 'delantero'
+  }
+
+  function pickSecondaryForSpec(primary: Position): Position[] {
+    const all: Position[] = ['arquero', 'defensor', 'mediocampista', 'delantero']
+    const others = all.filter(p => p !== primary && (p !== 'arquero' || pArq > 0))
+    if (primary === 'arquero') {
+      return rng() > 0.85 ? [others[Math.floor(rng() * others.length)]] : []
+    }
+    const n = rng() < 0.5 ? 0 : rng() < 0.9 ? 1 : 2
+    const result: Position[] = []
+    const pool = [...others]
+    for (let i = 0; i < n && pool.length > 0; i++) {
+      const idx = Math.floor(rng() * pool.length)
+      result.push(pool[idx])
+      pool.splice(idx, 1)
+    }
+    return result
+  }
+
+  for (const cat of spec.categories) {
+    for (let i = 0; i < cat.count; i++) {
+      const nombre = nombres[Math.floor(rng() * nombres.length)]
+      const apellido = APELLIDOS[Math.floor(rng() * APELLIDOS.length)]
+      const tutorNombre = TUTOR_NOMBRES[Math.floor(rng() * TUTOR_NOMBRES.length)]
+      const month = String(Math.floor(rng() * 12) + 1).padStart(2, '0')
+      const day = String(Math.floor(rng() * 28) + 1).padStart(2, '0')
+      const shift = i % 2 === 0 ? 'morning' : 'afternoon'
+      const phoneBase = 1100000000 + Math.floor(rng() * 99999999)
+      const primary = pickPosForSpec()
+      const secondary = pickSecondaryForSpec(primary)
+      const tutorDniBase = 20000000 + Math.floor(rng() * 25000000)
+      const aptoOk = rng() < 0.75
+      // Tira: usar 'metro' por default para simplificar (los clubes ficticios no compiten en tiras AFA)
+      const tira: Tira = 'metro'
+
+      fictionalPlayers.push({
+        id: `p-fict-${fictPlayerCounter++}`,
+        full_name: `${nombre} ${apellido}`,
+        dni: String(fictDniBase++),
+        birth_date: `${cat.birth_year}-${month}-${day}`,
+        category_id: cat.id,
+        tira,
+        shift,
+        photo_url: null,
+        tutor_name: `${tutorNombre} ${apellido}`,
+        tutor_dni: String(tutorDniBase),
+        tutor_email: `${tutorNombre.toLowerCase()}.${apellido.toLowerCase()}.${spec.clubId.slice(-3)}@gmail.com`,
+        tutor_whatsapp: String(phoneBase),
+        primary_position: primary,
+        secondary_positions: secondary,
+        apto_medico_ok: aptoOk,
+        apto_medico_file_url: aptoOk && rng() < 0.6 ? '/demo-apto.pdf' : null,
+        apto_medico_expires_at: aptoOk ? '2026-12-31' : null,
+        is_active: true,
+        convocation_count: Math.floor(rng() * 12),
+        created_at: '2026-03-01',
+        club_id: spec.clubId,
+      })
+    }
+  }
+}
+
+// Vincular 1 grupo de hermanos por club (2 hermanos cada uno, mismo tutor)
+;(function linkFictionalSiblings() {
+  for (const spec of CLUB_GEN_SPECS) {
+    const clubPlayers = fictionalPlayers.filter(p => p.club_id === spec.clubId)
+    if (clubPlayers.length < 2) continue
+    const apellidoComun = clubPlayers[0].full_name.split(' ').slice(-1)[0]
+    const tutorEmail = `familia.${spec.clubId.slice(-4)}@gmail.com`
+    const tutorName = `Padre ${apellidoComun}`
+    // Tomar 2 jugadores de distintas categorías si es posible
+    const cat1 = clubPlayers[0].category_id
+    const otro = clubPlayers.find(p => p.category_id !== cat1) ?? clubPlayers[1]
+    clubPlayers[0].tutor_email = tutorEmail
+    clubPlayers[0].tutor_name = tutorName
+    otro.tutor_email = tutorEmail
+    otro.tutor_name = tutorName
+  }
+})()
+
+demoPlayers.push(...fictionalPlayers)
+
+// ──────────────────────────────────────────────────────────────────────────
+// HELPERS de filtro por club
+// ──────────────────────────────────────────────────────────────────────────
+export function getCategoriesForClub(clubId?: string): Category[] {
+  if (!clubId || clubId === 'club-banfield-rm' || clubId === 'club-boca-rm') {
+    return demoCategories.filter(c => !c.club_id) // legacy = sin club_id
+  }
+  return demoCategories.filter(c => c.club_id === clubId)
+}
+
+export function getPlayersForClub(clubId?: string): Player[] {
+  if (!clubId || clubId === 'club-banfield-rm' || clubId === 'club-boca-rm') {
+    return demoPlayers.filter(p => !p.club_id) // legacy = sin club_id
+  }
+  return demoPlayers.filter(p => p.club_id === clubId)
+}
+
 export { thisMonth, lastMonth }
