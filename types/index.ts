@@ -336,6 +336,71 @@ export interface CashMovement {
   finance_category?: FinanceCategory
 }
 
+// ===== Self-onboarding de tutores (Sprint 1) =====
+
+export type TutorRelation = 'padre' | 'madre' | 'tutor' | 'abuelo' | 'otro'
+
+export interface TutorUser {
+  id: string                    // UUID universal cross-club
+  email: string | null
+  dni: string                   // único globalmente
+  full_name: string
+  whatsapp: string
+  created_at: string
+}
+
+export interface TutorPlayerLink {
+  tutor_user_id: string
+  player_id: string
+  relation: TutorRelation
+  is_primary: boolean
+  approved_at: string
+}
+
+export interface RegistrationCode {
+  id: string
+  club_id: string
+  category_id: string
+  code: string
+  expires_at: string | null
+  max_uses: number | null
+  current_uses: number
+  is_active: boolean
+  created_at: string
+  created_by: string | null
+}
+
+export type PendingRegistrationStatus = 'pending' | 'approved' | 'rejected' | 'merged'
+export type DuplicateReason = 'dni_match' | 'name_match' | null
+
+export interface PendingRegistration {
+  id: string
+  code_used: string
+  club_id: string
+  category_id: string
+  // Datos del chico
+  full_name: string
+  dni: string
+  birth_date: string
+  primary_position: Position
+  photo_url: string | null
+  apto_medico_url: string | null
+  // Datos del tutor
+  tutor_full_name: string
+  tutor_dni: string
+  tutor_whatsapp: string
+  tutor_email: string | null
+  tutor_relation: TutorRelation
+  // Gestión
+  status: PendingRegistrationStatus
+  duplicate_of_player_id: string | null
+  duplicate_reason: DuplicateReason
+  reviewed_by: string | null
+  reviewed_at: string | null
+  rejection_reason: string | null
+  created_at: string
+}
+
 export interface PlayerAttendanceStats {
   player: Player
   total_practices: number

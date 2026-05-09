@@ -22,6 +22,7 @@ import {
   Menu,
   X as XIcon,
   Lock,
+  UserPlus,
 } from 'lucide-react'
 import { hasAccess, getRequiredPlan, type Plan } from '@/lib/feature-gates'
 import { createClient } from '@/lib/supabase/client'
@@ -50,6 +51,7 @@ const allItems: NavItem[] = [
   { href: '/finanzas', icon: TrendingUp, label: 'Finanzas' },
   { href: '/reportes', icon: BarChart3, label: 'Reportes', proOnly: true },
   { href: '/tienda', icon: ShoppingBag, label: 'Tienda', proOnly: true },
+  { href: '/inscripciones', icon: UserPlus, label: 'Inscripciones' },
   { href: '/invitar', icon: Gift, label: 'Invitar' },
   { href: '/config', icon: Settings, label: 'Config' },
 ]

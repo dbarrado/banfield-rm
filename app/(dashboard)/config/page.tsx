@@ -3,10 +3,15 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Settings, Users, ChevronRight, Edit2, Plus, X, Check, Trash2, History, Volleyball, Calendar } from 'lucide-react'
+import { Settings, Users, ChevronRight, Edit2, Plus, X, Check, Trash2, History, Volleyball, Calendar, Link2, Share2, UserPlus } from 'lucide-react'
 import Link from 'next/link'
 import { demoCategories, demoFinanceCategories, demoEligibilityConfig, demoEligibilityLog, demoProfes } from '@/lib/demo-data'
 import { useCurrentClub } from '@/lib/use-current-club'
+import {
+  getCodesByClub, addRegistrationCode, updateRegistrationCode, deleteRegistrationCode,
+  generateRandomCode,
+} from '@/lib/registration'
+import type { RegistrationCode } from '@/types'
 import { getMatchConfig, saveMatchConfig, DEFAULT_MATCH_CONFIG, resetMatchConfig } from '@/lib/match-config'
 import type { SportCode } from '@/lib/sports'
 
@@ -61,6 +66,64 @@ export default function ConfigPage() {
   const [causales, setCausales] = useState(INITIAL_CAUSALES)
   const [showCausalForm, setShowCausalForm] = useState(false)
   const [newCausal, setNewCausal] = useState('')
+
+  // Códigos de inscripción
+  const [regCodes, setRegCodes] = useState<RegistrationCode[]>([])
+  const [showCodeForm, setShowCodeForm] = useState(false)
+  const [newCodeCat, setNewCodeCat] = useState('')
+  const [newCodeMaxUses, setNewCodeMaxUses] = useState('')
+  const [newCodeExpires, setNewCodeExpires] = useState('')
+
+  // Cargar códigos al montar
+  useState(() => {
+    if (typeof window === 'undefined') return
+    setRegCodes(getCodesByClub(club.id))
+    return undefined
+  })
+
+  function reloadCodes() { setRegCodes(getCodesByClub(club.id)) }
+
+  function createCode() {
+    if (!newCodeCat) return alert('Elegí una categoría')
+    const cat = demoCategories.find(c => c.id === newCodeCat)
+    if (!cat) return
+    const prefix = `${club.short_name.replace(/\s+/g, '').slice(0, 3).toUpperCase()}-${cat.name}`
+    const code: RegistrationCode = {
+      id: `rc-${Date.now()}`,
+      club_id: club.id,
+      category_id: newCodeCat,
+      code: generateRandomCode(prefix),
+      expires_at: newCodeExpires || null,
+      max_uses: newCodeMaxUses ? Number(newCodeMaxUses) : null,
+      current_uses: 0,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      created_by: null,
+    }
+    addRegistrationCode(code)
+    reloadCodes()
+    setShowCodeForm(false)
+    setNewCodeCat(''); setNewCodeMaxUses(''); setNewCodeExpires('')
+  }
+
+  function toggleCodeActive(c: RegistrationCode) {
+    updateRegistrationCode(c.id, { is_active: !c.is_active })
+    reloadCodes()
+  }
+
+  function removeCode(c: RegistrationCode) {
+    if (!confirm(`¿Eliminar código ${c.code}?`)) return
+    deleteRegistrationCode(c.id)
+    reloadCodes()
+  }
+
+  function shareCode(c: RegistrationCode) {
+    const url = `https://camadaclub.com.ar/inscripcion/${c.code}`
+    const cat = demoCategories.find(x => x.id === c.category_id)
+    const msg = `¡Hola! Te invito a inscribir a tu hijo/a en ${club.name} – Categoría ${cat?.name ?? ''}.\n\nCompletá la inscripción en este link:\n${url}`
+    const wa = `https://wa.me/?text=${encodeURIComponent(msg)}`
+    window.open(wa, '_blank')
+  }
 
   const [financeCats, setFinanceCats] = useState(demoFinanceCategories)
   const [showFinanceForm, setShowFinanceForm] = useState(false)
@@ -287,6 +350,97 @@ export default function ConfigPage() {
                   <input type="number" min={0} max={20} value={cfg.suplentes}
                     onChange={e => updateMatchSport(sc, 'suplentes', Math.max(0, Math.min(20, Number(e.target.value) || 0)))}
                     className="w-12 px-1.5 py-1 border rounded text-xs text-right font-bold" />
+                </div>
+              </div>
+            )
+          })}
+        </CardContent>
+      </Card>
+
+      {/* Códigos de inscripción */}
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-1.5" style={{ fontFamily: "var(--font-barlow)" }}>
+              <UserPlus size={14} /> CÓDIGOS DE INSCRIPCIÓN
+            </CardTitle>
+            <button onClick={() => setShowCodeForm(!showCodeForm)} className="text-xs font-semibold px-2 py-1 rounded text-white flex items-center gap-1" style={{ backgroundColor: 'var(--club-primary, #00843D)' }}>
+              <Plus size={12} /> Nuevo
+            </button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-[11px] text-muted-foreground">
+            Generá un código por categoría y compartilo por WhatsApp. Los tutores pueden inscribir a sus hijos sin necesidad de crear cuenta primero.
+          </p>
+
+          {showCodeForm && (
+            <div className="bg-gray-50 border rounded-lg p-2 space-y-2">
+              <select value={newCodeCat} onChange={e => setNewCodeCat(e.target.value)}
+                className="w-full px-2 py-1.5 border rounded text-sm bg-white">
+                <option value="">Elegí categoría...</option>
+                {demoCategories.filter(c => !c.club_id || c.club_id === club.id).map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              <div className="grid grid-cols-2 gap-1.5">
+                <div>
+                  <label className="text-[10px] text-muted-foreground">Vence (opcional)</label>
+                  <input type="date" value={newCodeExpires} onChange={e => setNewCodeExpires(e.target.value)}
+                    className="w-full px-2 py-1 border rounded text-xs" />
+                </div>
+                <div>
+                  <label className="text-[10px] text-muted-foreground">Máx. usos</label>
+                  <input type="number" placeholder="Sin límite" value={newCodeMaxUses} onChange={e => setNewCodeMaxUses(e.target.value)}
+                    className="w-full px-2 py-1 border rounded text-xs" />
+                </div>
+              </div>
+              <div className="flex gap-1.5">
+                <button onClick={() => setShowCodeForm(false)} className="flex-1 py-1.5 rounded border text-xs">Cancelar</button>
+                <button onClick={createCode} className="flex-1 py-1.5 rounded text-white text-xs font-semibold" style={{ backgroundColor: 'var(--club-primary, #00843D)' }}>
+                  Generar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {regCodes.length === 0 && !showCodeForm && (
+            <p className="text-xs text-muted-foreground italic text-center py-2">
+              Todavía no generaste códigos para este club.
+            </p>
+          )}
+
+          {regCodes.map(c => {
+            const cat = demoCategories.find(x => x.id === c.category_id)
+            const url = `camadaclub.com.ar/inscripcion/${c.code}`
+            return (
+              <div key={c.id} className="border rounded-lg p-2 space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-mono font-bold text-sm">{c.code}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Cat. {cat?.name ?? c.category_id} ·{' '}
+                      {c.current_uses}/{c.max_uses ?? '∞'} usos
+                      {c.expires_at && ` · vence ${c.expires_at}`}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className={`text-[10px] flex-shrink-0 ${c.is_active ? 'text-green-700 border-green-300 bg-green-50' : 'text-gray-400'}`}>
+                    {c.is_active ? 'Activo' : 'Inactivo'}
+                  </Badge>
+                </div>
+                <p className="text-[10px] text-blue-600 truncate flex items-center gap-1">
+                  <Link2 size={10} /> {url}
+                </p>
+                <div className="flex gap-1.5">
+                  <button onClick={() => shareCode(c)} className="flex-1 py-1 rounded text-white text-[11px] font-semibold flex items-center justify-center gap-1" style={{ backgroundColor: '#25D366' }}>
+                    <Share2 size={10} /> WhatsApp
+                  </button>
+                  <button onClick={() => toggleCodeActive(c)} className="flex-1 py-1 rounded border text-[11px] font-semibold">
+                    {c.is_active ? 'Desactivar' : 'Activar'}
+                  </button>
+                  <button onClick={() => removeCode(c)} className="px-2 py-1 rounded border text-red-500 border-red-200">
+                    <Trash2 size={11} />
+                  </button>
                 </div>
               </div>
             )
