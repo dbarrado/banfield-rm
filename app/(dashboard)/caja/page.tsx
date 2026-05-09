@@ -6,8 +6,20 @@ import { Badge } from '@/components/ui/badge'
 import { Wallet, TrendingUp, TrendingDown, Plus, X, CreditCard } from 'lucide-react'
 import Link from 'next/link'
 import { demoCashMovements, demoCashSession, demoFinanceCategories } from '@/lib/demo-data'
+import { useCurrentClub } from '@/lib/use-current-club'
+import { hasAccess, getRequiredPlan, type Plan } from '@/lib/feature-gates'
+import { UpgradePrompt } from '@/components/upgrade-prompt'
 
 export default function CajaPage() {
+  const club = useCurrentClub()
+  const required = getRequiredPlan('/caja')
+  if (!hasAccess(club.plan as Plan, required)) {
+    return <UpgradePrompt currentPlan={club.plan as Plan} requiredPlan={required} featureName="Caja diaria" featureDescription="Gestión de caja con cobranzas, conciliación y cierre con conteo físico." />
+  }
+  return <CajaContent />
+}
+
+function CajaContent() {
   const [movements, setMovements] = useState(demoCashMovements)
   const [showAddForm, setShowAddForm] = useState(false)
   const [showCloseForm, setShowCloseForm] = useState(false)

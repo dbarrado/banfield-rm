@@ -21,7 +21,9 @@ import {
   BarChart3,
   Menu,
   X as XIcon,
+  Lock,
 } from 'lucide-react'
+import { hasAccess, getRequiredPlan, type Plan } from '@/lib/feature-gates'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'

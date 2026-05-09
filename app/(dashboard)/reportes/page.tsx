@@ -2,49 +2,22 @@
 
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { BarChart3, TrendingUp, FileSpreadsheet, FileText, Calendar, AlertTriangle, Lock, Sparkles, Users, Receipt } from 'lucide-react'
+import { BarChart3, TrendingUp, FileSpreadsheet, FileText, Calendar, AlertTriangle, Sparkles, Users, Receipt } from 'lucide-react'
 import Link from 'next/link'
 import { useCurrentClub } from '@/lib/use-current-club'
+import { hasAccess, getRequiredPlan, type Plan } from '@/lib/feature-gates'
+import { UpgradePrompt } from '@/components/upgrade-prompt'
 
 export default function ReportesPage() {
   const club = useCurrentClub()
-  const isPro = club.plan === 'pro'
-
-  if (!isPro) {
-    return (
-      <div className="p-3 md:p-6 space-y-3 pb-8">
-        <div className="flex items-center gap-2">
-          <BarChart3 size={20} className="text-muted-foreground" />
-          <h1 className="text-2xl font-bold text-muted-foreground" style={{ fontFamily: "var(--font-barlow)" }}>
-            REPORTES
-          </h1>
-        </div>
-        <Card className="border-2 border-dashed border-purple-300 bg-gradient-to-br from-purple-50 to-pink-50">
-          <CardContent className="p-5 text-center space-y-3">
-            <Lock size={28} className="mx-auto text-purple-600" />
-            <h2 className="text-lg font-bold text-purple-900" style={{ fontFamily: "var(--font-barlow)" }}>
-              Disponible en Plan Pro
-            </h2>
-            <p className="text-sm text-purple-700">
-              Reportes mensuales y anuales con exportación a Excel y PDF, comparativos contra períodos anteriores y proyecciones.
-            </p>
-            <div className="bg-white rounded-lg p-3 space-y-1.5 text-left text-xs">
-              <Bullet>Estado de resultados mensual</Bullet>
-              <Bullet>Comparativo año vs año</Bullet>
-              <Bullet>Top deudores por antigüedad</Bullet>
-              <Bullet>Recaudación por categoría</Bullet>
-              <Bullet>Asistencia consolidada</Bullet>
-              <Bullet>Exportar Excel y PDF</Bullet>
-            </div>
-            <button className="w-full py-3 rounded-xl text-white font-bold text-sm" style={{ backgroundColor: '#7c3aed' }}>
-              UPGRADE A PLAN PRO
-            </button>
-          </CardContent>
-        </Card>
-      </div>
-    )
+  const required = getRequiredPlan('/reportes')
+  if (!hasAccess(club.plan as Plan, required)) {
+    return <UpgradePrompt currentPlan={club.plan as Plan} requiredPlan={required} featureName="Reportes" featureDescription="Estado de Resultados mensual y anual, comparativos y reportes para asamblea." />
   }
+  return <ReportesContent />
+}
 
+function ReportesContent() {
   const reportes = [
     {
       href: '/reportes/mensual',
@@ -141,11 +114,3 @@ export default function ReportesPage() {
   )
 }
 
-function Bullet({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex items-start gap-1.5">
-      <span className="text-purple-600 flex-shrink-0">✓</span>
-      <span>{children}</span>
-    </div>
-  )
-}

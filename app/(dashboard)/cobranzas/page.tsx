@@ -8,6 +8,8 @@ import { useActiveRole } from '@/lib/use-role'
 import Link from 'next/link'
 import { demoPlayers, demoCategories } from '@/lib/demo-data'
 import { useCurrentClub } from '@/lib/use-current-club'
+import { hasAccess, getRequiredPlan, type Plan } from '@/lib/feature-gates'
+import { UpgradePrompt } from '@/components/upgrade-prompt'
 import {
   generateBillingsForPeriod,
   loadBillingConfig,
@@ -28,6 +30,15 @@ const FILTERS: { key: 'all' | BillingStatus; label: string }[] = [
 ]
 
 export default function CobranzasPage() {
+  const club = useCurrentClub()
+  const required = getRequiredPlan('/cobranzas')
+  if (!hasAccess(club.plan as Plan, required)) {
+    return <UpgradePrompt currentPlan={club.plan as Plan} requiredPlan={required} featureName="Cobranzas" featureDescription="Gestión de cuotas emitidas, condonación, ajuste de importes y pagos parciales." />
+  }
+  return <CobranzasContent />
+}
+
+function CobranzasContent() {
   const club = useCurrentClub()
   const today = new Date()
   const period = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`

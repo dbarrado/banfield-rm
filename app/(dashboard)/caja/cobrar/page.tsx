@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Search, Users, MessageCircle, Plus, X, Check, CreditCard, Banknote, UserPlus, Clock, Smartphone, Camera, Sparkles, Image as ImageIcon, Loader2, AlertCircle, QrCode } from 'lucide-react'
 import { getSiblings, getPlayersForClub, getCategoriesForClub } from '@/lib/demo-data'
 import { useCurrentClub } from '@/lib/use-current-club'
+import { hasAccess, getRequiredPlan, type Plan } from '@/lib/feature-gates'
+import { UpgradePrompt } from '@/components/upgrade-prompt'
 import { generateBillingsForPeriod, loadBillingConfig, getOutstandingAmount, type Billing } from '@/lib/billings'
 import dynamic from 'next/dynamic'
 const QrScanner = dynamic(() => import('@/components/qr-scanner').then(m => m.QrScanner), { ssr: false })
@@ -19,6 +21,15 @@ type Contact = { name: string; whatsapp: string; relation?: string; isPrimary?: 
 const RECENT_KEY = 'plantel_recent_cobros'
 
 export default function CobrarPage() {
+  const club = useCurrentClub()
+  const required = getRequiredPlan('/caja/cobrar')
+  if (!hasAccess(club.plan as Plan, required)) {
+    return <UpgradePrompt currentPlan={club.plan as Plan} requiredPlan={required} featureName="Cobrar cuota" featureDescription="Flujo optimizado para cobrar cuotas a familias con MP, transferencia o efectivo." />
+  }
+  return <CobrarContent />
+}
+
+function CobrarContent() {
   const club = useCurrentClub()
   const clubPlayers = useMemo(() => getPlayersForClub(club.id), [club.id])
   const clubCategories = useMemo(() => getCategoriesForClub(club.id), [club.id])

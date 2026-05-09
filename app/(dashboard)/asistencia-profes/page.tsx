@@ -7,6 +7,9 @@ import { ClipboardList, CheckCircle2, XCircle, AlertCircle, UserMinus } from 'lu
 import { demoProfes, demoCategories } from '@/lib/demo-data'
 import { demoTrainingRoster, getSlotsByDay, DAYS_OF_WEEK } from '@/lib/training-roster'
 import { TIRA_COLORS, TIRA_LABELS } from '@/types'
+import { useCurrentClub } from '@/lib/use-current-club'
+import { hasAccess, getRequiredPlan, type Plan } from '@/lib/feature-gates'
+import { UpgradePrompt } from '@/components/upgrade-prompt'
 
 type ProfeAttendance = 'present' | 'absent' | 'late' | 'replaced'
 
@@ -20,6 +23,15 @@ const STATUS_CONFIG: Record<ProfeAttendance, { label: string; color: string; ico
 const COURT_COLORS = ['#7c3aed', '#1d4ed8', '#dc2626', '#16a34a']
 
 export default function AsistenciaProfesPage() {
+  const club = useCurrentClub()
+  const required = getRequiredPlan('/asistencia-profes')
+  if (!hasAccess(club.plan as Plan, required)) {
+    return <UpgradePrompt currentPlan={club.plan as Plan} requiredPlan={required} featureName="Asistencia de profes" featureDescription="Coordinador toma asistencia a profesores para gestión de planilla." />
+  }
+  return <AsistenciaProfesContent />
+}
+
+function AsistenciaProfesContent() {
   const today = new Date()
   const [selectedDay, setSelectedDay] = useState(today.getDay() === 0 ? 6 : today.getDay())
   const [attendance, setAttendance] = useState<Record<string, ProfeAttendance>>({})
