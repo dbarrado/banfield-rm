@@ -5,28 +5,19 @@
 // Nota para producción: las fotos subidas deberían redimensionarse a ~256px de lado
 // y comprimirse antes de guardar en Supabase Storage para que los avatars carguen rápido.
 
-// Hash simple del id+nombre → número 1-70 para Pravatar (tienen 70 fotos indexadas)
-function hashToImageIndex(input: string): number {
-  let hash = 0
-  for (let i = 0; i < input.length; i++) {
-    hash = ((hash << 5) - hash + input.charCodeAt(i)) | 0
-  }
-  return (Math.abs(hash) % 70) + 1
-}
-
 export function getAvatarUrl(player: { id: string; full_name: string; photo_url?: string | null }): string {
   if (player.photo_url) return player.photo_url
-  // Pravatar — fotos reales de personas de banco gratuito, determinístico por seed
-  const idx = hashToImageIndex(player.id + player.full_name)
-  return `https://i.pravatar.cc/150?img=${idx}`
+  // DiceBear 'lorelei' — ilustración cara amigable, profesional, apropiada para chicos
+  // Estilo similar a Apple Memoji o Notion avatars. Determinístico por seed.
+  const seed = encodeURIComponent(player.id + player.full_name)
+  return `https://api.dicebear.com/7.x/lorelei/svg?seed=${seed}&backgroundColor=00843d,c9a84c,1d4ed8,7c3aed,16a34a,f59e0b,ec4899,0891b2&backgroundType=gradientLinear`
 }
 
-// Avatar para profes/tutores/adultos — fotos diferentes a las de jugadores (offset)
+// Avatar para profes/tutores/adultos — usa el mismo estilo lorelei (sirve para ambos)
 export function getAdultAvatarUrl(person: { id: string; full_name: string; photo_url?: string | null }): string {
   if (person.photo_url) return person.photo_url
-  // Usamos `?u=seed` que devuelve fotos randomizadas pero estables por seed (no del set indexado de 70)
-  const seed = encodeURIComponent(person.id + person.full_name)
-  return `https://i.pravatar.cc/150?u=${seed}`
+  const seed = encodeURIComponent('adult-' + person.id + person.full_name)
+  return `https://api.dicebear.com/7.x/lorelei/svg?seed=${seed}&backgroundColor=6b7280,4b5563,374151&backgroundType=gradientLinear`
 }
 
 // Comprime una imagen subida (data URL) a un tamaño razonable para avatar
