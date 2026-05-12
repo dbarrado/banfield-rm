@@ -266,25 +266,35 @@ function generateEvents(): Event[] {
   }
   const allTiras: ('metro'|'liga1'|'liga2'|'edefi')[] = ['metro', 'liga1', 'liga2', 'edefi']
 
-  for (let weekOffset = 1; weekOffset <= 4; weekOffset++) {
-    // Sábado del weekOffset
+  // weekOffset negativo = partidos pasados (con resultado / aptos para puntajes)
+  // weekOffset positivo = próximos partidos
+  const pastRivalesByTira: Record<string, string[]> = {
+    metro:  ['Vélez Junior', 'Boca Mini', 'River Sub', 'San Lorenzo'],
+    liga1:  ['Banfield Sur', 'Quilmes', 'Temperley', 'Talleres (RE)'],
+    liga2:  ['Liniers', 'Excursionistas', 'Comunicaciones', 'Defensores Unidos'],
+    edefi:  ['Ferro Mini', 'Argentinos Mini', 'Brown (A)', 'Atlanta'],
+  }
+
+  for (let weekOffset = -4; weekOffset <= 4; weekOffset++) {
+    if (weekOffset === 0) continue
     const matchDate = new Date(today)
-    matchDate.setDate(today.getDate() + (6 - today.getDay()) + (weekOffset - 1) * 7)
+    matchDate.setDate(today.getDate() + (6 - today.getDay()) + (weekOffset > 0 ? weekOffset - 1 : weekOffset) * 7)
     const dateStr = matchDate.toISOString().split('T')[0]
+    const isPast = weekOffset < 0
 
     for (const tira of allTiras) {
-      // Categorías que tienen esta tira
       const catsWithTira = demoCategories.filter(c => {
         const dist = distribucion[c.id]
         return dist && dist.tiras.includes(tira)
       })
       if (catsWithTira.length === 0) continue
 
-      const rival = tiraRivales[tira][weekOffset - 1]
+      const rival = isPast
+        ? pastRivalesByTira[tira][Math.abs(weekOffset) - 1]
+        : tiraRivales[tira][weekOffset - 1]
       const isHome = weekOffset % 2 === 1
       const venue = isHome ? 'Predio Banfield Ramos Mejía' : `Cancha de ${rival}`
 
-      // Una hora distinta por categoría dentro del mismo día
       const horarios = ['09:00','09:45','10:30','11:15','12:00','12:45','13:30','14:15','15:00']
       catsWithTira.forEach((cat, idx) => {
         events.push({
@@ -1250,3 +1260,145 @@ export function getPlayersForClub(clubId?: string): Player[] {
 }
 
 export { thisMonth, lastMonth }
+
+// ──────────────────────────────────────────────────────────────────────────
+// PUNTAJES DE PARTIDOS — evaluación deportiva post-partido
+// CONFIDENCIAL: visible sólo para profes/admin/coordinador. NUNCA para padres.
+// Los registros son inmutables una vez guardados (auditoría).
+// ──────────────────────────────────────────────────────────────────────────
+export type MatchRating = {
+  id: string
+  event_id: string
+  player_id: string
+  score: number              // 1-10
+  observation: string        // comentario opcional del profe
+  rated_by_profe_id: string
+  created_at: string
+}
+
+const POSITIVE_COMMENTS = [
+  'Gran partido, muy aplicado en defensa.',
+  'Lideró el medio campo, distribución muy precisa.',
+  'Goleador del día. Definición notable.',
+  'Cobertura excelente, recuperó muchas pelotas.',
+  'Atajada decisiva en el segundo tiempo.',
+  'Mucha actitud, levantó al equipo cuando estaba abajo.',
+  'Probó de afuera y la metió. Confianza ganada.',
+  'Marcó al delantero rival sin dejarlo respirar.',
+  'Pivote del ataque, generó casi todas las situaciones.',
+  'Sólido atrás, no falló un cruce.',
+]
+const NEUTRAL_COMMENTS = [
+  'Cumplió, pero le faltó participación en ataque.',
+  'Bien posicionado, jugó simple.',
+  'Partido correcto, sin sobresaltos.',
+  'Le costó arrancar pero mejoró en el complemento.',
+]
+const NEGATIVE_COMMENTS = [
+  'Llegó cansado, perdió pelotas claves.',
+  'Discutió mucho con el árbitro. Hablar a la semana.',
+  'No siguió las indicaciones tácticas.',
+  'Tuvo una amarilla evitable. Falta foco.',
+  'Se mostró desconectado del juego.',
+]
+
+function generateRatings(): MatchRating[] {
+  const ratings: MatchRating[] = []
+  let rId = 1
+  const profeIds = demoProfes.filter(p => p.is_active).map(p => p.id)
+  const pastMatches = demoEvents.filter(e => e.event_type === 'match' && new Date(e.scheduled_at) < new Date('2026-05-12'))
+
+  for (const match of pastMatches) {
+    const playersOfCat = demoPlayers.filter(p => p.category_id === match.category_id && p.is_active)
+    // Tomar ~14 jugadores "convocados" (titulares + suplentes típicos)
+    const convocados = playersOfCat.slice(0, 14)
+    // Profe que puntúa = el profe asignado a esa categoría (o el primero como fallback)
+    const profe = demoProfeAssignments.find(a => a.category_id === match.category_id)?.profe_id ?? profeIds[0]
+
+    for (const player of convocados) {
+      // 85% chance de tener score (algunos jugadores no se puntúan)
+      if (rand() < 0.15) continue
+      // Distribución sesgada: la mayoría 5-8, algunos extremos
+      const r = rand()
+      const score = r < 0.10 ? Math.floor(rand() * 3) + 2      // 2-4 (10% malos)
+                  : r < 0.55 ? Math.floor(rand() * 2) + 5      // 5-6 (45% medio-bajo)
+                  : r < 0.90 ? Math.floor(rand() * 2) + 7      // 7-8 (35% buenos)
+                  :            Math.floor(rand() * 2) + 9      // 9-10 (10% destacados)
+      // Comentario sólo en ~40% de los casos
+      const hasComment = rand() < 0.40
+      let observation = ''
+      if (hasComment) {
+        if (score >= 7) observation = pick(POSITIVE_COMMENTS)
+        else if (score >= 5) observation = pick(NEUTRAL_COMMENTS)
+        else observation = pick(NEGATIVE_COMMENTS)
+      }
+      ratings.push({
+        id: `rating-${rId++}`,
+        event_id: match.id,
+        player_id: player.id,
+        score,
+        observation,
+        rated_by_profe_id: profe,
+        created_at: match.scheduled_at,
+      })
+    }
+  }
+  return ratings
+}
+
+export const demoMatchRatings: MatchRating[] = generateRatings()
+
+export function getRatingsForPlayer(playerId: string): MatchRating[] {
+  return demoMatchRatings
+    .filter(r => r.player_id === playerId)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+}
+
+export function getRatingsForEvent(eventId: string): MatchRating[] {
+  return demoMatchRatings.filter(r => r.event_id === eventId)
+}
+
+export function getPlayerRatingStats(playerId: string): {
+  count: number
+  avg: number
+  max: number
+  min: number
+  lastFiveAvg: number
+} {
+  const ratings = getRatingsForPlayer(playerId)
+  if (ratings.length === 0) return { count: 0, avg: 0, max: 0, min: 0, lastFiveAvg: 0 }
+  const scores = ratings.map(r => r.score)
+  const avg = scores.reduce((s, v) => s + v, 0) / scores.length
+  const lastFive = scores.slice(0, 5)
+  const lastFiveAvg = lastFive.reduce((s, v) => s + v, 0) / lastFive.length
+  return {
+    count: ratings.length,
+    avg: Math.round(avg * 10) / 10,
+    max: Math.max(...scores),
+    min: Math.min(...scores),
+    lastFiveAvg: Math.round(lastFiveAvg * 10) / 10,
+  }
+}
+
+export function saveMatchRatings(eventId: string, profeId: string, scores: Record<string, number>, observations: Record<string, string>): void {
+  // En demo: mutamos el array. En prod: insert/upsert a Supabase.
+  const now = new Date().toISOString()
+  for (const [playerId, score] of Object.entries(scores)) {
+    if (score < 1 || score > 10) continue
+    // Reemplaza rating previo del mismo profe sobre el mismo player en el mismo evento (idempotente)
+    const existingIdx = demoMatchRatings.findIndex(r =>
+      r.event_id === eventId && r.player_id === playerId && r.rated_by_profe_id === profeId
+    )
+    const rating: MatchRating = {
+      id: existingIdx >= 0 ? demoMatchRatings[existingIdx].id : `rating-live-${Date.now()}-${playerId}`,
+      event_id: eventId,
+      player_id: playerId,
+      score,
+      observation: observations[playerId] ?? '',
+      rated_by_profe_id: profeId,
+      created_at: existingIdx >= 0 ? demoMatchRatings[existingIdx].created_at : now,
+    }
+    if (existingIdx >= 0) demoMatchRatings[existingIdx] = rating
+    else demoMatchRatings.push(rating)
+  }
+}

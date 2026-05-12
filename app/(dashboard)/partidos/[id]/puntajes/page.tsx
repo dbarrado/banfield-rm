@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Trophy, Star, Save } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { demoEvents, demoPlayers, demoCategories } from '@/lib/demo-data'
+import { demoEvents, demoPlayers, demoCategories, getRatingsForEvent, saveMatchRatings, demoProfes } from '@/lib/demo-data'
 import { POSITION_LABELS, POSITION_COLORS } from '@/types'
 import { getTiraLabel, getTiraColor } from '@/lib/tiras'
 import type { SportCode } from '@/lib/sports'
@@ -28,8 +28,15 @@ export default function PuntajesPartidoPage({ params }: { params: Promise<{ id: 
     return b.id.localeCompare(a.id)
   })
 
-  const [scores, setScores] = useState<Record<string, number>>({})
-  const [observations, setObservations] = useState<Record<string, string>>({})
+  // Precargar ratings existentes (si ya se puntuó este partido antes)
+  const existingRatings = getRatingsForEvent(event!.id)
+  const [scores, setScores] = useState<Record<string, number>>(() =>
+    Object.fromEntries(existingRatings.map(r => [r.player_id, r.score]))
+  )
+  const [observations, setObservations] = useState<Record<string, string>>(() =>
+    Object.fromEntries(existingRatings.filter(r => r.observation).map(r => [r.player_id, r.observation]))
+  )
+  const [savedAt, setSavedAt] = useState<string | null>(null)
 
   function setScore(playerId: string, score: number) {
     setScores(prev => ({ ...prev, [playerId]: score }))
@@ -152,10 +159,24 @@ export default function PuntajesPartidoPage({ params }: { params: Promise<{ id: 
           <button
             className="w-full py-3 rounded-xl text-white font-bold text-sm shadow-lg flex items-center justify-center gap-2"
             style={{ backgroundColor: '#00843D' }}
-            onClick={() => alert(`✅ Puntajes guardados (demo)\n\n${ratedCount} jugadores puntuados\nPromedio: ${avg.toFixed(1)}/10`)}
+            onClick={() => {
+              // En demo: profe = primer profe activo. En prod: tomar del usuario logueado.
+              const profe = demoProfes.find(p => p.is_active)?.id ?? 'profe-demo'
+              const validScores = Object.fromEntries(
+                Object.entries(scores).filter(([_, v]) => v >= 1 && v <= 10)
+              )
+              saveMatchRatings(event!.id, profe, validScores, observations)
+              const now = new Date().toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+              setSavedAt(now)
+            }}
           >
             <Save size={16} /> GUARDAR PUNTAJES ({ratedCount}/{convocados.length})
           </button>
+          {savedAt && (
+            <p className="text-[11px] text-center text-green-700 font-semibold mt-2">
+              ✓ Guardado · {savedAt} · Visible en Reportes &gt; Rendimiento deportivo y en la ficha de cada jugador.
+            </p>
+          )}
           {ratedCount === 0 && (
             <p className="text-[10px] text-center text-muted-foreground mt-2">
               Podés guardar sin puntuar a todos. Se considera opcional salvo que admin lo marque obligatorio.

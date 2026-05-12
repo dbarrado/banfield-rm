@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Trophy, CheckCircle2, MessageCircle, Lock, List, LayoutGrid, ExternalLink } from 'lucide-react'
+import { Trophy, CheckCircle2, MessageCircle, Lock, List, LayoutGrid, ExternalLink, Unlock } from 'lucide-react'
 import Link from 'next/link'
 import { demoPlayers, demoCategories, demoEvents, getAttendanceStats, getMatchAttendanceStats, demoEligibilityConfig, demoProfes, getAssignmentsForProfe } from '@/lib/demo-data'
 import { getAvatarUrl } from '@/lib/avatars'
@@ -16,6 +16,7 @@ export default function ConvocatoriaPage() {
   const [selectedProfe, setSelectedProfe] = useState<string>('')
   const [selectedCategory, setSelectedCategory] = useState(demoCategories[0].id)
   const [selectedTira, setSelectedTira] = useState<Tira | null>(null)
+  const [convocarDeOtra, setConvocarDeOtra] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState(demoEvents.filter(e => e.event_type === 'match')[0]?.id ?? '')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   // Flujo guardar → enviar: primero guardar localmente, después enviar por WhatsApp
@@ -39,18 +40,26 @@ export default function ConvocatoriaPage() {
     : (activeCategories[0]?.id ?? selectedCategory)
 
   const matches = demoEvents.filter(e => e.event_type === 'match' && e.category_id === effectiveCategory)
-  const tirasInCategory = ALL_TIRAS.filter(t => {
-    const hasPlayers = demoPlayers.some(p => p.category_id === effectiveCategory && p.tira === t)
-    if (!hasPlayers) return false
-    if (!selectedProfe) return true
-    return profeAssignments.some(a => a.category_id === effectiveCategory && a.tira === t)
-  })
-
-  const players = demoPlayers.filter(p =>
-    p.category_id === effectiveCategory &&
-    p.is_active &&
-    (selectedTira ? p.tira === selectedTira : true)
+  // Tiras de la categoría que efectivamente tienen jugadores
+  const tirasInCategoryAll = ALL_TIRAS.filter(t =>
+    demoPlayers.some(p => p.category_id === effectiveCategory && p.tira === t)
   )
+  // Tiras asignadas al profe (si hay profe seleccionado)
+  const tirasAsignadas = selectedProfe
+    ? tirasInCategoryAll.filter(t => profeAssignments.some(a => a.category_id === effectiveCategory && a.tira === t))
+    : tirasInCategoryAll
+  // Tiras visibles según toggle: por defecto solo las del profe; si activa "convocar de otra", todas
+  const tirasInCategory = selectedProfe && !convocarDeOtra ? tirasAsignadas : tirasInCategoryAll
+  const hayOtrasTiras = selectedProfe && tirasInCategoryAll.length > tirasAsignadas.length
+
+  // Tira obligatoria: si no hay una seleccionada (o la actual no está disponible), elegir la primera
+  const effectiveTira: Tira | null = selectedTira && tirasInCategory.includes(selectedTira)
+    ? selectedTira
+    : (tirasInCategory[0] ?? null)
+
+  const players = effectiveTira
+    ? demoPlayers.filter(p => p.category_id === effectiveCategory && p.is_active && p.tira === effectiveTira)
+    : []
 
   const playersWithStats = players.map(p => {
     const practiceStats = getAttendanceStats(p.id, selectedCategory)
@@ -109,7 +118,7 @@ export default function ConvocatoriaPage() {
       (a, b) => POSITIONS.indexOf(a.primary_position) - POSITIONS.indexOf(b.primary_position)
     )
     const lista = ordered.map((p, i) => `${i + 1}. ${p.full_name} (${POSITION_LABELS[p.primary_position]})`).join('\n')
-    const tiraInfo = selectedTira ? ` — ${TIRA_LABELS[selectedTira]}` : ''
+    const tiraInfo = effectiveTira ? ` — ${TIRA_LABELS[effectiveTira]}` : ''
     const msg = `⚽ CONVOCATORIA — ${cat?.name ?? ''}${tiraInfo}\n📅 ${date} — ${time}\n📍 ${event?.venue ?? 'A confirmar'}\n\nJugadores convocados (${selectedPlayers.length}):\n${lista}\n\nPresentarse 30 min antes.\n¡Vamos Banfield! 💚`
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
   }
@@ -132,7 +141,7 @@ export default function ConvocatoriaPage() {
       <div className="space-y-2">
         <select
           value={selectedProfe}
-          onChange={e => { setSelectedProfe(e.target.value); setSelected(new Set()); setSelectedTira(null); }}
+          onChange={e => { setSelectedProfe(e.target.value); setSelected(new Set()); setSelectedTira(null); setConvocarDeOtra(false); }}
           className="w-full px-3 py-2 rounded-lg border text-sm font-medium bg-white"
         >
           <option value="">Todos los profes (admin)</option>
@@ -163,29 +172,35 @@ export default function ConvocatoriaPage() {
           ))}
         </select>
 
-        {/* Filtro por tira */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-3 px-3">
-          <button
-            onClick={() => { setSelectedTira(null); setSelected(new Set()); }}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${
-              selectedTira === null ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'
-            }`}
-            style={selectedTira === null ? { backgroundColor: '#00843D' } : {}}
-          >
-            Todas
-          </button>
-          {tirasInCategory.map(tira => (
-            <button
-              key={tira}
-              onClick={() => { setSelectedTira(tira); setSelected(new Set()); }}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${
-                selectedTira === tira ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'
-              }`}
-              style={selectedTira === tira ? { backgroundColor: TIRA_COLORS[tira] } : {}}
-            >
-              {TIRA_LABELS[tira]}
-            </button>
-          ))}
+        {/* Filtro por tira — obligatorio, no se pueden mezclar */}
+        <div>
+          <p className="text-[10px] uppercase font-bold text-gray-500 mb-1 tracking-wider">Tira (obligatoria)</p>
+          <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-3 px-3">
+            {tirasInCategory.map(tira => (
+              <button
+                key={tira}
+                onClick={() => { setSelectedTira(tira); setSelected(new Set()); }}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${
+                  effectiveTira === tira ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'
+                }`}
+                style={effectiveTira === tira ? { backgroundColor: TIRA_COLORS[tira] } : {}}
+              >
+                {TIRA_LABELS[tira]}
+              </button>
+            ))}
+          </div>
+          {hayOtrasTiras && (
+            <label className="flex items-center gap-2 mt-1.5 text-[11px] text-gray-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={convocarDeOtra}
+                onChange={e => { setConvocarDeOtra(e.target.checked); setSelectedTira(null); setSelected(new Set()); }}
+                className="accent-[#00843D]"
+              />
+              <Unlock size={12} />
+              Convocar de otra tira (fuera de mis asignaciones)
+            </label>
+          )}
         </div>
       </div>
 
@@ -320,7 +335,7 @@ export default function ConvocatoriaPage() {
 
       {/* Vista de cancha */}
       {view === 'pitch' && selected.size > 0 && (
-        <div className="relative w-full overflow-hidden rounded-xl shadow-lg" style={{ aspectRatio: '2/3' }}>
+        <div className="relative overflow-hidden rounded-xl shadow-lg mx-auto box-border" style={{ aspectRatio: '2/3', width: 'min(100%, calc(100vw - 32px))', maxWidth: 480 }}>
           {/* Cancha de fútbol */}
           <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, #16a34a 0%, #15803d 100%)' }}>
             {/* Líneas */}

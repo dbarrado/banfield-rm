@@ -2,7 +2,7 @@
 
 import { use, useMemo, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
-import { ArrowLeft, Trophy, MapPin, Calendar, ClipboardList, Star, Edit2, ArrowUpDown, AlertTriangle, Ban, MessageSquare, X, UserPlus, Search, Move } from 'lucide-react'
+import { ArrowLeft, Trophy, MapPin, Calendar, ClipboardList, Star, Edit2, ArrowUpDown, AlertTriangle, Ban, MessageSquare, X, UserPlus, Search, Move, ChevronDown, ChevronUp } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { demoEvents, getPlayersForClub, getCategoriesForClub } from '@/lib/demo-data'
@@ -74,6 +74,7 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
   const initialMatchCfg = useMemo(() => getMatchConfig(eventClubId, sportCode), [eventClubId, sportCode])
   const [matchCfg, setMatchCfg] = useState<MatchConfig>(initialMatchCfg)
   const [showCfgEditor, setShowCfgEditor] = useState(false)
+  const [showAllFormations, setShowAllFormations] = useState(false)
   const maxSubs = matchCfg.suplentes
   const initialSuplentes = allOfCat.filter(p => !initialTitulares.includes(p)).slice(0, maxSubs)
 
@@ -254,7 +255,7 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
   }
 
   return (
-    <div className="pb-4">
+    <div className="pb-4 overflow-x-hidden">
       <div className="text-white p-4 pb-6" style={{ background: 'linear-gradient(135deg, #00843D 0%, #005a2a 100%)' }}>
         <Link href="/fixture" className="text-white/80 text-xs flex items-center gap-1 mb-2">
           <ArrowLeft size={12} /> Fixture
@@ -329,24 +330,36 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
           </button>
         </div>
 
-        {/* Selector de formación táctica */}
+        {/* Selector de formación táctica — colapsado, sólo muestra la actual + botón para abrir */}
         {formations.length > 1 && (
-          <div className="flex gap-1 overflow-x-auto pb-1 -mx-3 px-3">
-            <span className="text-[10px] font-bold uppercase text-muted-foreground self-center mr-1 flex-shrink-0">Sistema:</span>
-            {formations.map(f => {
-              const sel = currentFormation.code === f.code
-              return (
-                <button
-                  key={f.code}
-                  onClick={() => applyFormation(f)}
-                  title={f.description}
-                  className={`px-2.5 py-1 rounded-full text-xs font-bold border-2 whitespace-nowrap transition-colors ${sel ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`}
-                  style={sel ? { backgroundColor: 'var(--club-primary, #00843D)' } : {}}
-                >
-                  {f.code}
-                </button>
-              )
-            })}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] font-bold uppercase text-muted-foreground flex-shrink-0">Sistema:</span>
+            <button
+              onClick={() => setShowAllFormations(!showAllFormations)}
+              className="px-2.5 py-1 rounded-full text-xs font-bold text-white inline-flex items-center gap-1"
+              style={{ backgroundColor: 'var(--club-primary, #00843D)' }}
+              title={currentFormation.description}
+            >
+              {currentFormation.code}
+              {showAllFormations ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            </button>
+            {!showAllFormations && (
+              <span className="text-[10px] text-muted-foreground">{currentFormation.description}</span>
+            )}
+            {showAllFormations && (
+              <div className="basis-full flex flex-wrap gap-1 mt-1">
+                {formations.filter(f => f.code !== currentFormation.code).map(f => (
+                  <button
+                    key={f.code}
+                    onClick={() => { applyFormation(f); setShowAllFormations(false) }}
+                    title={f.description}
+                    className="px-2.5 py-1 rounded-full text-xs font-bold border-2 border-gray-200 text-gray-600 hover:bg-gray-50"
+                  >
+                    {f.code}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -394,7 +407,7 @@ export default function PartidoPage({ params }: { params: Promise<{ id: string }
           <Move size={10} /> Arrastrá un jugador para cambiar posición o intercambiar con suplente
         </p>
 
-        <div className="relative w-full overflow-hidden rounded-xl shadow-lg" style={{ aspectRatio: '2/3', maxWidth: 480, margin: '0 auto' }}>
+        <div className="relative overflow-hidden rounded-xl shadow-lg mx-auto box-border" style={{ aspectRatio: '2/3', width: 'min(100%, calc(100vw - 32px))', maxWidth: 480 }}>
           {/* Background de la cancha — pointer-events: none para que los clicks pasen a los jugadores */}
           <div className="absolute inset-0 pointer-events-none" style={(() => {
             // Background por deporte

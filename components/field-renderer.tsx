@@ -25,7 +25,7 @@ export function FieldRenderer({
   const isBasketball = sportCode === 'basketball'
 
   return (
-    <div className="relative w-full overflow-hidden rounded-xl shadow-lg" style={{ aspectRatio: format.field_aspect_ratio, maxWidth: 480, margin: '0 auto' }}>
+    <div className="relative overflow-hidden rounded-xl shadow-lg mx-auto box-border" style={{ aspectRatio: format.field_aspect_ratio, width: 'min(100%, calc(100vw - 32px))', maxWidth: 480 }}>
       {/* Cancha */}
       <FieldBackground sportCode={sportCode} />
 

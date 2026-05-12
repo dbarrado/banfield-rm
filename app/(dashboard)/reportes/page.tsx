@@ -2,11 +2,12 @@
 
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { BarChart3, TrendingUp, FileSpreadsheet, FileText, Calendar, AlertTriangle, Sparkles, Users, Receipt } from 'lucide-react'
+import { BarChart3, TrendingUp, FileSpreadsheet, FileText, Calendar, AlertTriangle, Sparkles, Users, Receipt, Star } from 'lucide-react'
 import Link from 'next/link'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { hasAccess, getRequiredPlan, type Plan } from '@/lib/feature-gates'
 import { UpgradePrompt } from '@/components/upgrade-prompt'
+import { useActiveRole } from '@/lib/use-role'
 
 export default function ReportesPage() {
   const club = useCurrentClub()
@@ -18,6 +19,8 @@ export default function ReportesPage() {
 }
 
 function ReportesContent() {
+  const [activeRole] = useActiveRole()
+  const canSeeDeportivo = activeRole !== 'tesorero'
   const reportes = [
     {
       href: '/reportes/mensual',
@@ -33,6 +36,14 @@ function ReportesContent() {
       title: 'Estado de resultados',
       description: 'Ingresos vs egresos por categoría jerárquica',
       color: '#1d4ed8',
+    },
+    {
+      href: '/reportes/rendimiento-deportivo',
+      icon: Star,
+      title: 'Rendimiento deportivo',
+      description: 'Puntajes y comentarios por jugador · uso interno cuerpo técnico',
+      color: '#1d4ed8',
+      featured: true,
     },
     {
       href: '#',
@@ -91,7 +102,7 @@ function ReportesContent() {
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-        {reportes.map(r => {
+        {reportes.filter(r => canSeeDeportivo || r.href !== '/reportes/rendimiento-deportivo').map(r => {
           const Icon = r.icon
           return (
             <Link key={r.title} href={r.href}>

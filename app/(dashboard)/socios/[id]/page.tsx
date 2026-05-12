@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, MessageCircle, Camera, Plus, Trophy, AlertCircle, Star, Award, FileCheck, FileWarning, Upload, Mail, Edit2, X, Check, QrCode, Users as UsersIcon, Shield } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { demoPlayers, demoCategories, demoPayments, demoEvents, demoAttendance, getDetailedAttendanceStats, thisMonth, getSiblings, getSiblingDiscount, demoSiblingDiscountConfig } from '@/lib/demo-data'
+import { demoPlayers, demoCategories, demoPayments, demoEvents, demoAttendance, getDetailedAttendanceStats, thisMonth, getSiblings, getSiblingDiscount, demoSiblingDiscountConfig, getRatingsForPlayer, getPlayerRatingStats, demoProfes } from '@/lib/demo-data'
+import { useActiveRole } from '@/lib/use-role'
 import { POSITION_LABELS, POSITION_COLORS, type Position } from '@/types'
 import { getAvatarUrl } from '@/lib/avatars'
 import { getTiraLabel, getTiraColor } from '@/lib/tiras'
@@ -48,6 +49,12 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
 
   const player = initialPlayer!
   const cat = demoCategories.find(c => c.id === player.category_id)
+
+  // ROL ACTIVO: tesorero NO ve evaluación deportiva (no es su área). Padres tampoco — el padre vive en /padres/, fuera de este shell.
+  const [activeRole] = useActiveRole()
+  const canSeeRatings = activeRole === 'admin' || activeRole === 'profe' || activeRole === 'coordinador'
+  const ratingHistory = canSeeRatings ? getRatingsForPlayer(player.id) : []
+  const ratingStats = canSeeRatings ? getPlayerRatingStats(player.id) : null
   const playerSportCode = (cat?.sport_format_code ?? 'football_11') as SportCode
   const tiraLabel = getTiraLabel(player.tira, playerSportCode)
   const tiraColor = getTiraColor(player.tira, playerSportCode)
@@ -560,6 +567,72 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
             <p className="text-sm text-muted-foreground">Sin observaciones registradas.</p>
           </CardContent>
         </Card>
+
+        {/* Evaluación deportiva — SÓLO visible para profe/admin/coordinador. Tesoreros y padres NO acceden. */}
+        {canSeeRatings && ratingStats && ratingStats.count > 0 && (
+          <Card className="border-0 shadow-sm" style={{ borderLeft: '4px solid #1d4ed8' }}>
+            <CardContent className="p-3">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5" style={{ fontFamily: "var(--font-barlow)" }}>
+                  <Star size={12} style={{ color: '#1d4ed8' }} /> EVALUACIÓN DEPORTIVA
+                </p>
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-bold uppercase border border-blue-200">
+                  🔒 Privado · solo cuerpo técnico
+                </span>
+              </div>
+              <div className="grid grid-cols-4 gap-2 mb-3">
+                <div className="text-center">
+                  <p className="text-[10px] uppercase font-semibold text-muted-foreground">Partidos</p>
+                  <p className="text-xl font-bold" style={{ fontFamily: "var(--font-barlow)" }}>{ratingStats.count}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] uppercase font-semibold text-muted-foreground">Promedio</p>
+                  <p className="text-xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: '#1d4ed8' }}>{ratingStats.avg}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] uppercase font-semibold text-muted-foreground">Últimos 5</p>
+                  <p className="text-xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: ratingStats.lastFiveAvg >= ratingStats.avg ? '#00843D' : '#F59E0B' }}>{ratingStats.lastFiveAvg}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] uppercase font-semibold text-muted-foreground">Rango</p>
+                  <p className="text-sm font-bold" style={{ fontFamily: "var(--font-barlow)" }}>{ratingStats.min}–{ratingStats.max}</p>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                {ratingHistory.slice(0, 6).map(r => {
+                  const ev = demoEvents.find(e => e.id === r.event_id)
+                  const profe = demoProfes.find(p => p.id === r.rated_by_profe_id)
+                  const date = ev ? new Date(ev.scheduled_at) : new Date(r.created_at)
+                  const scoreColor = r.score >= 8 ? '#00843D' : r.score >= 6 ? '#1d4ed8' : r.score >= 4 ? '#F59E0B' : '#DC2626'
+                  return (
+                    <div key={r.id} className="border-b last:border-0 pb-1.5 last:pb-0">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-md flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style={{ backgroundColor: scoreColor }}>
+                          {r.score}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold truncate">vs. {ev?.rival ?? 'Partido'}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {date.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: '2-digit' })}
+                            {profe && <> · {profe.full_name}</>}
+                          </p>
+                        </div>
+                      </div>
+                      {r.observation && (
+                        <p className="text-[11px] text-gray-700 italic mt-1 pl-10">"{r.observation}"</p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+              {ratingHistory.length > 6 && (
+                <p className="text-[10px] text-muted-foreground text-center mt-2">
+                  Mostrando últimas 6 de {ratingHistory.length} evaluaciones
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Historial de convocatorias */}
         <Card className="border-0 shadow-sm">

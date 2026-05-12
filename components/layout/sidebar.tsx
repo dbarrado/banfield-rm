@@ -54,6 +54,8 @@ const allItems: NavItem[] = [
   { href: '/inscripciones', icon: UserPlus, label: 'Inscripciones' },
   { href: '/invitar', icon: Gift, label: 'Invitar' },
   { href: '/config', icon: Settings, label: 'Config' },
+  { href: '/config/cronograma', icon: Calendar, label: 'Cronograma' },
+  { href: '/config/profes', icon: Users, label: 'Profes' },
 ]
 
 export function Sidebar() {

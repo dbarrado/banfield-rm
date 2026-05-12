@@ -67,16 +67,17 @@ export function getRoleNavItems(role: ActiveRole, dayOfWeek: number): { primary:
   }
   if (role === 'coordinador') {
     // Coordinador prioriza lo deportivo pero también ve tesorería + toma asistencia de profes
+    // Tiene acceso al cronograma de canchas y a la gestión de profes (sub-páginas de config)
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
     if (isWeekend) {
       return {
         primary: ['/dashboard', '/partidos', '/asistencia-profes', '/asistencia'],
-        secondary: ['/convocatoria', '/fixture', '/socios', '/inscripciones', '/finanzas', '/reportes', '/caja'],
+        secondary: ['/convocatoria', '/fixture', '/socios', '/inscripciones', '/config/cronograma', '/config/profes', '/finanzas', '/reportes', '/caja'],
       }
     }
     return {
       primary: ['/dashboard', '/asistencia-profes', '/asistencia', '/convocatoria'],
-      secondary: ['/fixture', '/partidos', '/socios', '/inscripciones', '/finanzas', '/reportes', '/caja'],
+      secondary: ['/fixture', '/partidos', '/socios', '/inscripciones', '/config/cronograma', '/config/profes', '/finanzas', '/reportes', '/caja'],
     }
   }
   // Profe — adapta según día
