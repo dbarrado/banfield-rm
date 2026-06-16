@@ -8,6 +8,8 @@ import { demoProfes, demoCategories } from '@/lib/demo-data'
 import { demoTrainingRoster, getSlotsByDay, DAYS_OF_WEEK } from '@/lib/training-roster'
 import { TIRA_COLORS, TIRA_LABELS } from '@/types'
 import { useCurrentClub } from '@/lib/use-current-club'
+import { isRealClub } from '@/lib/real-clubs'
+import { persistProfeAttendance } from '@/lib/data/ops-store'
 import { hasAccess, getRequiredPlan, type Plan } from '@/lib/feature-gates'
 import { UpgradePrompt } from '@/components/upgrade-prompt'
 
@@ -32,6 +34,7 @@ export default function AsistenciaProfesPage() {
 }
 
 function AsistenciaProfesContent() {
+  const club = useCurrentClub()
   const today = new Date()
   const [selectedDay, setSelectedDay] = useState(today.getDay() === 0 ? 6 : today.getDay())
   const [attendance, setAttendance] = useState<Record<string, ProfeAttendance>>({})
@@ -225,7 +228,21 @@ function AsistenciaProfesContent() {
         <button
           className="w-full py-3 rounded-xl text-white font-bold text-sm shadow-sm sticky bottom-20 md:bottom-4"
           style={{ backgroundColor: 'var(--club-primary, #00843D)' }}
-          onClick={() => alert(`✅ Asistencia de profes guardada (demo)\n\n${counts.present} vinieron · ${counts.late} tarde · ${counts.replaced} reemplazos · ${counts.absent} faltaron`)}
+          onClick={() => {
+            if (isRealClub(club.id)) {
+              const dateStr = new Date().toISOString().slice(0, 10)
+              const records = slotsToday
+                .filter(s => attendance[s.id] && s.profe_titular_id)
+                .map(s => ({
+                  profeId: s.profe_titular_id as string,
+                  status: attendance[s.id],
+                  replacedById: replacedBy[s.id] ?? null,
+                  slotId: s.id,
+                }))
+              if (records.length) persistProfeAttendance(club.id, { date: dateStr, records }).then(r => { if (!r.ok) console.error('profe-att:', r.error) })
+            }
+            alert(`✅ Asistencia de profes guardada\n\n${counts.present} vinieron · ${counts.late} tarde · ${counts.replaced} reemplazos · ${counts.absent} faltaron`)
+          }}
         >
           GUARDAR ASISTENCIA DE PROFES
         </button>

@@ -9,6 +9,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import Image from 'next/image'
+import { createClient } from '@/lib/supabase/client'
+
+const CURRENT_CLUB_KEY = 'banfieldrm_current_club_id'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -19,7 +22,21 @@ export default function LoginPage() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-    // Demo: cualquier credencial es válida
+
+    // 1) Intentar autenticación REAL contra Supabase (club en producción).
+    //    Si es válida → sesión real, los datos del club quedan habilitados por RLS.
+    const supabase = createClient()
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (!error && data.session) {
+      localStorage.setItem(CURRENT_CLUB_KEY, 'club-banfield-rm') // club real
+      document.cookie = `demo_auth=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`
+      router.push('/dashboard')
+      router.refresh()
+      return
+    }
+
+    // 2) Fallback DEMO: para mostrar el producto con clubes ficticios.
+    //    No expone datos reales: sin sesión Supabase, RLS bloquea todo lo del club real.
     document.cookie = `demo_auth=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`
     router.push('/dashboard')
     router.refresh()
@@ -77,7 +94,7 @@ export default function LoginPage() {
               />
             </div>
             <p className="text-xs text-center text-muted-foreground">
-              Modo demo · Ingresá con cualquier credencial
+              Club real: usá tu usuario y contraseña · Demo: cualquier credencial
             </p>
             <Button
               type="submit"

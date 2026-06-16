@@ -12,6 +12,8 @@ import type { SportCode } from '@/lib/sports'
 import { getSessionsForDay, TIRA_GROUPS, tiraGroupOf } from '@/lib/training-schedule'
 import { getActiveSlotForNow, getNextSlotForDay, type TrainingSlot } from '@/lib/training-roster'
 import { getAvatarUrl } from '@/lib/avatars'
+import { isRealClub } from '@/lib/real-clubs'
+import { persistAttendanceClose } from '@/lib/data/attendance-store'
 
 type AttendanceStatus = 'unmarked' | 'present' | 'late' | 'absent_unjustified' | 'absent_justified'
 
@@ -583,6 +585,21 @@ export default function AsistenciaPage() {
                 }
                 const profeName = selectedProfe ? demoProfes.find(p => p.id === selectedProfe)?.full_name ?? 'Diego Barrado' : 'Diego Barrado'
                 const now = new Date().toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+
+                // PRODUCCIÓN: persistir la asistencia en Supabase (club real)
+                if (isRealClub(club.id)) {
+                  const records = players.map(pl => ({
+                    playerId: pl.id,
+                    status: (attendance[pl.id] ?? 'absent_unjustified') as string,
+                  }))
+                  persistAttendanceClose(club.id, {
+                    categoryId: players.length > 0 ? (players[0].category_id ?? null) : null,
+                    scheduledAt: new Date().toISOString(),
+                    records,
+                    profeName,
+                  }).then(res => { if (!res.ok) console.error('No se pudo persistir la asistencia:', res.error) })
+                }
+
                 setLog([...log, { action: log.length === 0 ? 'close' : 'close', user: profeName, at: now }])
                 setClosed(true)
               }}

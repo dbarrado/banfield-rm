@@ -7,12 +7,16 @@ import { Trophy, CheckCircle2, MessageCircle, Lock, List, LayoutGrid, ExternalLi
 import Link from 'next/link'
 import { demoPlayers, demoCategories, demoEvents, getAttendanceStats, getMatchAttendanceStats, demoEligibilityConfig, demoProfes, getAssignmentsForProfe } from '@/lib/demo-data'
 import { getAvatarUrl } from '@/lib/avatars'
+import { useCurrentClub } from '@/lib/use-current-club'
+import { isRealClub } from '@/lib/real-clubs'
+import { persistConvocation } from '@/lib/data/ops-store'
 import { POSITION_LABELS, POSITION_COLORS, TIRA_LABELS, TIRA_COLORS, type Position, type Tira } from '@/types'
 
 const POSITIONS: Position[] = ['arquero', 'defensor', 'mediocampista', 'delantero']
 const ALL_TIRAS: Tira[] = ['metro', 'liga1', 'liga2', 'edefi']
 
 export default function ConvocatoriaPage() {
+  const club = useCurrentClub()
   const [selectedProfe, setSelectedProfe] = useState<string>('')
   const [selectedCategory, setSelectedCategory] = useState(demoCategories[0].id)
   const [selectedTira, setSelectedTira] = useState<Tira | null>(null)
@@ -104,7 +108,11 @@ export default function ConvocatoriaPage() {
   function saveConvocatoria() {
     const now = new Date().toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
     setSavedAt(now)
-    // En producción: persistir en Supabase tabla `convocations` con created_by, event_id, jugadores, override de umbrales
+    // PRODUCCIÓN: persistir convocatoria en Supabase (club real). Requiere un evento real seleccionado.
+    if (isRealClub(club.id) && selectedEvent) {
+      persistConvocation(club.id, { eventId: selectedEvent, playerIds: Array.from(selected) })
+        .then(res => { if (!res.ok) console.error('No se pudo persistir la convocatoria:', res.error) })
+    }
   }
 
   const selectedPlayers = playersWithStats.filter(p => selected.has(p.id))

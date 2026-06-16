@@ -7,6 +7,8 @@ import { Settings, Users, ChevronRight, Edit2, Plus, X, Check, Trash2, History, 
 import Link from 'next/link'
 import { demoCategories, demoFinanceCategories, demoEligibilityConfig, demoEligibilityLog, demoProfes } from '@/lib/demo-data'
 import { useCurrentClub } from '@/lib/use-current-club'
+import { isRealClub } from '@/lib/real-clubs'
+import { saveFeeConfig, saveEligibilityConfig, createRegistrationCode } from '@/lib/data/ops-store'
 import {
   getCodesByClub, addRegistrationCode, updateRegistrationCode, deleteRegistrationCode,
   generateRandomCode,
@@ -26,7 +28,7 @@ const INITIAL_CAUSALES = [
 ]
 
 const INITIAL_FEES = [
-  { id: 'fee-actividad', label: 'Cuota actividad', amount: 62000, period: 'mensual' },
+  { id: 'fee-actividad', label: 'Cuota actividad', amount: 60000, period: 'mensual' },
   { id: 'fee-social', label: 'Cuota social', amount: 0, period: 'mensual' },
   { id: 'fee-matricula', label: 'Matrícula', amount: 35000, period: 'anual' },
 ]
@@ -101,6 +103,11 @@ export default function ConfigPage() {
       created_by: null,
     }
     addRegistrationCode(code)
+    // PRODUCCIÓN: persistir código de inscripción en Supabase (club real)
+    if (isRealClub(club.id)) {
+      createRegistrationCode(club.id, { categoryId: newCodeCat, code: code.code, expiresAt: code.expires_at, maxUses: code.max_uses })
+        .then(r => { if (!r.ok) console.error('regcode:', r.error) })
+    }
     reloadCodes()
     setShowCodeForm(false)
     setNewCodeCat(''); setNewCodeMaxUses(''); setNewCodeExpires('')
@@ -133,6 +140,11 @@ export default function ConfigPage() {
     const amount = Number(tempFee) || 0
     setFees(fees.map(f => f.id === feeId ? { ...f, amount } : f))
     setEditingFee(null)
+    // PRODUCCIÓN: persistir valor de cuota en Supabase (club real)
+    if (isRealClub(club.id)) {
+      const feeType = feeId.replace('fee-', '') // actividad | social | matricula
+      saveFeeConfig(club.id, feeType, amount).then(r => { if (!r.ok) console.error('fee:', r.error) })
+    }
   }
 
   function toggleCategory(catId: string) {
@@ -257,7 +269,12 @@ export default function ConfigPage() {
           {(practiceThreshold !== demoEligibilityConfig.min_practice_percentage ||
             matchThreshold !== demoEligibilityConfig.min_match_percentage) && (
             <button
-              onClick={() => alert(`✅ Umbrales actualizados (demo)\nPrácticas: ${practiceThreshold}%\nPartidos: ${matchThreshold}%\n\nQueda registrado en el log de cambios.`)}
+              onClick={() => {
+                if (isRealClub(club.id)) {
+                  saveEligibilityConfig(club.id, practiceThreshold, matchThreshold).then(r => { if (!r.ok) console.error('elig:', r.error) })
+                }
+                alert(`✅ Umbrales actualizados\nPrácticas: ${practiceThreshold}%\nPartidos: ${matchThreshold}%`)
+              }}
               className="w-full py-2 rounded-lg text-white font-bold text-sm"
               style={{ backgroundColor: 'var(--club-primary, #00843D)' }}
             >

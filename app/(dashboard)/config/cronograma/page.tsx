@@ -8,11 +8,15 @@ import Link from 'next/link'
 import { demoTrainingRoster, DAYS_OF_WEEK, type TrainingSlot } from '@/lib/training-roster'
 import { demoCategories, demoProfes } from '@/lib/demo-data'
 import { TIRA_LABELS, TIRA_COLORS, type Tira } from '@/types'
+import { useCurrentClub } from '@/lib/use-current-club'
+import { isRealClub } from '@/lib/real-clubs'
+import { createTrainingSlot } from '@/lib/data/ops-store'
 
 const COURT_COLORS = ['#7c3aed', '#1d4ed8', '#dc2626', '#16a34a']
 const ALL_TIRAS: Tira[] = ['metro', 'liga1', 'liga2', 'edefi']
 
 export default function CronogramaPage() {
+  const club = useCurrentClub()
   const [slots, setSlots] = useState<TrainingSlot[]>(demoTrainingRoster)
   const [selectedDay, setSelectedDay] = useState(1)
   const [editingSlot, setEditingSlot] = useState<TrainingSlot | null>(null)
@@ -174,6 +178,15 @@ export default function CronogramaPage() {
               setSlots(slots.map(x => x.id === editingSlot.id ? s : x))
             } else {
               setSlots([...slots, { ...s, id: `ts-new-${Date.now()}` }])
+              // PRODUCCIÓN: persistir nueva práctica del cronograma (club real)
+              if (isRealClub(club.id)) {
+                createTrainingSlot(club.id, {
+                  day_of_week: s.day_of_week, start_time: s.start_time, end_time: s.end_time,
+                  court: s.court ?? null, category_ids: s.category_ids, tiras: s.tiras,
+                  profe_titular_id: s.profe_titular_id ?? null, profe_suplentes_ids: s.profe_suplentes_ids ?? [],
+                  notes: s.notes ?? null, is_active: true,
+                }).then(r => { if (!r.ok) console.error('slot:', r.error) })
+              }
             }
             setShowNew(false)
             setEditingSlot(null)

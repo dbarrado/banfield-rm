@@ -9,7 +9,9 @@ import { getSiblings, getPlayersForClub, getCategoriesForClub } from '@/lib/demo
 import { useCurrentClub } from '@/lib/use-current-club'
 import { hasAccess, getRequiredPlan, type Plan } from '@/lib/feature-gates'
 import { UpgradePrompt } from '@/components/upgrade-prompt'
-import { generateBillingsForPeriod, loadBillingConfig, getOutstandingAmount, type Billing } from '@/lib/billings'
+import { generateBillingsForPeriod, loadBillingConfig, getOutstandingAmount, surchargePct, type Billing } from '@/lib/billings'
+import { isRealClub } from '@/lib/real-clubs'
+import { getRealBillings, persistPayment, type ChargeItem } from '@/lib/data/billing-store'
 import dynamic from 'next/dynamic'
 const QrScanner = dynamic(() => import('@/components/qr-scanner').then(m => m.QrScanner), { ssr: false })
 import { getAvatarUrl } from '@/lib/avatars'
@@ -37,8 +39,11 @@ function CobrarContent() {
   const period = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
   const cfg = useMemo(() => loadBillingConfig(), [])
 
-  // Generamos billings una sola vez por sesión y los mantenemos en estado para poder marcarlos pagados
-  const [billings, setBillings] = useState<Billing[]>(() => generateBillingsForPeriod(period, today, cfg))
+  // Club real → cuotas reales de Supabase (ya hidratadas por el DataProvider).
+  // Club demo → generadas en memoria como siempre.
+  const [billings, setBillings] = useState<Billing[]>(
+    () => (isRealClub(club.id) ? getRealBillings(club.id) ?? [] : generateBillingsForPeriod(period, today, cfg))
+  )
   const [step, setStep] = useState<Step>('search')
   const [query, setQuery] = useState('')
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([])
@@ -124,8 +129,10 @@ function CobrarContent() {
     return billingOverrides[b.id] !== undefined ? billingOverrides[b.id] : owed
   }
   const baseTotal = billingsToCharge.reduce((s, b) => s + chargeAmountOf(b), 0)
-  // Recargo MP — solo se reconoce como ingreso AL MOMENTO de cobrar con MP
-  const mpSurcharge = method === 'mercadopago' ? Math.round(baseTotal * (cfg.mp_surcharge_pct / 100)) : 0
+  // Recargo según medio de pago (regla Banfield: transferencia +10%). Se reconoce
+  // como ingreso adicional AL MOMENTO de cobrar, no se carga al billing.
+  const surchargePctNow = surchargePct(method, cfg)
+  const mpSurcharge = surchargePctNow > 0 ? Math.round(baseTotal * (surchargePctNow / 100)) : 0
   const total = baseTotal + mpSurcharge
 
   // ── Contactos disponibles del primer player (suficiente para WhatsApp) ─
@@ -167,7 +174,16 @@ function CobrarContent() {
   }
 
   function confirmCharge() {
-    // Marcar billings como pagados (total) o partial (queda saldo)
+    // Construir los items cobrados (para persistir en Supabase si el club es real)
+    const charged: ChargeItem[] = billings
+      .filter(b => selectedBillingIds.has(b.id))
+      .map(b => {
+        const charge = chargeAmountOf(b)
+        const owed = getOutstandingAmount(b)
+        return { billingId: b.id, playerId: b.player_id, amount: charge, willBeFull: charge >= owed }
+      })
+
+    // Marcar billings como pagados (total) o partial (queda saldo) — estado local/UI
     setBillings(prev => prev.map(b => {
       if (!selectedBillingIds.has(b.id)) return b
       const charge = chargeAmountOf(b)
@@ -185,6 +201,20 @@ function CobrarContent() {
           : b.adjustments,
       }
     }))
+
+    // PRODUCCIÓN: persistir el cobro en Supabase (club real). No bloquea la UI.
+    if (isRealClub(club.id) && charged.length > 0) {
+      persistPayment(club.id, {
+        items: charged,
+        method,
+        reference: reference || null,
+        period,
+        surchargeAmount: mpSurcharge,
+        actorName: 'admin',
+      }).then(res => {
+        if (!res.ok) console.error('No se pudo persistir el cobro en Supabase:', res.error)
+      })
+    }
     const playerNames = selectedPlayerIds.map(id => clubPlayers.find(p => p.id === id)?.full_name ?? '?')
     const next = [{ at: today.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }), players: playerNames, total }, ...recent].slice(0, 5)
     setRecent(next)
@@ -474,7 +504,7 @@ function CobrarContent() {
                     <span className="font-mono">${baseTotal.toLocaleString('es-AR')}</span>
                   </div>
                   <div className="flex items-center justify-between text-[11px] text-purple-700">
-                    <span>Recargo MP ({cfg.mp_surcharge_pct}%)</span>
+                    <span>Recargo {method === 'transfer' ? 'transferencia' : 'MP'} ({surchargePctNow}%)</span>
                     <span className="font-mono">+${mpSurcharge.toLocaleString('es-AR')}</span>
                   </div>
                   <div className="border-t border-green-200 pt-1">
@@ -505,15 +535,16 @@ function CobrarContent() {
                   <Banknote size={18} /> Efectivo
                 </button>
                 <button onClick={() => setMethod('transfer')}
-                  className={`py-3 rounded-lg font-bold text-xs flex flex-col items-center justify-center gap-1 border-2 ${method === 'transfer' ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`}
+                  className={`py-3 rounded-lg font-bold text-xs flex flex-col items-center justify-center gap-0.5 border-2 ${method === 'transfer' ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`}
                   style={method === 'transfer' ? { backgroundColor: '#1d4ed8' } : {}}>
                   <CreditCard size={18} /> Transfer.
+                  {cfg.transfer_surcharge_pct > 0 && <span className="text-[9px] opacity-90">+{cfg.transfer_surcharge_pct}%</span>}
                 </button>
                 <button onClick={() => setMethod('mercadopago')}
                   className={`py-3 rounded-lg font-bold text-xs flex flex-col items-center justify-center gap-0.5 border-2 ${method === 'mercadopago' ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`}
                   style={method === 'mercadopago' ? { backgroundColor: '#00b1ea' } : {}}>
                   <Smartphone size={18} /> Mercado Pago
-                  <span className="text-[9px] opacity-90">+{cfg.mp_surcharge_pct}%</span>
+                  {cfg.mp_surcharge_pct > 0 && <span className="text-[9px] opacity-90">+{cfg.mp_surcharge_pct}%</span>}
                 </button>
               </div>
               {(method === 'transfer' || method === 'mercadopago') && (

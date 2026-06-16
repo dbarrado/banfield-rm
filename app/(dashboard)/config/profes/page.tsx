@@ -7,8 +7,12 @@ import { ArrowLeft, User, Plus, Phone, ShieldCheck, ShieldAlert, AlertTriangle, 
 import Link from 'next/link'
 import { demoProfes, demoCategories, getAssignmentsForProfe, getProfeComplianceStatus } from '@/lib/demo-data'
 import { TIRA_LABELS, TIRA_COLORS } from '@/types'
+import { useCurrentClub } from '@/lib/use-current-club'
+import { isRealClub } from '@/lib/real-clubs'
+import { createProfe } from '@/lib/data/ops-store'
 
 export default function ProfesPage() {
+  const club = useCurrentClub()
   const [showForm, setShowForm] = useState(false)
 
   return (
@@ -137,14 +141,24 @@ export default function ProfesPage() {
               <h3 className="text-lg font-bold" style={{ fontFamily: "var(--font-barlow)" }}>NUEVO PROFE</h3>
               <button onClick={() => setShowForm(false)} className="text-2xl text-muted-foreground">×</button>
             </div>
-            <form onSubmit={(e) => { e.preventDefault(); alert('✅ Profe creado (demo)'); setShowForm(false); }} className="space-y-3">
+            <form onSubmit={(e) => {
+              e.preventDefault()
+              const fd = new FormData(e.currentTarget)
+              const full_name = String(fd.get('full_name') ?? '').trim()
+              const whatsapp = String(fd.get('whatsapp') ?? '').trim()
+              if (isRealClub(club.id) && full_name) {
+                createProfe(club.id, { full_name, whatsapp: whatsapp || null }).then(r => { if (!r.ok) console.error('profe:', r.error) })
+              }
+              alert('✅ Profe creado')
+              setShowForm(false)
+            }} className="space-y-3">
               <div>
                 <label className="text-xs font-semibold mb-1 block">Nombre completo *</label>
-                <input type="text" required placeholder="Juan Pérez" className="w-full px-3 py-2.5 border rounded-lg text-sm" />
+                <input name="full_name" type="text" required placeholder="Juan Pérez" className="w-full px-3 py-2.5 border rounded-lg text-sm" />
               </div>
               <div>
                 <label className="text-xs font-semibold mb-1 block">WhatsApp</label>
-                <input type="tel" placeholder="11 4500 1111" className="w-full px-3 py-2.5 border rounded-lg text-sm" />
+                <input name="whatsapp" type="tel" placeholder="11 4500 1111" className="w-full px-3 py-2.5 border rounded-lg text-sm" />
               </div>
               <p className="text-xs text-muted-foreground">Las asignaciones a categorías y tiras se hacen después de crear el profe.</p>
               <button type="submit" className="w-full py-3 rounded-xl text-white font-bold text-sm" style={{ backgroundColor: 'var(--club-primary, #00843D)' }}>

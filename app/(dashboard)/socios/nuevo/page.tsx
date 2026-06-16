@@ -1,12 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Camera, Plus, Trash2, Users } from 'lucide-react'
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
-import { demoCategories } from '@/lib/demo-data'
+import { demoCategories, getCategoriesForClub } from '@/lib/demo-data'
 import { POSITION_LABELS, TIRA_LABELS, type Position, type Tira } from '@/types'
+import { useCurrentClub } from '@/lib/use-current-club'
+import { isRealClub } from '@/lib/real-clubs'
+import { createPlayers } from '@/lib/data/players-store'
 
 const POSITIONS: Position[] = ['arquero', 'defensor', 'mediocampista', 'delantero']
 const ALL_TIRAS: Tira[] = ['metro', 'liga1', 'liga2', 'edefi']
@@ -22,11 +25,11 @@ type ChildForm = {
   photo: string | null
 }
 
-function emptyChild(): ChildForm {
+function emptyChild(defaultCatId?: string): ChildForm {
   return {
     full_name: '',
     birth_date: '',
-    category_id: demoCategories[0].id,
+    category_id: defaultCatId ?? demoCategories[0].id,
     tira: 'metro',
     positions: { arquero: 'none', defensor: 'none', mediocampista: 'none', delantero: 'none' },
     photo: null,
@@ -63,19 +66,22 @@ function cyclePosition(child: ChildForm, pos: Position): ChildForm {
 
 export default function NuevoSocioPage() {
   const router = useRouter()
+  const club = useCurrentClub()
+  const clubCategories = useMemo(() => getCategoriesForClub(club.id).filter(c => c.is_active), [club.id])
+  const defaultCatId = clubCategories[0]?.id ?? demoCategories[0].id
   const [tutor, setTutor] = useState({
     name: '',
     dni: '',
     email: '',
     whatsapp: '',
   })
-  const [children, setChildren] = useState<ChildForm[]>([emptyChild()])
+  const [children, setChildren] = useState<ChildForm[]>([emptyChild(defaultCatId)])
 
   function updateChild(idx: number, patch: Partial<ChildForm>) {
     setChildren(prev => prev.map((c, i) => i === idx ? { ...c, ...patch } : c))
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     // Validar que cada hijo tenga al menos una posición principal
     for (const c of children) {
@@ -85,6 +91,28 @@ export default function NuevoSocioPage() {
         return
       }
     }
+
+    // PRODUCCIÓN: persistir los socios en Supabase (club real)
+    if (isRealClub(club.id)) {
+      const payload = children.map(c => ({
+        full_name: c.full_name,
+        birth_date: c.birth_date,
+        category_id: c.category_id,
+        tira: c.tira,
+        primary_position: (Object.entries(c.positions).find(([, s]) => s === 'primary')?.[0] ?? 'mediocampista') as Position,
+        secondary_positions: Object.entries(c.positions).filter(([, s]) => s === 'secondary').map(([k]) => k as Position),
+        photo_url: c.photo,
+      }))
+      const res = await createPlayers(club.id, { tutor, children: payload })
+      if (!res.ok) {
+        alert(`No se pudo guardar en Supabase: ${res.error}`)
+        return
+      }
+      alert(`✅ ${children.length} socio${children.length > 1 ? 's' : ''} creado${children.length > 1 ? 's' : ''} en Banfield (Supabase).\n\nTutor: ${tutor.name}`)
+      router.push('/socios')
+      return
+    }
+
     const summary = children.map(c => `• ${c.full_name} — Cat. ${demoCategories.find(d => d.id === c.category_id)?.name} ${TIRA_LABELS[c.tira]}`).join('\n')
     alert(`✅ ${children.length} socio${children.length > 1 ? 's' : ''} creado${children.length > 1 ? 's' : ''} (demo):\n\nTutor: ${tutor.name}\n\n${summary}`)
     router.push('/socios')
@@ -141,7 +169,7 @@ export default function NuevoSocioPage() {
           <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5" style={{ fontFamily: "var(--font-barlow)" }}>
             <Users size={13} /> HIJOS ({children.length})
           </p>
-          <button type="button" onClick={() => setChildren([...children, emptyChild()])}
+          <button type="button" onClick={() => setChildren([...children, emptyChild(defaultCatId)])}
             className="text-xs font-semibold px-2.5 py-1 rounded text-white flex items-center gap-1" style={{ backgroundColor: '#00843D' }}>
             <Plus size={12} /> Otro hijo
           </button>
@@ -152,6 +180,7 @@ export default function NuevoSocioPage() {
             key={idx}
             child={child}
             index={idx}
+            categories={clubCategories}
             canDelete={children.length > 1}
             onUpdate={(patch) => updateChild(idx, patch)}
             onCyclePosition={(pos) => setChildren(prev => prev.map((c, i) => i === idx ? cyclePosition(c, pos) : c))}
@@ -167,9 +196,10 @@ export default function NuevoSocioPage() {
   )
 }
 
-function ChildFormCard({ child, index, canDelete, onUpdate, onCyclePosition, onRemove }: {
+function ChildFormCard({ child, index, categories, canDelete, onUpdate, onCyclePosition, onRemove }: {
   child: ChildForm
   index: number
+  categories: { id: string; name: string; is_active: boolean }[]
   canDelete: boolean
   onUpdate: (p: Partial<ChildForm>) => void
   onCyclePosition: (pos: Position) => void
@@ -228,7 +258,7 @@ function ChildFormCard({ child, index, canDelete, onUpdate, onCyclePosition, onR
             <label className="text-xs font-semibold mb-1 block">Categoría *</label>
             <select value={child.category_id} onChange={e => onUpdate({ category_id: e.target.value })}
               className="w-full px-3 py-2.5 border rounded-lg text-sm">
-              {demoCategories.filter(c => c.is_active).map(c => (
+              {categories.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>

@@ -43,11 +43,15 @@ export const CONDONE_CAUSALES = [
   'Otro',
 ]
 
-// Config (en prod vendría de tabla club_settings)
+// Config (en prod vive en Supabase tabla billing_configs; default del producto acá)
 export const DEFAULT_OVERDUE_DAY = 16
 export const DEFAULT_LATE_FEE_PCT = 10
 export const DEFAULT_DUE_DAY = 10
-export const DEFAULT_MP_SURCHARGE_PCT = 10
+export const DEFAULT_MP_SURCHARGE_PCT = 0
+// Regla Banfield: pago por transferencia = +10% sobre la cuota.
+export const DEFAULT_TRANSFER_SURCHARGE_PCT = 10
+// Valor de cuota actividad por defecto.
+export const DEFAULT_FEE_ACTIVIDAD = 60000
 const CONFIG_KEY = 'plantel_billing_config'
 
 export type BillingConfig = {
@@ -55,6 +59,7 @@ export type BillingConfig = {
   late_fee_pct: number
   due_day: number
   mp_surcharge_pct: number
+  transfer_surcharge_pct: number
 }
 
 export function loadBillingConfig(): BillingConfig {
@@ -63,6 +68,7 @@ export function loadBillingConfig(): BillingConfig {
     late_fee_pct: DEFAULT_LATE_FEE_PCT,
     due_day: DEFAULT_DUE_DAY,
     mp_surcharge_pct: DEFAULT_MP_SURCHARGE_PCT,
+    transfer_surcharge_pct: DEFAULT_TRANSFER_SURCHARGE_PCT,
   }
   if (typeof window === 'undefined') return defaults
   try {
@@ -74,10 +80,18 @@ export function loadBillingConfig(): BillingConfig {
         late_fee_pct: parsed.late_fee_pct ?? defaults.late_fee_pct,
         due_day: parsed.due_day ?? defaults.due_day,
         mp_surcharge_pct: parsed.mp_surcharge_pct ?? defaults.mp_surcharge_pct,
+        transfer_surcharge_pct: parsed.transfer_surcharge_pct ?? defaults.transfer_surcharge_pct,
       }
     }
   } catch {}
   return defaults
+}
+
+// Recargo según medio de pago: transferencia +X%, MP +Y% (config), efectivo 0.
+export function surchargePct(method: 'cash' | 'transfer' | 'mercadopago', cfg: BillingConfig): number {
+  if (method === 'transfer') return cfg.transfer_surcharge_pct
+  if (method === 'mercadopago') return cfg.mp_surcharge_pct
+  return 0
 }
 
 export function saveBillingConfig(cfg: BillingConfig) {
@@ -100,7 +114,7 @@ export function generateBillingsForPeriod(period: string, today: Date, cfg: Bill
   for (const player of demoPlayers) {
     if (!player.is_active) continue
     const { discount_pct: discountPct } = getSiblingDiscount(player.id)
-    const amountOriginal = 62000
+    const amountOriginal = DEFAULT_FEE_ACTIVIDAD
     const amountFinal = Math.round(amountOriginal * (1 - discountPct / 100))
 
     // ¿Ya pagó esta cuota?

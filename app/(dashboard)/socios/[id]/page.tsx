@@ -7,6 +7,9 @@ import { ArrowLeft, MessageCircle, Camera, Plus, Trophy, AlertCircle, Star, Awar
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { demoPlayers, demoCategories, demoPayments, demoEvents, demoAttendance, getDetailedAttendanceStats, thisMonth, getSiblings, getSiblingDiscount, demoSiblingDiscountConfig, getRatingsForPlayer, getPlayerRatingStats, demoProfes } from '@/lib/demo-data'
+import { useCurrentClub } from '@/lib/use-current-club'
+import { isRealClub } from '@/lib/real-clubs'
+import { updatePlayer } from '@/lib/data/players-store'
 import { useActiveRole } from '@/lib/use-role'
 import { POSITION_LABELS, POSITION_COLORS, type Position } from '@/types'
 import { getAvatarUrl } from '@/lib/avatars'
@@ -17,6 +20,7 @@ const ALL_POSITIONS: Position[] = ['arquero', 'defensor', 'mediocampista', 'dela
 
 export default function PlayerProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  const club = useCurrentClub()
   const initialPlayer = demoPlayers.find(p => p.id === id)
   if (!initialPlayer) notFound()
 
@@ -238,7 +242,10 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
                 APTO MÉDICO
               </p>
               <label className="flex items-center gap-1.5 cursor-pointer">
-                <input type="checkbox" checked={aptoOk} onChange={e => setAptoOk(e.target.checked)} className="w-4 h-4 accent-[#00843D]" />
+                <input type="checkbox" checked={aptoOk} onChange={e => {
+                  setAptoOk(e.target.checked)
+                  if (isRealClub(club.id)) updatePlayer(club.id, id, { apto_medico_ok: e.target.checked }).then(r => { if (!r.ok) console.error('apto médico:', r.error) })
+                }} className="w-4 h-4 accent-[#00843D]" />
                 <span className="text-xs font-semibold">Vigente</span>
               </label>
             </div>
@@ -405,7 +412,15 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
                 </button>
               ) : (
                 <div className="flex gap-1">
-                  <button onClick={() => { setEditingPositions(false); alert('✅ Posiciones actualizadas (demo)') }} className="p-1 rounded text-green-600 hover:bg-green-50">
+                  <button onClick={() => {
+                    setEditingPositions(false)
+                    if (isRealClub(club.id)) {
+                      updatePlayer(club.id, id, { primary_position: primaryPos, secondary_positions: secondaryPos })
+                        .then(res => { if (!res.ok) console.error('No se pudo guardar posiciones:', res.error) })
+                    } else {
+                      alert('✅ Posiciones actualizadas (demo)')
+                    }
+                  }} className="p-1 rounded text-green-600 hover:bg-green-50">
                     <Check size={14} />
                   </button>
                   <button onClick={() => {

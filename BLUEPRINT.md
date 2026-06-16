@@ -1,10 +1,21 @@
 # Plantel — Blueprint del sistema
 
-**Versión:** 1.0 (demo)
-**Última actualización:** 2026-05-08
+**Versión:** 2.0 (producción — Banfield real / resto demo)
+**Última actualización:** 2026-06-16
 **Repositorio:** github.com/dbarrado/banfield-rm
 **Demo en producción:** https://banfield-rm.vercel.app
 **Cliente piloto:** Filial Banfield Ramos Mejía
+**Estado:** ✅ EN PRODUCCIÓN. Banfield corre contra **Supabase** (datos + todos los módulos operativos persistentes, probados bajo RLS); el resto de los clubes sigue en modo demo. Handoff y setup en `ESTADO-ACTUAL.md`; estado de persistencia por módulo en `PRODUCCION.md`.
+
+> **Mantener este documento vivo:** ante cualquier cambio, actualizar BLUEPRINT.md + ESTADO-ACTUAL.md + PRODUCCION.md (ver `CLAUDE.md`).
+
+## 0. Modo por club (producción vs demo)
+
+El sistema corre en **dos modos simultáneos**, decididos por club:
+- **Club real (Banfield):** lee y escribe en Supabase (Auth + Postgres + RLS multi-tenant). Requiere login.
+- **Clubes demo:** datos en memoria (`lib/demo-data.ts`), para mostrar el producto a prospectos sin tocar datos reales.
+
+Piezas: `lib/real-clubs.ts` (`REAL_CLUBS`, `isRealClub`) · `components/layout/data-provider.tsx` (hidrata lectura real + exige sesión) · `lib/data/*-store.ts` (escritura real con write-through). Supabase: proyecto `banfield-plantel` (`zdoogaxfuwavdhopemjn`), club id `b1f1e1d0-0000-4000-8000-000000000001`.
 
 ---
 
@@ -22,8 +33,8 @@ El sistema cubre el ciclo operativo completo del club: inscripción del socio, a
 | --- | --- |
 | Frontend | Next.js 16 (App Router), React 19, TypeScript |
 | UI | Tailwind CSS, shadcn/ui, lucide-react |
-| Backend (planificado) | Supabase (Postgres + Auth + Storage + RLS) |
-| Estado actual | localStorage + datos mock generados (modo demo) |
+| Backend | **Supabase (Postgres + Auth + RLS)** — productivo para clubes reales |
+| Estado | Banfield: datos reales en Supabase (persistente). Clubes demo: localStorage + mock |
 | Hosting | Vercel |
 | Multi-tenant | club_id en cada tabla + RLS por club |
 | QR | qrcode.react (generación local), html5-qrcode (escaneo) |
@@ -365,9 +376,9 @@ is_active
 
 | Función | Estado | Servicio |
 | --- | --- | --- |
-| Auth | Stub demo | Supabase Auth (planificado) |
-| DB + RLS | Stub demo | Supabase Postgres |
-| Storage (fotos, comprobantes, aptos médicos) | Stub demo | Supabase Storage |
+| Auth | ✅ Productivo (club real) | Supabase Auth (email/password). Demo: login libre |
+| DB + RLS | ✅ Productivo (club real) | Supabase Postgres, 37 tablas, RLS multi-tenant por club |
+| Storage (fotos, comprobantes, aptos médicos) | 🔄 Pendiente | Supabase Storage (foto/apto aún no suben archivo) |
 | Generación QR | ✅ Productivo | qrcode.react (cliente) |
 | Escaneo QR | ✅ Productivo | html5-qrcode (cliente, cámara) |
 | WhatsApp 1-a-1 | ✅ Productivo | Deep links `wa.me/<numero>?text=` |

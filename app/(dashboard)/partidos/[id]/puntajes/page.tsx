@@ -7,12 +7,16 @@ import { ArrowLeft, Trophy, Star, Save } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { demoEvents, demoPlayers, demoCategories, getRatingsForEvent, saveMatchRatings, demoProfes } from '@/lib/demo-data'
+import { useCurrentClub } from '@/lib/use-current-club'
+import { isRealClub } from '@/lib/real-clubs'
+import { persistMatchRatings } from '@/lib/data/ops-store'
 import { POSITION_LABELS, POSITION_COLORS } from '@/types'
 import { getTiraLabel, getTiraColor } from '@/lib/tiras'
 import type { SportCode } from '@/lib/sports'
 
 export default function PuntajesPartidoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  const club = useCurrentClub()
   const event = demoEvents.find(e => e.id === id && e.event_type === 'match')
   if (!event) notFound()
 
@@ -166,6 +170,14 @@ export default function PuntajesPartidoPage({ params }: { params: Promise<{ id: 
                 Object.entries(scores).filter(([_, v]) => v >= 1 && v <= 10)
               )
               saveMatchRatings(event!.id, profe, validScores, observations)
+              // PRODUCCIÓN: persistir puntajes en Supabase (club real)
+              if (isRealClub(club.id)) {
+                const ratings = Object.entries(validScores).map(([playerId, score]) => ({
+                  playerId, score: score as number, comment: observations[playerId] ?? undefined,
+                }))
+                persistMatchRatings(club.id, { eventId: event!.id, ratings })
+                  .then(res => { if (!res.ok) console.error('No se pudieron persistir los puntajes:', res.error) })
+              }
               const now = new Date().toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
               setSavedAt(now)
             }}

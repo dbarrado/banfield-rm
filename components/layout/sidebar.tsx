@@ -56,6 +56,7 @@ const allItems: NavItem[] = [
   { href: '/config', icon: Settings, label: 'Config' },
   { href: '/config/cronograma', icon: Calendar, label: 'Cronograma' },
   { href: '/config/profes', icon: Users, label: 'Profes' },
+  { href: '/deportes', icon: Volleyball, label: 'Deportes' },
 ]
 
 export function Sidebar() {

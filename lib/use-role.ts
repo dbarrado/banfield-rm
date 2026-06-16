@@ -72,12 +72,12 @@ export function getRoleNavItems(role: ActiveRole, dayOfWeek: number): { primary:
     if (isWeekend) {
       return {
         primary: ['/dashboard', '/partidos', '/asistencia-profes', '/asistencia'],
-        secondary: ['/convocatoria', '/fixture', '/socios', '/inscripciones', '/config/cronograma', '/config/profes', '/finanzas', '/reportes', '/caja'],
+        secondary: ['/convocatoria', '/fixture', '/socios', '/inscripciones', '/config/cronograma', '/config/profes', '/deportes', '/cobranzas', '/finanzas', '/reportes', '/caja', '/tienda', '/invitar'],
       }
     }
     return {
       primary: ['/dashboard', '/asistencia-profes', '/asistencia', '/convocatoria'],
-      secondary: ['/fixture', '/partidos', '/socios', '/inscripciones', '/config/cronograma', '/config/profes', '/finanzas', '/reportes', '/caja'],
+      secondary: ['/fixture', '/partidos', '/socios', '/inscripciones', '/config/cronograma', '/config/profes', '/deportes', '/cobranzas', '/finanzas', '/reportes', '/caja', '/tienda', '/invitar'],
     }
   }
   // Profe — adapta según día

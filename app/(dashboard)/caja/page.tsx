@@ -7,6 +7,8 @@ import { Wallet, TrendingUp, TrendingDown, Plus, X, CreditCard } from 'lucide-re
 import Link from 'next/link'
 import { demoCashMovements, demoCashSession, demoFinanceCategories } from '@/lib/demo-data'
 import { useCurrentClub } from '@/lib/use-current-club'
+import { isRealClub } from '@/lib/real-clubs'
+import { openCashSession, addCashMovement, closeCashSession } from '@/lib/data/ops-store'
 import { hasAccess, getRequiredPlan, type Plan } from '@/lib/feature-gates'
 import { UpgradePrompt } from '@/components/upgrade-prompt'
 
@@ -20,19 +22,42 @@ export default function CajaPage() {
 }
 
 function CajaContent() {
+  const club = useCurrentClub()
   const [movements, setMovements] = useState(demoCashMovements)
   const [showAddForm, setShowAddForm] = useState(false)
   const [showCloseForm, setShowCloseForm] = useState(false)
   const [closed, setClosed] = useState(false)
+  const [sessionId, setSessionId] = useState<string | null>(null)
+
+  // PRODUCCIÓN: asegura una sesión de caja abierta hoy (club real), de forma lazy.
+  async function ensureSession(): Promise<string | null> {
+    if (!isRealClub(club.id)) return null
+    if (sessionId) return sessionId
+    const r = await openCashSession(club.id, new Date().toISOString().slice(0, 10), 0)
+    if (r.ok && r.id) { setSessionId(r.id); return r.id }
+    return null
+  }
 
   const totalIncome = movements.filter(m => m.movement_type === 'income').reduce((s, m) => s + m.amount, 0)
   const totalExpense = movements.filter(m => m.movement_type === 'expense').reduce((s, m) => s + m.amount, 0)
   const saldoEsperado = demoCashSession.opening_amount + totalIncome - totalExpense
   const today = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })
 
-  function handleAdd(newMovement: any) {
+  async function handleAdd(newMovement: any) {
     setMovements([{ ...newMovement, id: `cm-${movements.length + 1}` }, ...movements])
     setShowAddForm(false)
+    // PRODUCCIÓN: persistir movimiento en Supabase (club real)
+    if (isRealClub(club.id)) {
+      const sid = await ensureSession()
+      if (sid) {
+        addCashMovement(club.id, sid, {
+          type: newMovement.movement_type,
+          amount: newMovement.amount,
+          description: newMovement.description ?? null,
+          paymentMethod: newMovement.payment_method ?? null,
+        }).then(r => { if (!r.ok) console.error('cashmov:', r.error) })
+      }
+    }
   }
 
   return (
@@ -156,7 +181,10 @@ function CajaContent() {
         <CloseCashModal
           expectedAmount={saldoEsperado}
           onClose={() => setShowCloseForm(false)}
-          onConfirm={() => { setClosed(true); setShowCloseForm(false); }}
+          onConfirm={() => {
+            setClosed(true); setShowCloseForm(false)
+            if (isRealClub(club.id) && sessionId) closeCashSession(club.id, sessionId, saldoEsperado).then(r => { if (!r.ok) console.error('cashclose:', r.error) })
+          }}
         />
       )}
     </div>

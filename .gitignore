@@ -33,6 +33,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# datos importados con PII de menores (nombres reales). Fuente de verdad: Supabase.
+/data-import
+
 # vercel
 .vercel
 

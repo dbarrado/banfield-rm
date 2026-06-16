@@ -21,6 +21,8 @@ import {
   type BillingStatus,
   type BillingAdjustment,
 } from '@/lib/billings'
+import { isRealClub } from '@/lib/real-clubs'
+import { getRealBillings, persistBillingUpdate, hydrateBillings } from '@/lib/data/billing-store'
 
 const FILTERS: { key: 'all' | BillingStatus; label: string }[] = [
   { key: 'all', label: 'Todos' },
@@ -82,25 +84,38 @@ Muchas gracias.`
     if (!actionTarget) return
     const now = new Date().toISOString()
     const actor = activeRole // en producción sería el nombre del usuario logueado
+    const newAdjustment: BillingAdjustment = actionTarget.mode === 'condone'
+      ? { type: 'condone', amount: getOutstandingAmount(actionTarget.billing), reason: actionReason || actionCausal, causal: actionCausal, by: actor, by_role: activeRole as any, at: now }
+      : { type: 'amount_override', amount: Number(actionAmount), reason: actionReason || 'Ajuste manual', by: actor, by_role: activeRole as any, at: now }
+
     setBillings(prev => prev.map(b => {
       if (b.id !== actionTarget.billing.id) return b
-      const newAdjustment: BillingAdjustment = actionTarget.mode === 'condone'
-        ? { type: 'condone', amount: getOutstandingAmount(b), reason: actionReason || actionCausal, causal: actionCausal, by: actor, by_role: activeRole as any, at: now }
-        : { type: 'amount_override', amount: Number(actionAmount), reason: actionReason || 'Ajuste manual', by: actor, by_role: activeRole as any, at: now }
-
       if (actionTarget.mode === 'condone') {
         return { ...b, status: 'condoned' as BillingStatus, adjustments: [...(b.adjustments ?? []), newAdjustment] }
       } else {
         return { ...b, amount_final: Number(actionAmount), adjustments: [...(b.adjustments ?? []), newAdjustment] }
       }
     }))
+
+    // PRODUCCIÓN: persistir condonación/ajuste en Supabase (club real)
+    if (isRealClub(club.id)) {
+      persistBillingUpdate(club.id, actionTarget.billing.id,
+        actionTarget.mode === 'condone'
+          ? { status: 'condoned', adjustment: newAdjustment }
+          : { amount_final: Number(actionAmount), adjustment: newAdjustment }
+      ).then(res => { if (!res.ok) console.error('No se pudo persistir el ajuste:', res.error) })
+    }
     setActionTarget(null)
   }
 
   useEffect(() => {
-    setBillings(generateBillingsForPeriod(period, today, cfg))
+    if (isRealClub(club.id)) {
+      setBillings(getRealBillings(club.id) ?? [])
+    } else {
+      setBillings(generateBillingsForPeriod(period, today, cfg))
+    }
     setGenerated(true)
-  }, [period, cfg])
+  }, [period, cfg, club.id])
 
   const filtered = useMemo(() => {
     return billings.filter(b => {
@@ -122,7 +137,13 @@ Muchas gracias.`
     total_late_fees: billings.reduce((s, b) => s + b.late_fee_amount, 0),
   }), [billings])
 
-  function regenerate() {
+  async function regenerate() {
+    if (isRealClub(club.id)) {
+      await hydrateBillings(club.id, period)
+      setBillings(getRealBillings(club.id) ?? [])
+      alert(`✅ Cuotas actualizadas desde Supabase para ${period}.`)
+      return
+    }
     setBillings(generateBillingsForPeriod(period, today, cfg))
     alert(`✅ Cuotas regeneradas para ${period} (demo)\n\n${billings.length} billings emitidos.`)
   }

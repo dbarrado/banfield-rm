@@ -1229,8 +1229,35 @@ for (const ms of FICT_MATCH_SPECS) {
 
 demoEvents.push(...fictionalEvents)
 
-// Clubes legacy comparten el set de datos sin club_id (los 450 chicos de fútbol)
-const LEGACY_CLUB_IDS = new Set(['club-banfield-rm', 'club-boca-rm', 'club-brisas'])
+// Clubes legacy comparten el set de datos sin club_id (los 450 chicos de fútbol).
+// Banfield SALE de legacy: ahora corre en modo real (datos de Supabase, ver
+// lib/real-clubs.ts + components/layout/data-provider.tsx). Boca y Brisas siguen demo.
+const LEGACY_CLUB_IDS = new Set(['club-boca-rm', 'club-brisas'])
+
+// ──────────────────────────────────────────────────────────────────────────
+// HIDRATACIÓN DE CLUBES REALES (Supabase → memoria)
+// El data-provider trae jugadores/categorías reales y los inyecta acá, tagueados
+// con el id del club demo. Una vez hidratado, los getters devuelven SOLO datos
+// reales para ese club (sin fallback a demo, para no mezclar real con ficticio).
+// ──────────────────────────────────────────────────────────────────────────
+const HYDRATED_REAL_CLUBS = new Set<string>()
+
+export function hydrateRealClub(clubId: string, players: Player[], categories: Category[]) {
+  // Idempotente: limpiar lo previo de este club antes de inyectar.
+  for (let i = demoPlayers.length - 1; i >= 0; i--) {
+    if (demoPlayers[i].club_id === clubId) demoPlayers.splice(i, 1)
+  }
+  for (let i = demoCategories.length - 1; i >= 0; i--) {
+    if (demoCategories[i].club_id === clubId) demoCategories.splice(i, 1)
+  }
+  demoPlayers.push(...players)
+  demoCategories.push(...categories)
+  HYDRATED_REAL_CLUBS.add(clubId)
+}
+
+export function isHydratedRealClub(clubId?: string): boolean {
+  return !!clubId && HYDRATED_REAL_CLUBS.has(clubId)
+}
 
 export function getEventsForClub(clubId?: string): Event[] {
   if (!clubId || LEGACY_CLUB_IDS.has(clubId)) {
@@ -1243,6 +1270,9 @@ export function getEventsForClub(clubId?: string): Event[] {
 // HELPERS de filtro por club
 // ──────────────────────────────────────────────────────────────────────────
 export function getCategoriesForClub(clubId?: string): Category[] {
+  if (HYDRATED_REAL_CLUBS.has(clubId ?? '')) {
+    return demoCategories.filter(c => c.club_id === clubId)
+  }
   if (!clubId || LEGACY_CLUB_IDS.has(clubId)) {
     return demoCategories.filter(c => !c.club_id)
   }
@@ -1252,6 +1282,9 @@ export function getCategoriesForClub(clubId?: string): Category[] {
 }
 
 export function getPlayersForClub(clubId?: string): Player[] {
+  if (HYDRATED_REAL_CLUBS.has(clubId ?? '')) {
+    return demoPlayers.filter(p => p.club_id === clubId)
+  }
   if (!clubId || LEGACY_CLUB_IDS.has(clubId)) {
     return demoPlayers.filter(p => !p.club_id)
   }
