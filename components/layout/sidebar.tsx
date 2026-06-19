@@ -23,6 +23,7 @@ import {
   X as XIcon,
   Lock,
   UserPlus,
+  Dumbbell,
 } from 'lucide-react'
 import { hasAccess, getRequiredPlan, type Plan } from '@/lib/feature-gates'
 import { createClient } from '@/lib/supabase/client'
@@ -41,6 +42,7 @@ const allItems: NavItem[] = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Inicio' },
   { href: '/socios', icon: Users, label: 'Socios' },
   { href: '/asistencia', icon: ClipboardList, label: 'Asistencia' },
+  { href: '/plan', icon: Dumbbell, label: 'Plan' },
   { href: '/caja', icon: Wallet, label: 'Caja' },
   { href: '/cobranzas', icon: Wallet, label: 'Cobranzas' },
   // Secundarios

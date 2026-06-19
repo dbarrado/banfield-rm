@@ -14,6 +14,7 @@ import { getActiveSlotForNow, getNextSlotForDay, type TrainingSlot } from '@/lib
 import { getAvatarUrl } from '@/lib/avatars'
 import { isRealClub } from '@/lib/real-clubs'
 import { persistAttendanceClose } from '@/lib/data/attendance-store'
+import { PlanDelDia } from '@/components/plan-del-dia'
 
 type AttendanceStatus = 'unmarked' | 'present' | 'late' | 'absent_unjustified' | 'absent_justified'
 
@@ -407,6 +408,12 @@ export default function AsistenciaPage() {
       <p className="text-[11px] text-muted-foreground">
         Tocá toda la ficha para ciclar: <strong>Vino</strong> → <strong>Tarde</strong> → <strong>No vino</strong> → sin marcar. O usá los botones para ir directo.
       </p>
+
+      {/* Plan de entrenamiento del día (lo carga el coordinador en /plan) */}
+      {Array.from(selectedCategories).map(catId => {
+        const c = activeCategories.find(cc => cc.id === catId)
+        return c ? <PlanDelDia key={catId} categoryId={catId} categoryName={c.name} /> : null
+      })}
 
       {/* Lista */}
       <div className="space-y-2">

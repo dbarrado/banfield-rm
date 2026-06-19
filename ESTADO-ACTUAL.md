@@ -1,7 +1,13 @@
 # Estado actual — Plantel / Banfield (handoff)
 
-**Última actualización:** 2026-06-16
+**Última actualización:** 2026-06-19
 **Para:** retomar el trabajo en otra PC.
+
+## Update 2026-06-19
+- **Módulo Plan de Entrenamiento construido** (`/plan`): el coordinador carga ejercicios por categoría y día; el profe lo ve arriba de la asistencia (`components/plan-del-dia.tsx`). Persiste en `session_plans`/`session_plan_items`. Probado.
+- **15 profes cargados** (identidad: nombre+email, desde doc de Ema). Faltan teléfonos y horarios.
+- **EDEFI completado**: 21 DNIs + 10 chicos nuevos (total 37). 6 quedaron sin DNI (no venían en el doc). Plantel total = **450**.
+- **Depende de Ema (no se puede inventar):** horarios del cronograma (días/turnos mañana-tarde por categoría y profe), mapeo de tiras `BANFIELD RAMOS`/`BANFIELD RAMOS "A"` ↔ `Liga Buenos Aires 1/2`, email de Edgardo (chat: `moreledgardo06@gmail.com` vs doc: `edgardomorel@hotmail.com`), DNIs de las otras ligas. Detalle en `data-import/PEDIDO-EMA.md` (local, gitignored).
 
 ---
 

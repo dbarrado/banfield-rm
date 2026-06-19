@@ -38,6 +38,7 @@ en `pending_registrations` — es una decisión de seguridad aparte (hoy RLS las
 | Caja / Cobrar | payments, billings | ✅ | ✅ cobro+recargo transfer (probado $66.000) · ⬜ cash_sessions/movements |
 | Config cobranza/cuota | fee_configs, billing_configs | ✅ (valores) | ⬜ editar desde UI |
 | Asistencia | events, attendances | — | ✅ cierre persiste (`attendance-store`, probado) |
+| **Plan de entrenamiento** | session_plans, session_plan_items | ✅ (`/plan` + vista en asistencia) | ✅ coordinador carga, probado |
 | Convocatoria | convocations, convocation_players | ⬜ | ⬜ |
 | Partidos | events, match_ratings, observations | ⬜ | ⬜ |
 | Asistencia profes | profe_attendance_records | ⬜ | ⬜ |

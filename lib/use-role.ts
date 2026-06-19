@@ -56,7 +56,7 @@ export function getRoleNavItems(role: ActiveRole, dayOfWeek: number): { primary:
   if (role === 'admin') {
     return {
       primary: ['/dashboard', '/socios', '/asistencia', '/cobranzas'],
-      secondary: ['/caja', '/convocatoria', '/fixture', '/partidos', '/asistencia-profes', '/finanzas', '/reportes', '/tienda', '/inscripciones', '/invitar', '/config'],
+      secondary: ['/plan', '/caja', '/convocatoria', '/fixture', '/partidos', '/asistencia-profes', '/finanzas', '/reportes', '/tienda', '/inscripciones', '/invitar', '/config'],
     }
   }
   if (role === 'tesorero') {
@@ -72,12 +72,12 @@ export function getRoleNavItems(role: ActiveRole, dayOfWeek: number): { primary:
     if (isWeekend) {
       return {
         primary: ['/dashboard', '/partidos', '/asistencia-profes', '/asistencia'],
-        secondary: ['/convocatoria', '/fixture', '/socios', '/inscripciones', '/config/cronograma', '/config/profes', '/deportes', '/cobranzas', '/finanzas', '/reportes', '/caja', '/tienda', '/invitar'],
+        secondary: ['/plan', '/convocatoria', '/fixture', '/socios', '/inscripciones', '/config/cronograma', '/config/profes', '/deportes', '/cobranzas', '/finanzas', '/reportes', '/caja', '/tienda', '/invitar'],
       }
     }
     return {
-      primary: ['/dashboard', '/asistencia-profes', '/asistencia', '/convocatoria'],
-      secondary: ['/fixture', '/partidos', '/socios', '/inscripciones', '/config/cronograma', '/config/profes', '/deportes', '/cobranzas', '/finanzas', '/reportes', '/caja', '/tienda', '/invitar'],
+      primary: ['/dashboard', '/plan', '/asistencia', '/asistencia-profes'],
+      secondary: ['/convocatoria', '/fixture', '/partidos', '/socios', '/inscripciones', '/config/cronograma', '/config/profes', '/deportes', '/cobranzas', '/finanzas', '/reportes', '/caja', '/tienda', '/invitar'],
     }
   }
   // Profe — adapta según día
@@ -89,8 +89,8 @@ export function getRoleNavItems(role: ActiveRole, dayOfWeek: number): { primary:
     }
   }
   return {
-    primary: ['/dashboard', '/asistencia', '/convocatoria', '/fixture'],
-    secondary: ['/partidos', '/socios'],
+    primary: ['/dashboard', '/asistencia', '/plan', '/convocatoria'],
+    secondary: ['/fixture', '/partidos', '/socios'],
   }
 }
 
