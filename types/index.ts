@@ -24,8 +24,8 @@ export type Tira = string
 // MANTENER por compatibilidad legacy con Banfield/Boca (fútbol AFA):
 export const TIRA_LABELS: Record<string, string> = {
   metro: 'Metro',
-  liga1: 'Liga 1',
-  liga2: 'Liga 2',
+  liga1: 'Banfield Ramos',
+  liga2: 'Banfield Ramos "A"',
   edefi: 'Edefi',
 }
 

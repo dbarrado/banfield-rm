@@ -9,8 +9,8 @@ export type TiraInfo = {
 export const SPORT_TIRAS: Record<SportCode, TiraInfo[]> = {
   football_11: [
     { code: 'metro', label: 'Metro', color: '#1d4ed8' },
-    { code: 'liga1', label: 'Liga 1', color: '#00843D' },
-    { code: 'liga2', label: 'Liga 2', color: '#C9A84C' },
+    { code: 'liga1', label: 'Banfield Ramos', color: '#00843D' },
+    { code: 'liga2', label: 'Banfield Ramos "A"', color: '#C9A84C' },
     { code: 'edefi', label: 'Edefi', color: '#7c3aed' },
   ],
   hockey_field: [
