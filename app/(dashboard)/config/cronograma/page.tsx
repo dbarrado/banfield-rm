@@ -1,24 +1,34 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Calendar, Clock, MapPin, User, Plus, Edit2, Trash2, X } from 'lucide-react'
 import Link from 'next/link'
 import { demoTrainingRoster, DAYS_OF_WEEK, type TrainingSlot } from '@/lib/training-roster'
-import { demoCategories, demoProfes } from '@/lib/demo-data'
+import { demoCategories, demoProfes, getCategoriesForClub } from '@/lib/demo-data'
 import { TIRA_LABELS, TIRA_COLORS, type Tira } from '@/types'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { isRealClub } from '@/lib/real-clubs'
-import { createTrainingSlot } from '@/lib/data/ops-store'
+import { createTrainingSlot, loadTrainingSlots, loadProfes } from '@/lib/data/ops-store'
 
 const COURT_COLORS = ['#7c3aed', '#1d4ed8', '#dc2626', '#16a34a']
 const ALL_TIRAS: Tira[] = ['metro', 'liga1', 'liga2', 'edefi']
 
 export default function CronogramaPage() {
   const club = useCurrentClub()
-  const [slots, setSlots] = useState<TrainingSlot[]>(demoTrainingRoster)
+  // Club real → horarios de Supabase; demo → roster de ejemplo.
+  const [slots, setSlots] = useState<TrainingSlot[]>(isRealClub(club.id) ? [] : demoTrainingRoster)
   const [selectedDay, setSelectedDay] = useState(1)
+
+  const [profesList, setProfesList] = useState<{ id: string; full_name: string; is_active: boolean }[]>(demoProfes as any)
+  const cats = isRealClub(club.id) ? getCategoriesForClub(club.id).filter(c => c.is_active) : demoCategories.filter(c => c.is_active)
+
+  useEffect(() => {
+    if (!isRealClub(club.id)) return
+    loadTrainingSlots(club.id).then(rows => { if (rows) setSlots(rows as TrainingSlot[]) })
+    loadProfes(club.id).then(rows => { if (rows) setProfesList(rows as any) })
+  }, [club.id])
   const [editingSlot, setEditingSlot] = useState<TrainingSlot | null>(null)
   const [showNew, setShowNew] = useState(false)
 
@@ -106,8 +116,8 @@ export default function CronogramaPage() {
             {g.slots.map(s => {
               const courtColor = COURT_COLORS[(s.court - 1) % COURT_COLORS.length]
               const cats = demoCategories.filter(c => s.category_ids.includes(c.id))
-              const titular = demoProfes.find(p => p.id === s.profe_titular_id)
-              const suplentes = (s.profe_suplentes_ids ?? []).map(id => demoProfes.find(p => p.id === id)).filter(Boolean) as typeof demoProfes
+              const titular = profesList.find(p => p.id === s.profe_titular_id)
+              const suplentes = (s.profe_suplentes_ids ?? []).map(id => profesList.find(p => p.id === id)).filter(Boolean) as typeof demoProfes
               return (
                 <Card key={s.id} className="border-0 shadow-sm" style={{ borderLeft: `4px solid ${courtColor}` }}>
                   <CardContent className="p-3 space-y-2">
@@ -172,6 +182,8 @@ export default function CronogramaPage() {
         <SlotModal
           slot={editingSlot ?? undefined}
           defaultDay={selectedDay}
+          profes={profesList}
+          categories={cats}
           onClose={() => { setShowNew(false); setEditingSlot(null); }}
           onSave={(s) => {
             if (editingSlot) {
@@ -197,9 +209,11 @@ export default function CronogramaPage() {
   )
 }
 
-function SlotModal({ slot, defaultDay, onClose, onSave }: {
+function SlotModal({ slot, defaultDay, profes, categories, onClose, onSave }: {
   slot?: TrainingSlot
   defaultDay: number
+  profes: { id: string; full_name: string; is_active: boolean }[]
+  categories: { id: string; name: string; is_active: boolean }[]
   onClose: () => void
   onSave: (s: TrainingSlot) => void
 }) {
@@ -300,7 +314,7 @@ function SlotModal({ slot, defaultDay, onClose, onSave }: {
           <div>
             <label className="text-xs font-semibold mb-1 block">Categorías * (multi)</label>
             <div className="flex flex-wrap gap-1">
-              {demoCategories.filter(c => c.is_active).map(c => {
+              {categories.map(c => {
                 const sel = catIds.has(c.id)
                 return (
                   <button key={c.id} type="button" onClick={() => toggleCat(c.id)}
@@ -335,7 +349,7 @@ function SlotModal({ slot, defaultDay, onClose, onSave }: {
             <label className="text-xs font-semibold mb-1 block">Profe titular *</label>
             <select required value={titular} onChange={e => setTitular(e.target.value)} className="w-full px-3 py-2 border rounded text-sm">
               <option value="">— Seleccionar —</option>
-              {demoProfes.filter(p => p.is_active).map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+              {profes.filter(p => p.is_active).map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
             </select>
           </div>
           <div>
@@ -366,7 +380,7 @@ function SlotModal({ slot, defaultDay, onClose, onSave }: {
                     className="flex-1 px-3 py-2 border rounded text-sm"
                   >
                     <option value="">— Seleccionar profe —</option>
-                    {demoProfes
+                    {profes
                       .filter(p => p.is_active && p.id !== titular && (!suplentes.includes(p.id) || suplentes[idx] === p.id))
                       .map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)
                     }

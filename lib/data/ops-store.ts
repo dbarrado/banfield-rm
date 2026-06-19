@@ -11,6 +11,39 @@ function sbFor(demoClubId: string) {
   return sb ? { sb, supabase: createClient() } : null
 }
 
+// ── Lectura: cronograma / profes reales ─────────────────────────────────
+export async function loadTrainingSlots(demoClubId: string): Promise<any[] | null> {
+  const ctx = sbFor(demoClubId); if (!ctx) return null
+  const { data, error } = await ctx.supabase
+    .from('training_slots')
+    .select('id,day_of_week,start_time,end_time,court,category_ids,tiras,profe_titular_id,profe_suplentes_ids,is_active')
+    .eq('club_id', ctx.sb)
+  if (error) { console.error('[ops] loadTrainingSlots', error.message); return [] }
+  return (data ?? []).map((s) => ({
+    id: s.id,
+    day_of_week: s.day_of_week,
+    start_time: (s.start_time ?? '').slice(0, 5),
+    end_time: (s.end_time ?? '').slice(0, 5),
+    court: s.court ?? 1,
+    category_ids: s.category_ids ?? [],
+    tiras: s.tiras ?? [],
+    profe_titular_id: s.profe_titular_id ?? null,
+    profe_suplentes_ids: s.profe_suplentes_ids ?? [],
+    is_active: s.is_active,
+  }))
+}
+
+export async function loadProfes(demoClubId: string): Promise<any[] | null> {
+  const ctx = sbFor(demoClubId); if (!ctx) return null
+  const { data, error } = await ctx.supabase
+    .from('profes')
+    .select('id,full_name,email,whatsapp,is_active')
+    .eq('club_id', ctx.sb)
+    .order('full_name')
+  if (error) { console.error('[ops] loadProfes', error.message); return [] }
+  return data ?? []
+}
+
 // ── Convocatoria ────────────────────────────────────────────────────────
 export async function persistConvocation(
   demoClubId: string,
