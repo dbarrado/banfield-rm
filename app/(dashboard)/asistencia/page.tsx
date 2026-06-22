@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ClipboardList, CheckCircle2, XCircle, AlertCircle, User, Lock, Unlock, Clock, Radio, Plus, X, Search, UserPlus, MapPin, Sparkles, Circle } from 'lucide-react'
@@ -14,6 +14,7 @@ import { getActiveSlotForNow, getNextSlotForDay, type TrainingSlot } from '@/lib
 import { getAvatarUrl } from '@/lib/avatars'
 import { isRealClub } from '@/lib/real-clubs'
 import { persistAttendanceClose } from '@/lib/data/attendance-store'
+import { loadTrainingSlots } from '@/lib/data/ops-store'
 import { PlanDelDia } from '@/components/plan-del-dia'
 
 type AttendanceStatus = 'unmarked' | 'present' | 'late' | 'absent_unjustified' | 'absent_justified'
@@ -62,7 +63,7 @@ export default function AsistenciaPage() {
   const [dismissedSlot, setDismissedSlot] = useState(false)
 
   // Multi-select: el profe arma la sesión real (sin rigidez de turno)
-  const [selectedProfe, setSelectedProfe] = useState<string>(nextSlot?.profe_titular_id ?? '')
+  const [selectedProfe, setSelectedProfe] = useState<string>(isRealClub(club.id) ? '' : (nextSlot?.profe_titular_id ?? ''))
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
     new Set(nextSlot?.category_ids ?? [initialCategory])
   )
@@ -72,10 +73,37 @@ export default function AsistenciaPage() {
   function loadSlot(slot: TrainingSlot) {
     setSelectedCategories(new Set(slot.category_ids))
     setSelectedTiras(new Set(slot.tiras))
-    setSelectedProfe(slot.profe_titular_id ?? '')
+    // En club real el filtro por profe (asignaciones demo) no aplica → dejar libre
+    setSelectedProfe(isRealClub(club.id) ? '' : (slot.profe_titular_id ?? ''))
     setUsedSlot(true)
     setAttendance({})
   }
+
+  // Club real: cargar el cronograma real y autoseleccionar el turno de hoy
+  const [realSlots, setRealSlots] = useState<TrainingSlot[]>([])
+  useEffect(() => {
+    if (!isRealClub(club.id)) return
+    loadTrainingSlots(club.id).then(rows => {
+      if (!rows) return
+      const slots = rows as TrainingSlot[]
+      setRealSlots(slots)
+      const d = new Date()
+      const dow = d.getDay()
+      const hhmm = d.toTimeString().slice(0, 5)
+      const todays = slots.filter(s => s.day_of_week === dow && s.is_active)
+        .sort((a, b) => a.start_time.localeCompare(b.start_time))
+      const active = todays.find(s => s.start_time <= hhmm && hhmm <= s.end_time)
+      const pick = active ?? todays[0]
+      if (pick) loadSlot(pick)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [club.id])
+
+  const realTodaySlots = useMemo(() => {
+    const dow = new Date().getDay()
+    return realSlots.filter(s => s.day_of_week === dow && s.is_active)
+      .sort((a, b) => a.start_time.localeCompare(b.start_time))
+  }, [realSlots])
   const sessionColor = Array.from(selectedTiras)[0] ? TIRA_COLORS[Array.from(selectedTiras)[0]] : 'var(--club-primary, #00843D)'
   const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({})
   const [closed, setClosed] = useState(false)
@@ -226,8 +254,40 @@ export default function AsistenciaPage() {
         </Card>
       )}
 
-      {/* Banner de slot del cronograma */}
-      {nextSlot && !usedSlot && !dismissedSlot && (
+      {/* Club real: selector de turnos de hoy (cronograma real). El profe ve su tira/horario y puede elegir si está en más de uno. */}
+      {isRealClub(club.id) && realTodaySlots.length > 0 && (
+        <Card className="border-0 shadow-sm" style={{ borderLeft: '4px solid #7c3aed', background: 'linear-gradient(135deg, #f5f3ff 0%, white 100%)' }}>
+          <CardContent className="p-3 space-y-2">
+            <div className="flex items-center gap-1.5">
+              <Sparkles size={14} className="text-purple-600" />
+              <p className="text-xs font-bold uppercase text-purple-800" style={{ fontFamily: "var(--font-barlow)" }}>Turnos de hoy</p>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {realTodaySlots.map(s => {
+                const cats = s.category_ids.map(cid => clubCategories.find(x => x.id === cid)?.name).filter(Boolean).join(' · ')
+                const selected = usedSlot && Array.from(selectedCategories).sort().join() === [...s.category_ids].sort().join() &&
+                  Array.from(selectedTiras).sort().join() === [...s.tiras].sort().join()
+                return (
+                  <button key={s.id} onClick={() => loadSlot(s)}
+                    className={`text-left p-2 rounded-lg border-2 ${selected ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                    <div className="flex items-center gap-2 flex-wrap text-xs">
+                      <span className="font-bold">{s.start_time}–{s.end_time}</span>
+                      {s.tiras.map(t => (
+                        <Badge key={t} className="text-[10px] border-0 text-white" style={{ backgroundColor: getTiraColor(t, clubSportCode) }}>{getTiraLabel(t, clubSportCode)}</Badge>
+                      ))}
+                      <span className="text-muted-foreground">{cats}</span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+            <p className="text-[10px] text-muted-foreground text-center">Tocá tu turno para cargar tiras y categorías. Después podés ajustar.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Banner de slot del cronograma (solo demo) */}
+      {!isRealClub(club.id) && nextSlot && !usedSlot && !dismissedSlot && (
         <Card className="border-0 shadow-sm" style={{ borderLeft: '4px solid #7c3aed', background: 'linear-gradient(135deg, #f5f3ff 0%, white 100%)' }}>
           <CardContent className="p-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
