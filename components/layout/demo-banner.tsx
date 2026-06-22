@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { X } from 'lucide-react'
+import { isRealClub } from '@/lib/real-clubs'
 
 const STORAGE_KEY = 'bandield_demo_banner_dismissed'
+const CURRENT_CLUB_KEY = 'banfieldrm_current_club_id'
 
 export function DemoBanner() {
   const pathname = usePathname()
@@ -12,6 +14,9 @@ export function DemoBanner() {
 
   useEffect(() => {
     if (pathname !== '/dashboard') return
+    // El club real corre en producción: nunca mostrar el cartel de demo.
+    const clubId = localStorage.getItem(CURRENT_CLUB_KEY) ?? 'club-banfield-rm'
+    if (isRealClub(clubId)) return
     const dismissed = typeof window !== 'undefined' && localStorage.getItem(STORAGE_KEY) === '1'
     if (!dismissed) setShow(true)
   }, [pathname])

@@ -109,8 +109,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   if (needsLogin) {
-    if (typeof window !== 'undefined') window.location.href = '/login'
-    return null
+    // Club real sin sesión Supabase. NO redirigir en automático: el middleware
+    // rebota /login→/dashboard por la cookie demo_auth y se genera un loop.
+    // Mostramos un CTA que limpia demo_auth y manda a login con acción del usuario.
+    function goLogin() {
+      document.cookie = 'demo_auth=; path=/; max-age=0; SameSite=Lax'
+      window.location.href = '/login'
+    }
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center p-6">
+        <div className="flex flex-col items-center gap-3 text-center max-w-sm">
+          <p className="text-sm text-muted-foreground">
+            Para ver los datos reales del club necesitás iniciar sesión con tu usuario.
+          </p>
+          <button onClick={goLogin} className="px-4 py-2 rounded-lg text-white font-bold text-sm" style={{ backgroundColor: '#00843D' }}>
+            Iniciar sesión
+          </button>
+        </div>
+      </div>
+    )
   }
 
   if (!ready) {

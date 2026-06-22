@@ -37,6 +37,9 @@ export default function LoginPage() {
 
     // 2) Fallback DEMO: para mostrar el producto con clubes ficticios.
     //    No expone datos reales: sin sesión Supabase, RLS bloquea todo lo del club real.
+    //    Importante: posicionar en un club DEMO (no en el real por defecto), si no el
+    //    DataProvider pediría sesión y el usuario demo quedaría sin poder ver nada.
+    localStorage.setItem(CURRENT_CLUB_KEY, 'club-brisas')
     document.cookie = `demo_auth=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`
     router.push('/dashboard')
     router.refresh()
