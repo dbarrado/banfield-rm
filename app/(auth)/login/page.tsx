@@ -17,32 +17,38 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const router = useRouter()
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
+    setError('')
 
-    // 1) Intentar autenticación REAL contra Supabase (club en producción).
-    //    Si es válida → sesión real, los datos del club quedan habilitados por RLS.
+    // Autenticación REAL contra Supabase (club en producción).
     const supabase = createClient()
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (!error && data.session) {
+    const { data, error: authErr } = await supabase.auth.signInWithPassword({ email, password })
+    if (!authErr && data.session) {
       localStorage.setItem(CURRENT_CLUB_KEY, 'club-banfield-rm') // club real
       document.cookie = `demo_auth=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`
-      router.push('/dashboard')
-      router.refresh()
+      // Reload completo (no router.push) para que la cookie de sesión quede disponible
+      // server-side (middleware) y el DataProvider la lea sin condición de carrera.
+      window.location.href = '/dashboard'
       return
     }
 
-    // 2) Fallback DEMO: para mostrar el producto con clubes ficticios.
-    //    No expone datos reales: sin sesión Supabase, RLS bloquea todo lo del club real.
-    //    Importante: posicionar en un club DEMO (no en el real por defecto), si no el
-    //    DataProvider pediría sesión y el usuario demo quedaría sin poder ver nada.
+    // Falló la autenticación real: mostrar el error (no caer a demo en silencio).
+    setLoading(false)
+    setError(authErr?.message === 'Invalid login credentials'
+      ? 'Usuario o contraseña incorrectos.'
+      : `No se pudo iniciar sesión: ${authErr?.message ?? 'error desconocido'}`)
+  }
+
+  // Modo demo explícito (para mostrar el producto con clubes ficticios).
+  function enterDemo() {
     localStorage.setItem(CURRENT_CLUB_KEY, 'club-brisas')
     document.cookie = `demo_auth=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`
-    router.push('/dashboard')
-    router.refresh()
+    window.location.href = '/dashboard'
   }
 
   return (
@@ -96,8 +102,13 @@ export default function LoginPage() {
                 autoComplete="current-password"
               />
             </div>
+            {error && (
+              <p className="text-xs text-center text-red-600 bg-red-50 border border-red-200 rounded-md py-2 px-2">
+                {error}
+              </p>
+            )}
             <p className="text-xs text-center text-muted-foreground">
-              Club real: usá tu usuario y contraseña · Demo: cualquier credencial
+              Ingresá con tu usuario y contraseña del club.
             </p>
             <Button
               type="submit"
@@ -108,6 +119,13 @@ export default function LoginPage() {
               {loading ? 'Ingresando...' : 'INGRESAR'}
             </Button>
           </form>
+          <button
+            type="button"
+            onClick={enterDemo}
+            className="w-full mt-3 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          >
+            Ver demo (clubes de ejemplo, sin datos reales)
+          </button>
         </CardContent>
       </Card>
     </div>
