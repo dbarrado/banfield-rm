@@ -85,7 +85,11 @@ export function Sidebar() {
 
   async function handleLogout() {
     await supabase.auth.signOut()
-    router.push('/login')
+    // Limpiar el gate de UI y el club activo. Si no se borra demo_auth, el middleware
+    // rebota /login -> /dashboard y parece que "no cierra sesión".
+    document.cookie = 'demo_auth=; path=/; max-age=0; SameSite=Lax'
+    try { localStorage.removeItem('banfieldrm_current_club_id') } catch {}
+    window.location.href = '/login'
   }
 
   return (
