@@ -16,6 +16,9 @@ import {
 import { TIRA_LABELS, TIRA_COLORS, type Tira } from '@/types'
 import { getTiraLabel, getTiraColor } from '@/lib/tiras'
 import type { SportCode } from '@/lib/sports'
+import { isRealClub } from '@/lib/real-clubs'
+import { getRealBillings } from '@/lib/data/billing-store'
+import { DEFAULT_FEE_ACTIVIDAD } from '@/lib/billings'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { useActiveRole } from '@/lib/use-role'
 import { demoClubs } from '@/lib/clubs'
@@ -28,15 +31,29 @@ export default function DashboardPage() {
   const clubCategories = useMemo(() => getCategoriesForClub(club.id), [club.id])
   const clubEvents = useMemo(() => getEventsForClub(club.id), [club.id])
 
-  const baseSocios = club.total_socios ?? clubPlayers.filter(p => p.is_active).length
-  // Escala los datos demo proporcionalmente al tamaño del club
-  const scale = baseSocios / 450
-  const totalSocios = baseSocios
-  const thisMonthPayments = demoPayments.filter(p => p.period === thisMonth && p.fee_type === 'actividad')
-  const monthlyIncome = Math.round(thisMonthPayments.reduce((s, p) => s + p.amount, 0) * scale)
-  const cuotaActividad = 62000
+  const real = isRealClub(club.id)
+  const realBillings = real ? (getRealBillings(club.id) ?? []) : []
+
+  const totalSocios = real
+    ? clubPlayers.filter(p => p.is_active).length
+    : (club.total_socios ?? clubPlayers.filter(p => p.is_active).length)
+  // Escala los datos demo proporcionalmente al tamaño del club (solo demo)
+  const scale = (club.total_socios ?? clubPlayers.filter(p => p.is_active).length) / 450
+  const cuotaActividad = real ? DEFAULT_FEE_ACTIVIDAD : 62000
+
+  // Recaudado del mes: club real = suma real cobrada (amount_paid) de las cuotas
+  // de actividad del período; demo = pagos simulados escalados.
+  const monthlyIncome = real
+    ? realBillings
+        .filter(b => b.fee_type === 'actividad')
+        .reduce((s, b) => s + (b.amount_paid ?? 0), 0)
+    : Math.round(
+        demoPayments
+          .filter(p => p.period === thisMonth && p.fee_type === 'actividad')
+          .reduce((s, p) => s + p.amount, 0) * scale
+      )
   const target = cuotaActividad * totalSocios
-  const incomePercent = Math.round((monthlyIncome / target) * 100)
+  const incomePercent = target > 0 ? Math.round((monthlyIncome / target) * 100) : 0
   // Próximos partidos agrupados: por (fecha, rival, tira) — todas las categorías que juegan ese día contra ese rival con esa tira
   const today = new Date('2026-05-07')
   const allUpcoming = clubEvents
@@ -90,7 +107,18 @@ export default function DashboardPage() {
     }
     if (groupedMatches.length === 4) break
   }
-  const deudoresCount = getPlayerDebts(clubPlayers, demoPayments).length
+  // Deudores: club real = cuotas de actividad del período sin pago completo;
+  // demo = cálculo contra pagos simulados.
+  const deudoresCount = real
+    ? (() => {
+        const billsActividad = realBillings.filter(b => b.fee_type === 'actividad')
+        const alDia = new Set(
+          billsActividad.filter(b => b.status === 'paid').map(b => b.player_id)
+        )
+        // Socios sin cuota pagada este mes (incluye los que aún no tienen billing emitido)
+        return clubPlayers.filter(p => p.is_active && !alDia.has(p.id)).length
+      })()
+    : getPlayerDebts(clubPlayers, demoPayments).length
 
   // Referrals
   const fullClub = demoClubs.find(c => c.id === club.id)
@@ -249,8 +277,8 @@ export default function DashboardPage() {
         </Link>
       )}
 
-      {/* No anotados que participaron */}
-      {demoGuestParticipations.filter(g => g.reason !== 'visit_other_tira').length > 0 && (
+      {/* No anotados que participaron — solo demo (el club real aún no tiene este dato) */}
+      {!real && demoGuestParticipations.filter(g => g.reason !== 'visit_other_tira').length > 0 && (
         <Card className="border-0 shadow-sm" style={{ borderLeft: '4px solid #F59E0B', backgroundColor: '#fffbeb' }}>
           <CardContent className="p-3">
             <div className="flex items-center justify-between mb-2">

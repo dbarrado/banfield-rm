@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, use } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, MessageCircle, Camera, Plus, Trophy, AlertCircle, Star, Award, FileCheck, FileWarning, Upload, Mail, Edit2, X, Check, QrCode, Users as UsersIcon, Shield } from 'lucide-react'
@@ -10,6 +11,8 @@ import { demoPlayers, demoCategories, demoPayments, demoEvents, demoAttendance, 
 import { useCurrentClub } from '@/lib/use-current-club'
 import { isRealClub } from '@/lib/real-clubs'
 import { updatePlayer } from '@/lib/data/players-store'
+import { getRealBillings } from '@/lib/data/billing-store'
+import { DEFAULT_FEE_ACTIVIDAD } from '@/lib/billings'
 import { useActiveRole } from '@/lib/use-role'
 import { POSITION_LABELS, POSITION_COLORS, type Position } from '@/types'
 import { getAvatarUrl } from '@/lib/avatars'
@@ -18,9 +21,19 @@ import type { SportCode } from '@/lib/sports'
 
 const ALL_POSITIONS: Position[] = ['arquero', 'defensor', 'mediocampista', 'delantero']
 
+// Formatea una fecha ISO de forma segura: si está vacía o es inválida, devuelve null.
+function safeDate(value?: string | null): string | null {
+  if (!value) return null
+  const d = new Date(value)
+  if (isNaN(d.getTime())) return null
+  return d.toLocaleDateString('es-AR')
+}
+
 export default function PlayerProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  const router = useRouter()
   const club = useCurrentClub()
+  const real = isRealClub(club.id)
   const initialPlayer = demoPlayers.find(p => p.id === id)
   if (!initialPlayer) notFound()
 
@@ -30,6 +43,53 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
   const [primaryPos, setPrimaryPos] = useState<Position>(initialPlayer!.primary_position)
   const [secondaryPos, setSecondaryPos] = useState<Position[]>(initialPlayer!.secondary_positions)
   const [editingPositions, setEditingPositions] = useState(false)
+  // Edición de datos personales + tutor (persistente en club real)
+  const [editingInfo, setEditingInfo] = useState(false)
+  const [savingInfo, setSavingInfo] = useState(false)
+  const [info, setInfo] = useState({
+    full_name: initialPlayer!.full_name,
+    dni: initialPlayer!.dni ?? '',
+    birth_date: initialPlayer!.birth_date ?? '',
+    tutor_name: initialPlayer!.tutor_name ?? '',
+    tutor_dni: initialPlayer!.tutor_dni ?? '',
+    tutor_email: initialPlayer!.tutor_email ?? '',
+    tutor_whatsapp: initialPlayer!.tutor_whatsapp ?? '',
+  })
+  const [infoDraft, setInfoDraft] = useState(info)
+
+  async function saveInfo() {
+    setSavingInfo(true)
+    if (real) {
+      const res = await updatePlayer(club.id, id, {
+        full_name: infoDraft.full_name,
+        dni: infoDraft.dni || null,
+        birth_date: infoDraft.birth_date || null,
+        tutor_name: infoDraft.tutor_name || null,
+        tutor_dni: infoDraft.tutor_dni || null,
+        tutor_email: infoDraft.tutor_email || null,
+        tutor_whatsapp: infoDraft.tutor_whatsapp || null,
+      })
+      setSavingInfo(false)
+      if (!res.ok) {
+        alert(`No se pudo guardar: ${res.error ?? 'error'}`)
+        return
+      }
+    } else {
+      setSavingInfo(false)
+    }
+    // Reflejar en pantalla y en el store en memoria (para no recargar)
+    setInfo(infoDraft)
+    Object.assign(initialPlayer!, {
+      full_name: infoDraft.full_name,
+      dni: infoDraft.dni || null,
+      birth_date: infoDraft.birth_date || '',
+      tutor_name: infoDraft.tutor_name || null,
+      tutor_dni: infoDraft.tutor_dni || null,
+      tutor_email: infoDraft.tutor_email || null,
+      tutor_whatsapp: infoDraft.tutor_whatsapp || null,
+    })
+    setEditingInfo(false)
+  }
   const [showPaymentForm, setShowPaymentForm] = useState(false)
   const [showObservationForm, setShowObservationForm] = useState(false)
   // Consentimientos de imagen (Ley 26.061 + 25.326)
@@ -64,12 +124,29 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
   const tiraColor = getTiraColor(player.tira, playerSportCode)
   const stats = getDetailedAttendanceStats(player.id, player.category_id)
   const WEEKDAY_NAMES = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
-  const payments = demoPayments.filter(p => p.player_id === player.id).sort((a, b) => b.paid_at.localeCompare(a.paid_at))
+  // Pagos: club real = cuotas reales del jugador (billings cobrados); demo = pagos simulados.
+  const realPlayerBillings = real ? (getRealBillings(club.id) ?? []).filter(b => b.player_id === player.id) : []
+  const payments = real
+    ? realPlayerBillings
+        .filter(b => b.amount_paid > 0 && b.paid_at)
+        .map(b => ({
+          id: b.id,
+          fee_type: b.fee_type,
+          period: b.period,
+          amount: b.amount_paid,
+          paid_at: b.paid_at as string,
+          payment_method: b.payment_method,
+          transfer_reference: b.payment_method && b.payment_method !== 'cash' ? 'Transferencia' : null,
+        }))
+        .sort((a, b) => (b.paid_at ?? '').localeCompare(a.paid_at ?? ''))
+    : demoPayments.filter(p => p.player_id === player.id).sort((a, b) => b.paid_at.localeCompare(a.paid_at))
   const matches = demoEvents.filter(e => e.event_type === 'match' && e.category_id === player.category_id)
-  const initials = player.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)
+  const initials = info.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)
 
   // Estado de cuota
-  const paidThisMonth = demoPayments.some(p => p.player_id === player.id && p.period === thisMonth && p.fee_type === 'actividad')
+  const paidThisMonth = real
+    ? realPlayerBillings.some(b => b.period === thisMonth && b.fee_type === 'actividad' && b.status === 'paid')
+    : demoPayments.some(p => p.player_id === player.id && p.period === thisMonth && p.fee_type === 'actividad')
   const status = paidThisMonth ? 'al-dia' : 'deudor'
   const statusLabel = paidThisMonth ? 'Al día' : 'Deudor'
   const statusColor = paidThisMonth ? '#00843D' : '#DC2626'
@@ -84,8 +161,8 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
 
   const waMsg = encodeURIComponent(
     status === 'deudor'
-      ? `Hola ${player.tutor_name}, te recordamos que ${player.full_name} tiene una deuda pendiente con el Club Banfield Ramos Mejía.`
-      : `Hola ${player.tutor_name}, soy del Club Banfield Ramos Mejía.`
+      ? `Hola ${info.tutor_name}, te recordamos que ${info.full_name} tiene una deuda pendiente con el Club Banfield Ramos Mejía.`
+      : `Hola ${info.tutor_name}, soy del Club Banfield Ramos Mejía.`
   )
 
   return (
@@ -126,7 +203,7 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
             />
           </div>
           <h1 className="text-2xl font-bold text-white mt-3" style={{ fontFamily: "var(--font-barlow)" }}>
-            {player.full_name.toUpperCase()}
+            {info.full_name.toUpperCase()}
           </h1>
           <div className="flex items-center justify-center gap-2 flex-wrap mt-1">
             <Badge className="text-white border-0 text-xs" style={{ backgroundColor: 'rgba(255,255,255,0.25)' }}>
@@ -336,30 +413,46 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
         {/* Datos del tutor */}
         <Card className="border-0 shadow-sm">
           <CardContent className="p-3">
-            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2" style={{ fontFamily: "var(--font-barlow)" }}>
-              TUTOR
-            </p>
-            <div className="space-y-1.5">
-              <p className="text-sm font-semibold">{player.tutor_name ?? 'Sin datos'}</p>
-              {player.tutor_dni && (
-                <p className="text-xs text-muted-foreground">DNI: {player.tutor_dni}</p>
-              )}
-              {player.tutor_email && (
-                <a href={`mailto:${player.tutor_email}`} className="inline-flex items-center gap-1.5 text-xs text-blue-600 font-medium">
-                  <Mail size={12} /> {player.tutor_email}
-                </a>
-              )}
-              {player.tutor_whatsapp && (
-                <a
-                  href={`https://wa.me/54${player.tutor_whatsapp}?text=${waMsg}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs text-green-600 font-semibold"
-                >
-                  <MessageCircle size={14} /> WhatsApp +54 {player.tutor_whatsapp}
-                </a>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground" style={{ fontFamily: "var(--font-barlow)" }}>
+                TUTOR
+              </p>
+              {!editingInfo && (
+                <button onClick={() => { setInfoDraft(info); setEditingInfo(true) }} className="text-xs px-2 py-1 rounded border text-muted-foreground hover:bg-gray-50 flex items-center gap-1">
+                  <Edit2 size={11} /> Editar datos
+                </button>
               )}
             </div>
+            {!editingInfo ? (
+              <div className="space-y-1.5">
+                <p className="text-sm font-semibold">{info.tutor_name || 'Sin datos'}</p>
+                {info.tutor_dni && (
+                  <p className="text-xs text-muted-foreground">DNI: {info.tutor_dni}</p>
+                )}
+                {info.tutor_email && (
+                  <a href={`mailto:${info.tutor_email}`} className="inline-flex items-center gap-1.5 text-xs text-blue-600 font-medium">
+                    <Mail size={12} /> {info.tutor_email}
+                  </a>
+                )}
+                {info.tutor_whatsapp && (
+                  <a
+                    href={`https://wa.me/54${info.tutor_whatsapp}?text=${waMsg}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs text-green-600 font-semibold"
+                  >
+                    <MessageCircle size={14} /> WhatsApp +54 {info.tutor_whatsapp}
+                  </a>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <FieldInput label="Nombre del tutor" value={infoDraft.tutor_name} onChange={v => setInfoDraft({ ...infoDraft, tutor_name: v })} placeholder="Ej: María González" />
+                <FieldInput label="DNI tutor" value={infoDraft.tutor_dni} onChange={v => setInfoDraft({ ...infoDraft, tutor_dni: v })} placeholder="Ej: 28456789" />
+                <FieldInput label="Email" value={infoDraft.tutor_email} onChange={v => setInfoDraft({ ...infoDraft, tutor_email: v })} placeholder="tutor@gmail.com" type="email" />
+                <FieldInput label="WhatsApp (sin 0 ni 15)" value={infoDraft.tutor_whatsapp} onChange={v => setInfoDraft({ ...infoDraft, tutor_whatsapp: v })} placeholder="11XXXXXXXX" />
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -512,23 +605,67 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
         {/* Datos personales */}
         <Card className="border-0 shadow-sm">
           <CardContent className="p-3 space-y-1.5">
-            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground" style={{ fontFamily: "var(--font-barlow)" }}>
-              DATOS PERSONALES
-            </p>
-            <div className="text-sm space-y-1">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Fecha de nacimiento</span>
-                <span className="font-semibold">{new Date(player.birth_date).toLocaleDateString('es-AR')}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Categoría</span>
-                <span className="font-semibold">{cat?.name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Tira</span>
-                <span className="font-semibold" style={{ color: tiraColor }}>{tiraLabel}</span>
-              </div>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground" style={{ fontFamily: "var(--font-barlow)" }}>
+                DATOS PERSONALES
+              </p>
+              {!editingInfo && (
+                <button onClick={() => { setInfoDraft(info); setEditingInfo(true) }} className="text-xs px-2 py-1 rounded border text-muted-foreground hover:bg-gray-50 flex items-center gap-1">
+                  <Edit2 size={11} /> Editar
+                </button>
+              )}
             </div>
+            {!editingInfo ? (
+              <div className="text-sm space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Nombre completo</span>
+                  <span className="font-semibold text-right">{info.full_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">DNI</span>
+                  <span className="font-semibold">{info.dni || <span className="text-amber-600 italic font-normal">Sin cargar</span>}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Fecha de nacimiento</span>
+                  <span className="font-semibold">{safeDate(info.birth_date) ?? <span className="text-amber-600 italic font-normal">Sin cargar</span>}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Categoría</span>
+                  <span className="font-semibold">{cat?.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Tira</span>
+                  <span className="font-semibold" style={{ color: tiraColor }}>{tiraLabel}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <FieldInput label="Nombre completo" value={infoDraft.full_name} onChange={v => setInfoDraft({ ...infoDraft, full_name: v })} placeholder="Apellido y nombre" />
+                <FieldInput label="DNI" value={infoDraft.dni} onChange={v => setInfoDraft({ ...infoDraft, dni: v })} placeholder="Ej: 50123456" />
+                <FieldInput label="Fecha de nacimiento" value={infoDraft.birth_date} onChange={v => setInfoDraft({ ...infoDraft, birth_date: v })} type="date" />
+                <p className="text-[10px] text-muted-foreground">Categoría y tira se editan desde la gestión de categorías.</p>
+              </div>
+            )}
+
+            {editingInfo && (
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={saveInfo}
+                  disabled={savingInfo}
+                  className="flex-1 py-2 rounded-lg text-white font-bold text-xs flex items-center justify-center gap-1 disabled:opacity-50"
+                  style={{ backgroundColor: '#00843D' }}
+                >
+                  <Check size={13} /> {savingInfo ? 'Guardando…' : 'Guardar cambios'}
+                </button>
+                <button
+                  onClick={() => { setInfoDraft(info); setEditingInfo(false) }}
+                  disabled={savingInfo}
+                  className="px-3 py-2 rounded-lg border text-xs font-semibold text-muted-foreground hover:bg-gray-50 flex items-center gap-1"
+                >
+                  <X size={13} /> Cancelar
+                </button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -540,7 +677,7 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
                 HISTORIAL DE PAGOS
               </p>
               <button
-                onClick={() => setShowPaymentForm(true)}
+                onClick={() => { if (real) router.push('/caja/cobrar'); else setShowPaymentForm(true) }}
                 className="text-xs font-semibold px-2.5 py-1 rounded text-white flex items-center gap-1"
                 style={{ backgroundColor: '#00843D' }}
               >
@@ -571,13 +708,15 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
               <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground" style={{ fontFamily: "var(--font-barlow)" }}>
                 OBSERVACIONES
               </p>
-              <button
-                onClick={() => setShowObservationForm(true)}
-                className="text-xs font-semibold px-2.5 py-1 rounded text-white flex items-center gap-1"
-                style={{ backgroundColor: '#00843D' }}
-              >
-                <Plus size={12} /> Nota
-              </button>
+              {!real && (
+                <button
+                  onClick={() => setShowObservationForm(true)}
+                  className="text-xs font-semibold px-2.5 py-1 rounded text-white flex items-center gap-1"
+                  style={{ backgroundColor: '#00843D' }}
+                >
+                  <Plus size={12} /> Nota
+                </button>
+              )}
             </div>
             <p className="text-sm text-muted-foreground">Sin observaciones registradas.</p>
           </CardContent>
@@ -925,6 +1064,34 @@ function ObservationFormModal({ player, onClose }: { player: any; onClose: () =>
           </button>
         </form>
       </div>
+    </div>
+  )
+}
+
+// Campo de edición reutilizable para la ficha del socio.
+function FieldInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = 'text',
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+  type?: string
+}) {
+  return (
+    <div>
+      <label className="text-[10px] uppercase font-semibold text-muted-foreground mb-0.5 block">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full px-3 py-2 border rounded-lg text-sm"
+      />
     </div>
   )
 }
