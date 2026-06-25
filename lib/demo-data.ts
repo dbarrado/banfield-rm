@@ -583,7 +583,31 @@ export const demoProfeAssignments: ProfeAssignment[] = [
   { profe_id: 'pf-12', category_id: 'cat-2018', tira: 'edefi' },
 ]
 
+// Lista de profes para un club: reales si el club está hidratado, demo si no.
+export function getProfesForClub(clubId?: string): Profe[] {
+  const real = clubId ? realProfesByClub.get(clubId) : undefined
+  return real ?? demoProfes
+}
+
+// Busca un profe por id en cualquier set real y, si no, en los demo.
+// (los ids reales son UUID y los demo 'pf-N', no colisionan)
+export function getProfeById(id?: string | null): Profe | undefined {
+  if (!id) return undefined
+  for (const profes of realProfesByClub.values()) {
+    const found = profes.find(p => p.id === id)
+    if (found) return found
+  }
+  return demoProfes.find(p => p.id === id)
+}
+
 export function getProfesForTira(categoryId: string, tira: Tira): Profe[] {
+  // Club real: resolver contra asignaciones/profes reales del club.
+  for (const [clubId, assigns] of realAssignmentsByClub) {
+    const ids = assigns
+      .filter(a => a.category_id === categoryId && a.tira === tira)
+      .map(a => a.profe_id)
+    if (ids.length) return (realProfesByClub.get(clubId) ?? []).filter(p => ids.includes(p.id))
+  }
   const profeIds = demoProfeAssignments
     .filter(a => a.category_id === categoryId && a.tira === tira)
     .map(a => a.profe_id)
@@ -591,6 +615,10 @@ export function getProfesForTira(categoryId: string, tira: Tira): Profe[] {
 }
 
 export function getAssignmentsForProfe(profeId: string): ProfeAssignment[] {
+  for (const assigns of realAssignmentsByClub.values()) {
+    const found = assigns.filter(a => a.profe_id === profeId)
+    if (found.length) return found
+  }
   return demoProfeAssignments.filter(a => a.profe_id === profeId)
 }
 
@@ -1241,8 +1269,20 @@ const LEGACY_CLUB_IDS = new Set(['club-boca-rm', 'club-brisas'])
 // reales para ese club (sin fallback a demo, para no mezclar real con ficticio).
 // ──────────────────────────────────────────────────────────────────────────
 const HYDRATED_REAL_CLUBS = new Set<string>()
+// Profes y asignaciones reales por club. NO se mezclan con los arrays demo:
+// los accessors (getProfesForClub / getProfeById / getProfesForTira /
+// getAssignmentsForProfe) devuelven estos para el club real y los demo para
+// el resto. Así un club demo nunca ve profes reales y viceversa.
+const realProfesByClub = new Map<string, Profe[]>()
+const realAssignmentsByClub = new Map<string, ProfeAssignment[]>()
 
-export function hydrateRealClub(clubId: string, players: Player[], categories: Category[]) {
+export function hydrateRealClub(
+  clubId: string,
+  players: Player[],
+  categories: Category[],
+  profes: Profe[] = [],
+  assignments: ProfeAssignment[] = [],
+) {
   // Idempotente: limpiar lo previo de este club antes de inyectar.
   for (let i = demoPlayers.length - 1; i >= 0; i--) {
     if (demoPlayers[i].club_id === clubId) demoPlayers.splice(i, 1)
@@ -1252,6 +1292,8 @@ export function hydrateRealClub(clubId: string, players: Player[], categories: C
   }
   demoPlayers.push(...players)
   demoCategories.push(...categories)
+  realProfesByClub.set(clubId, profes)
+  realAssignmentsByClub.set(clubId, assignments)
   HYDRATED_REAL_CLUBS.add(clubId)
 }
 

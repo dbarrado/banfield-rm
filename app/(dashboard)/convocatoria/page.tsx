@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Trophy, CheckCircle2, MessageCircle, Lock, List, LayoutGrid, ExternalLink, Unlock } from 'lucide-react'
 import Link from 'next/link'
-import { demoPlayers, demoCategories, demoEvents, getAttendanceStats, getMatchAttendanceStats, demoEligibilityConfig, demoProfes, getAssignmentsForProfe } from '@/lib/demo-data'
+import { demoPlayers, demoCategories, demoEvents, getAttendanceStats, getMatchAttendanceStats, demoEligibilityConfig, getProfesForClub, getAssignmentsForProfe } from '@/lib/demo-data'
 import { getAvatarUrl } from '@/lib/avatars'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { isRealClub } from '@/lib/real-clubs'
@@ -153,7 +153,7 @@ export default function ConvocatoriaPage() {
           className="w-full px-3 py-2 rounded-lg border text-sm font-medium bg-white"
         >
           <option value="">Todos los profes (admin)</option>
-          {demoProfes.filter(p => p.is_active).map(p => (
+          {getProfesForClub(club.id).filter(p => p.is_active).map(p => (
             <option key={p.id} value={p.id}>👤 {p.full_name}</option>
           ))}
         </select>

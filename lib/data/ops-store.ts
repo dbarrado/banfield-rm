@@ -44,6 +44,16 @@ export async function loadProfes(demoClubId: string): Promise<any[] | null> {
   return data ?? []
 }
 
+export async function loadProfeAssignments(demoClubId: string): Promise<any[] | null> {
+  const ctx = sbFor(demoClubId); if (!ctx) return null
+  // Sin columna club_id: el scope por club lo da RLS (policy profe_assignments_tenant).
+  const { data, error } = await ctx.supabase
+    .from('profe_assignments')
+    .select('profe_id,category_id,tira')
+  if (error) { console.error('[ops] loadProfeAssignments', error.message); return [] }
+  return data ?? []
+}
+
 // ── Convocatoria ────────────────────────────────────────────────────────
 export async function persistConvocation(
   demoClubId: string,

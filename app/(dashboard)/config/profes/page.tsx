@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, User, Plus, Phone, ShieldCheck, ShieldAlert, AlertTriangle, Mail } from 'lucide-react'
 import Link from 'next/link'
-import { demoProfes, demoCategories, getAssignmentsForProfe, getProfeComplianceStatus } from '@/lib/demo-data'
+import { getProfesForClub, demoCategories, getAssignmentsForProfe, getProfeComplianceStatus } from '@/lib/demo-data'
 import { TIRA_LABELS, TIRA_COLORS } from '@/types'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { isRealClub } from '@/lib/real-clubs'
@@ -25,7 +25,7 @@ export default function ProfesPage() {
           <h1 className="text-2xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: 'var(--club-primary, #00843D)' }}>
             PROFES
           </h1>
-          <Badge variant="outline">{demoProfes.length}</Badge>
+          <Badge variant="outline">{getProfesForClub(club.id).length}</Badge>
         </div>
         <button onClick={() => setShowForm(true)} className="flex items-center gap-1 text-sm font-semibold px-3 py-2 rounded-lg text-white" style={{ backgroundColor: 'var(--club-primary, #00843D)' }}>
           <Plus size={16} /> Nuevo
@@ -35,7 +35,7 @@ export default function ProfesPage() {
       {/* Resumen compliance */}
       <div className="px-3 md:px-4 mt-2">
         {(() => {
-          const all = demoProfes.map(p => ({ p, c: getProfeComplianceStatus(p) }))
+          const all = getProfesForClub(club.id).map(p => ({ p, c: getProfeComplianceStatus(p) }))
           const expired = all.filter(x => x.c.status === 'expired').length
           const expiring = all.filter(x => x.c.status === 'expiring_soon').length
           const missing = all.filter(x => x.c.status === 'missing').length
@@ -59,7 +59,7 @@ export default function ProfesPage() {
       </div>
 
       <div className="p-3 md:p-4 space-y-2">
-        {demoProfes.map(p => {
+        {getProfesForClub(club.id).map(p => {
           const assignments = getAssignmentsForProfe(p.id)
           const compliance = getProfeComplianceStatus(p)
           // Agrupar asignaciones por categoría

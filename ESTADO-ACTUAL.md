@@ -3,6 +3,16 @@
 **Última actualización:** 2026-06-19
 **Para:** retomar el trabajo en otra PC.
 
+## Update 2026-06-25
+- **Asignaciones profe→tira/categoría ahora se consumen en el club real.** La tabla `profe_assignments` (73 filas, cargada con la grilla "Profesores x tiras", Bruno incluido) ya existía pero la app solo leía datos demo. Se agregó:
+  - `loadProfeAssignments()` en `lib/data/ops-store.ts` (lee `profe_assignments`, scope por RLS).
+  - Hidratación de profes + asignaciones reales en `components/layout/data-provider.tsx` (vía `loadProfes` + `loadProfeAssignments`).
+  - En `lib/demo-data.ts`: mapas `realProfesByClub`/`realAssignmentsByClub` (NO se mezclan con los arrays demo), `hydrateRealClub()` extendido, y accessors club-aware: `getProfesForClub()`, `getProfeById()`, y `getProfesForTira()`/`getAssignmentsForProfe()` que resuelven real primero y demo de fallback.
+  - Páginas migradas a esos accessors: `/convocatoria`, `/asistencia`, `/config/profes`. `Profe` ahora tiene `club_id?`.
+  - `tsc` + `next build` en verde.
+- **PENDIENTE (no se tocó, evita parche engañoso):** `/asistencia-profes` lee el roster **demo** (`demoTrainingRoster`/`getSlotsByDay`), no el `training_slots` real → para el club real muestra turnos/profes demo. Necesita wiring al cronograma real (patrón de `/asistencia` con `loadTrainingSlots`). Las páginas de match-ratings (`/partidos/[id]/puntajes`, `socios/[id]`, `reportes/rendimiento-deportivo`) siguen con profes demo (baja prioridad: `match_ratings` está vacía).
+- **Sin deployar aún:** cambios solo locales, a la espera de OK para push/deploy.
+
 ## Update 2026-06-19
 - **Módulo Plan de Entrenamiento construido** (`/plan`): el coordinador carga ejercicios por categoría y día; el profe lo ve arriba de la asistencia (`components/plan-del-dia.tsx`). Persiste en `session_plans`/`session_plan_items`. Probado.
 - **15 profes cargados** (identidad: nombre+email, desde doc de Ema). Faltan teléfonos y horarios.

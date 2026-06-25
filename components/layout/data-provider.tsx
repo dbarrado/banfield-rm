@@ -5,7 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { isRealClub, realClubId, LIGA_TO_TIRA } from '@/lib/real-clubs'
 import { hydrateRealClub } from '@/lib/demo-data'
 import { hydrateBillings } from '@/lib/data/billing-store'
-import type { Player, Category, Position } from '@/types'
+import { loadProfes, loadProfeAssignments } from '@/lib/data/ops-store'
+import type { Player, Category, Position, Profe, ProfeAssignment } from '@/types'
 
 function currentPeriod(): string {
   const d = new Date()
@@ -25,7 +26,7 @@ async function hydrateFromSupabase(demoClubId: string) {
     return
   }
 
-  const [{ data: cats }, { data: pls }] = await Promise.all([
+  const [{ data: cats }, { data: pls }, profesRaw, assignsRaw] = await Promise.all([
     supabase
       .from('categories')
       .select('id,name,birth_year,sport_format_code,is_active,created_at')
@@ -35,6 +36,8 @@ async function hydrateFromSupabase(demoClubId: string) {
       .select('id,full_name,dni,birth_date,category_id,tira,shift,photo_url,tutor_name,tutor_dni,tutor_email,tutor_whatsapp,primary_position,is_active,convocation_count,created_at')
       .eq('club_id', sbClubId)
       .order('full_name'),
+    loadProfes(demoClubId),
+    loadProfeAssignments(demoClubId),
   ])
 
   const categories: Category[] = (cats ?? []).map((c) => ({
@@ -72,7 +75,22 @@ async function hydrateFromSupabase(demoClubId: string) {
     club_id: demoClubId,
   }))
 
-  hydrateRealClub(demoClubId, players, categories)
+  const profes: Profe[] = (profesRaw ?? []).map((p) => ({
+    id: p.id,
+    full_name: p.full_name,
+    email: p.email ?? null,
+    whatsapp: p.whatsapp ?? null,
+    is_active: p.is_active,
+    club_id: demoClubId,
+  }))
+
+  const assignments: ProfeAssignment[] = (assignsRaw ?? []).map((a) => ({
+    profe_id: a.profe_id,
+    category_id: a.category_id,
+    tira: a.tira,
+  }))
+
+  hydrateRealClub(demoClubId, players, categories, profes, assignments)
 }
 
 export function DataProvider({ children }: { children: React.ReactNode }) {

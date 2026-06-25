@@ -113,6 +113,7 @@ export interface Player {
 
 export interface Profe {
   id: string
+  club_id?: string | null
   full_name: string
   // Identidad
   dni?: string | null

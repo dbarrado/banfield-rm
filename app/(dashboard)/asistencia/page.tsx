@@ -4,9 +4,9 @@ import { useMemo, useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ClipboardList, CheckCircle2, XCircle, AlertCircle, User, Lock, Unlock, Clock, Radio, Plus, X, Search, UserPlus, MapPin, Sparkles, Circle } from 'lucide-react'
-import { demoProfes, getAssignmentsForProfe, getProfesForTira, getPlayersForClub, getCategoriesForClub } from '@/lib/demo-data'
+import { getProfeById, getProfesForClub, getAssignmentsForProfe, getProfesForTira, getPlayersForClub, getCategoriesForClub } from '@/lib/demo-data'
 import { useCurrentClub } from '@/lib/use-current-club'
-import { TIRA_LABELS, TIRA_COLORS, type Tira } from '@/types'
+import { TIRA_LABELS, TIRA_COLORS, type Tira, type Profe } from '@/types'
 import { getTiraLabel, getTiraColor, getTirasForSport } from '@/lib/tiras'
 import type { SportCode } from '@/lib/sports'
 import { getSessionsForDay, TIRA_GROUPS, tiraGroupOf } from '@/lib/training-schedule'
@@ -159,7 +159,7 @@ export default function AsistenciaPage() {
     Array.from(selectedCategories).flatMap(catId =>
       Array.from(selectedTiras).flatMap(t => getProfesForTira(catId, t).map(p => p.id))
     )
-  )).map(id => demoProfes.find(p => p.id === id)!).filter(Boolean)
+  )).map(id => getProfeById(id)!).filter(Boolean)
 
   const today = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })
 
@@ -316,8 +316,8 @@ export default function AsistenciaPage() {
               ))}
             </div>
             {(() => {
-              const tit = demoProfes.find(p => p.id === nextSlot.profe_titular_id)
-              const sups = (nextSlot.profe_suplentes_ids ?? []).map(id => demoProfes.find(p => p.id === id)).filter(Boolean) as typeof demoProfes
+              const tit = getProfeById(nextSlot.profe_titular_id)
+              const sups = (nextSlot.profe_suplentes_ids ?? []).map(id => getProfeById(id)).filter(Boolean) as Profe[]
               return (
                 <p className="text-[11px] text-muted-foreground">
                   Titular: <strong>{tit?.full_name ?? '—'}</strong>
@@ -360,7 +360,7 @@ export default function AsistenciaPage() {
               className="w-full mt-1 px-2.5 py-1.5 rounded border text-sm bg-white"
             >
               <option value="">— Sin firmar todavía —</option>
-              {demoProfes.filter(p => p.is_active).map(p => (
+              {getProfesForClub(club.id).filter(p => p.is_active).map(p => (
                 <option key={p.id} value={p.id}>👤 {p.full_name}</option>
               ))}
             </select>
@@ -650,7 +650,7 @@ export default function AsistenciaPage() {
                     return next
                   })
                 }
-                const profeName = selectedProfe ? demoProfes.find(p => p.id === selectedProfe)?.full_name ?? 'Diego Barrado' : 'Diego Barrado'
+                const profeName = selectedProfe ? getProfeById(selectedProfe)?.full_name ?? 'Diego Barrado' : 'Diego Barrado'
                 const now = new Date().toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 
                 // PRODUCCIÓN: persistir la asistencia en Supabase (club real)
@@ -687,7 +687,7 @@ export default function AsistenciaPage() {
               <button
                 className="w-full py-3 rounded-xl font-bold text-sm border-2 border-blue-200 text-blue-600 hover:bg-blue-50 flex items-center justify-center gap-2"
                 onClick={() => {
-                  const profeName = selectedProfe ? demoProfes.find(p => p.id === selectedProfe)?.full_name ?? 'Diego Barrado' : 'Diego Barrado'
+                  const profeName = selectedProfe ? getProfeById(selectedProfe)?.full_name ?? 'Diego Barrado' : 'Diego Barrado'
                   const now = new Date().toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
                   setLog([...log, { action: 'reopen', user: profeName, at: now }])
                   setClosed(false)
