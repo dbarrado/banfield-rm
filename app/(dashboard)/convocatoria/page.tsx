@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Trophy, CheckCircle2, MessageCircle, Lock, List, LayoutGrid, ExternalLink, Unlock } from 'lucide-react'
 import Link from 'next/link'
-import { demoPlayers, demoCategories, demoEvents, getAttendanceStats, getMatchAttendanceStats, demoEligibilityConfig, getProfesForClub, getAssignmentsForProfe } from '@/lib/demo-data'
+import { getAttendanceStats, getMatchAttendanceStats, demoEligibilityConfig, getProfesForClub, getAssignmentsForProfe, getPlayersForClub, getCategoriesForClub, getEventsForClub } from '@/lib/demo-data'
 import { getAvatarUrl } from '@/lib/avatars'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { isRealClub } from '@/lib/real-clubs'
@@ -17,11 +17,15 @@ const ALL_TIRAS: Tira[] = ['metro', 'liga1', 'liga2', 'edefi']
 
 export default function ConvocatoriaPage() {
   const club = useCurrentClub()
+  // Datos por club (real → Supabase hidratado; demo → arrays demo). Nunca demo directo.
+  const clubPlayers = getPlayersForClub(club.id)
+  const clubCategories = getCategoriesForClub(club.id)
+  const clubEvents = getEventsForClub(club.id)
   const [selectedProfe, setSelectedProfe] = useState<string>('')
-  const [selectedCategory, setSelectedCategory] = useState(demoCategories[0].id)
+  const [selectedCategory, setSelectedCategory] = useState(clubCategories[0]?.id ?? '')
   const [selectedTira, setSelectedTira] = useState<Tira | null>(null)
   const [convocarDeOtra, setConvocarDeOtra] = useState(false)
-  const [selectedEvent, setSelectedEvent] = useState(demoEvents.filter(e => e.event_type === 'match')[0]?.id ?? '')
+  const [selectedEvent, setSelectedEvent] = useState(clubEvents.filter(e => e.event_type === 'match')[0]?.id ?? '')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   // Flujo guardar → enviar: primero guardar localmente, después enviar por WhatsApp
   const [savedAt, setSavedAt] = useState<string | null>(null)
@@ -35,7 +39,7 @@ export default function ConvocatoriaPage() {
 
   // Si hay profe seleccionado, limitar categorías y tiras a las que tiene asignadas
   const profeAssignments = selectedProfe ? getAssignmentsForProfe(selectedProfe) : []
-  const allCategoriesActive = demoCategories.filter(c => c.is_active)
+  const allCategoriesActive = clubCategories.filter(c => c.is_active)
   const activeCategories = selectedProfe
     ? allCategoriesActive.filter(c => profeAssignments.some(a => a.category_id === c.id))
     : allCategoriesActive
@@ -43,10 +47,10 @@ export default function ConvocatoriaPage() {
     ? selectedCategory
     : (activeCategories[0]?.id ?? selectedCategory)
 
-  const matches = demoEvents.filter(e => e.event_type === 'match' && e.category_id === effectiveCategory)
+  const matches = clubEvents.filter(e => e.event_type === 'match' && e.category_id === effectiveCategory)
   // Tiras de la categoría que efectivamente tienen jugadores
   const tirasInCategoryAll = ALL_TIRAS.filter(t =>
-    demoPlayers.some(p => p.category_id === effectiveCategory && p.tira === t)
+    clubPlayers.some(p => p.category_id === effectiveCategory && p.tira === t)
   )
   // Tiras asignadas al profe (si hay profe seleccionado)
   const tirasAsignadas = selectedProfe
@@ -62,7 +66,7 @@ export default function ConvocatoriaPage() {
     : (tirasInCategory[0] ?? null)
 
   const players = effectiveTira
-    ? demoPlayers.filter(p => p.category_id === effectiveCategory && p.is_active && p.tira === effectiveTira)
+    ? clubPlayers.filter(p => p.category_id === effectiveCategory && p.is_active && p.tira === effectiveTira)
     : []
 
   const playersWithStats = players.map(p => {
@@ -85,7 +89,7 @@ export default function ConvocatoriaPage() {
   }
 
   // Cálculo de cuántos jugadores convocar según el deporte de la categoría del partido
-  const eventCat = demoCategories.find(c => c.id === effectiveCategory)
+  const eventCat = clubCategories.find(c => c.id === effectiveCategory)
   const sportCode = eventCat?.sport_format_code ?? 'football_11'
   const targetByPos = sportCode === 'football_11'  ? { titulares: 11, suplentes: 5 }
                     : sportCode === 'baby_6'       ? { titulares: 6,  suplentes: 3 }
@@ -118,8 +122,8 @@ export default function ConvocatoriaPage() {
   const selectedPlayers = playersWithStats.filter(p => selected.has(p.id))
 
   function generateWhatsApp() {
-    const event = demoEvents.find(e => e.id === selectedEvent)
-    const cat = demoCategories.find(c => c.id === effectiveCategory)
+    const event = clubEvents.find(e => e.id === selectedEvent)
+    const cat = clubCategories.find(c => c.id === effectiveCategory)
     const date = event ? new Date(event.scheduled_at).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Por definir'
     const time = event ? new Date(event.scheduled_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : ''
     const ordered = [...selectedPlayers].sort(

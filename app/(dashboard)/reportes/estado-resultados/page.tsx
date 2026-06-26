@@ -6,6 +6,8 @@ import { ArrowLeft, FileSpreadsheet, FileText, ChevronDown, Calendar, TrendingUp
 import Link from 'next/link'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { demoPlayers, demoPayments, demoCashMovements, thisMonth, lastMonth } from '@/lib/demo-data'
+import { isRealClub } from '@/lib/real-clubs'
+import { getRealBillings } from '@/lib/data/billing-store'
 
 const PERIOD_OPTIONS = [
   { value: '2026-05', label: 'Mayo 2026' },
@@ -18,39 +20,50 @@ const PERIOD_OPTIONS = [
 
 export default function EstadoResultadosPage() {
   const club = useCurrentClub()
+  const real = isRealClub(club.id)
   const [period, setPeriod] = useState('2026-05')
   const isYTD = period.startsWith('ytd')
 
+  // Club real: ingresos operativos = cuotas cobradas reales (billings del período cargado).
+  const realBillings = real ? (getRealBillings(club.id) ?? []) : []
+
   // === CÁLCULOS DEL PERÍODO ===
   function calcPeriod(p: string) {
+    if (real) {
+      // Solo el período actual está hidratado; otros períodos = 0 (sin datos cargados).
+      const cuotas = realBillings.filter(b => b.fee_type === 'actividad').reduce((s, b) => s + (b.amount_paid ?? 0), 0)
+      const matriculas = realBillings.filter(b => b.fee_type === 'matricula').reduce((s, b) => s + (b.amount_paid ?? 0), 0)
+      return { cuotas, matriculas }
+    }
     const periods = isYTD ? ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05'] : [p]
     const cuotas = demoPayments.filter(pay => periods.includes(pay.period) && pay.fee_type === 'actividad').reduce((s, x) => s + x.amount, 0)
     const matriculas = demoPayments.filter(pay => periods.includes(pay.period) && pay.fee_type === 'matricula').reduce((s, x) => s + x.amount, 0)
     return { cuotas, matriculas }
   }
   const current = calcPeriod(period)
-  const prev = period === '2026-05' ? calcPeriod('2026-04')
+  const prev = real ? { cuotas: 0, matriculas: 0 }
+             : period === '2026-05' ? calcPeriod('2026-04')
              : period === '2026-04' ? calcPeriod('2026-03')
              : period === '2026-03' ? calcPeriod('2026-02')
              : period === '2026-02' ? calcPeriod('2026-01')
              : { cuotas: 0, matriculas: 0 }
 
-  // Mock: otros ingresos y egresos del período (simulados a partir de movimientos)
-  const baseMov = demoCashMovements
+  // Otros ingresos y egresos: club real aún sin fuente cargada → 0 (no inventar).
+  // Demo: valores simulados de muestra.
   const periodMultiplier = isYTD ? 5 : 1
-  const donaciones = 85000 * periodMultiplier
-  const sponsoreo = 220000 * periodMultiplier
-  const ventas_indumentaria = 156000 * periodMultiplier
+  const donaciones = real ? 0 : 85000 * periodMultiplier
+  const sponsoreo = real ? 0 : 220000 * periodMultiplier
+  const ventas_indumentaria = real ? 0 : 156000 * periodMultiplier
   const otros_ingresos = donaciones + sponsoreo + ventas_indumentaria
 
-  const alquiler_cancha = 480000 * periodMultiplier
-  const arbitraje = 145000 * periodMultiplier
-  const materiales = 95000 * periodMultiplier
-  const transporte = 78000 * periodMultiplier
-  const indumentaria_costo = 198000 * periodMultiplier
-  const inscripciones = 35000 * periodMultiplier
-  const mantenimiento = 62000 * periodMultiplier
-  const otros_gastos = 28000 * periodMultiplier
+  const alquiler_cancha = real ? 0 : 480000 * periodMultiplier
+  const arbitraje = real ? 0 : 145000 * periodMultiplier
+  const materiales = real ? 0 : 95000 * periodMultiplier
+  const transporte = real ? 0 : 78000 * periodMultiplier
+  const indumentaria_costo = real ? 0 : 198000 * periodMultiplier
+  const inscripciones = real ? 0 : 35000 * periodMultiplier
+  const mantenimiento = real ? 0 : 62000 * periodMultiplier
+  const otros_gastos = real ? 0 : 28000 * periodMultiplier
 
   const total_egresos_operativos = alquiler_cancha + arbitraje + materiales + transporte + mantenimiento
   const total_egresos_otros = indumentaria_costo + inscripciones + otros_gastos

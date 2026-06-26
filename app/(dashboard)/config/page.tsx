@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Settings, Users, ChevronRight, Edit2, Plus, X, Check, Trash2, History, Volleyball, Calendar, Link2, Share2, UserPlus } from 'lucide-react'
 import Link from 'next/link'
-import { demoCategories, demoFinanceCategories, demoEligibilityConfig, demoEligibilityLog, demoProfes } from '@/lib/demo-data'
+import { demoCategories, demoFinanceCategories, demoEligibilityConfig, demoEligibilityLog, demoProfes, getCategoriesForClub, getProfesForClub } from '@/lib/demo-data'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { isRealClub } from '@/lib/real-clubs'
 import { saveFeeConfig, saveEligibilityConfig, createRegistrationCode } from '@/lib/data/ops-store'
@@ -35,6 +35,8 @@ const INITIAL_FEES = [
 
 export default function ConfigPage() {
   const club = useCurrentClub()
+  const real = isRealClub(club.id)
+  const realProfesCount = real ? getProfesForClub(club.id).filter(p => p.is_active).length : demoProfes.length
   const [practiceThreshold, setPracticeThreshold] = useState(demoEligibilityConfig.min_practice_percentage)
   const [matchThreshold, setMatchThreshold] = useState(demoEligibilityConfig.min_match_percentage)
 
@@ -61,7 +63,7 @@ export default function ConfigPage() {
   const [editingFee, setEditingFee] = useState<string | null>(null)
   const [tempFee, setTempFee] = useState('')
 
-  const [categories, setCategories] = useState(demoCategories)
+  const [categories, setCategories] = useState(() => getCategoriesForClub(club.id))
   const [showCatForm, setShowCatForm] = useState(false)
   const [newCat, setNewCat] = useState({ name: '', birth_year: new Date().getFullYear() - 8 })
 
@@ -87,7 +89,7 @@ export default function ConfigPage() {
 
   function createCode() {
     if (!newCodeCat) return alert('Elegí una categoría')
-    const cat = demoCategories.find(c => c.id === newCodeCat)
+    const cat = categories.find(c => c.id === newCodeCat)
     if (!cat) return
     const prefix = `${club.short_name.replace(/\s+/g, '').slice(0, 3).toUpperCase()}-${cat.name}`
     const code: RegistrationCode = {
@@ -126,7 +128,7 @@ export default function ConfigPage() {
 
   function shareCode(c: RegistrationCode) {
     const url = `https://camadaclub.com.ar/inscripcion/${c.code}`
-    const cat = demoCategories.find(x => x.id === c.category_id)
+    const cat = categories.find(x => x.id === c.category_id)
     const msg = `¡Hola! Te invito a inscribir a tu hijo/a en ${club.name} – Categoría ${cat?.name ?? ''}.\n\nCompletá la inscripción en este link:\n${url}`
     const wa = `https://wa.me/?text=${encodeURIComponent(msg)}`
     window.open(wa, '_blank')
@@ -214,7 +216,7 @@ export default function ConfigPage() {
             </div>
             <div className="flex-1">
               <p className="font-semibold text-sm">Profes</p>
-              <p className="text-xs text-muted-foreground">{demoProfes.length} activos · gestionar asignaciones a tiras</p>
+              <p className="text-xs text-muted-foreground">{realProfesCount} activos · gestionar asignaciones a tiras</p>
             </div>
             <ChevronRight size={18} className="text-muted-foreground" />
           </CardContent>
@@ -293,7 +295,8 @@ export default function ConfigPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {demoEligibilityLog.map(log => {
+            {real && <p className="text-xs text-muted-foreground">Sin cambios de umbrales registrados todavía.</p>}
+            {(real ? [] : demoEligibilityLog).map(log => {
               const isOverride = log.scope === 'convocation'
               const typeLabel = log.type === 'practice_threshold' ? '🏃 Prácticas (general)'
                               : log.type === 'match_threshold' ? '⚽ Partidos (general)'
@@ -396,7 +399,7 @@ export default function ConfigPage() {
               <select value={newCodeCat} onChange={e => setNewCodeCat(e.target.value)}
                 className="w-full px-2 py-1.5 border rounded text-sm bg-white">
                 <option value="">Elegí categoría...</option>
-                {demoCategories.filter(c => !c.club_id || c.club_id === club.id).map(c => (
+                {categories.filter(c => !c.club_id || c.club_id === club.id).map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
@@ -428,7 +431,7 @@ export default function ConfigPage() {
           )}
 
           {regCodes.map(c => {
-            const cat = demoCategories.find(x => x.id === c.category_id)
+            const cat = categories.find(x => x.id === c.category_id)
             const url = `camadaclub.com.ar/inscripcion/${c.code}`
             return (
               <div key={c.id} className="border rounded-lg p-2 space-y-1.5">

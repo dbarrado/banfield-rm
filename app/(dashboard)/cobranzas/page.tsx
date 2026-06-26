@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Wallet, AlertCircle, MessageCircle, RefreshCw, Settings, Mail, Ban, Edit2, X, Check, CreditCard } from 'lucide-react'
 import { useActiveRole } from '@/lib/use-role'
 import Link from 'next/link'
-import { demoPlayers, demoCategories } from '@/lib/demo-data'
+import { demoPlayers, demoCategories, getPlayersForClub, getCategoriesForClub } from '@/lib/demo-data'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { hasAccess, getRequiredPlan, type Plan } from '@/lib/feature-gates'
 import { UpgradePrompt } from '@/components/upgrade-prompt'
@@ -42,6 +42,9 @@ export default function CobranzasPage() {
 
 function CobranzasContent() {
   const club = useCurrentClub()
+  // Nombres/categorías por club (real → hidratado; demo → arrays demo).
+  const clubPlayers = getPlayersForClub(club.id)
+  const clubCategories = getCategoriesForClub(club.id)
   const today = new Date()
   const period = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
 
@@ -121,7 +124,7 @@ Muchas gracias.`
     return billings.filter(b => {
       if (filter !== 'all' && b.status !== filter) return false
       if (categoryFilter !== 'all') {
-        const player = demoPlayers.find(p => p.id === b.player_id)
+        const player = clubPlayers.find(p => p.id === b.player_id)
         if (player?.category_id !== categoryFilter) return false
       }
       return true
@@ -266,7 +269,7 @@ Muchas gracias.`
         <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}
           className="w-full px-2 py-1.5 border rounded text-xs">
           <option value="all">Todas las categorías</option>
-          {demoCategories.filter(c => c.is_active).map(c => (
+          {clubCategories.filter(c => c.is_active).map(c => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
@@ -276,8 +279,8 @@ Muchas gracias.`
       <p className="text-[11px] text-muted-foreground">{filtered.length} de {billings.length} cuotas</p>
       <div className="space-y-1.5">
         {filtered.slice(0, 100).map(b => {
-          const player = demoPlayers.find(p => p.id === b.player_id)
-          const cat = demoCategories.find(c => c.id === player?.category_id)
+          const player = clubPlayers.find(p => p.id === b.player_id)
+          const cat = clubCategories.find(c => c.id === player?.category_id)
           const sCfg = STATUS_CONFIG[b.status]
           const outstanding = getOutstandingAmount(b)
           const isAdjustable = b.status !== 'paid' && b.status !== 'condoned'
@@ -367,7 +370,7 @@ Muchas gracias.`
 
       {/* Modal Condonar / Ajustar */}
       {actionTarget && (() => {
-        const player = demoPlayers.find(p => p.id === actionTarget.billing.player_id)
+        const player = clubPlayers.find(p => p.id === actionTarget.billing.player_id)
         return (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-3" onClick={() => setActionTarget(null)}>
             <div onClick={e => e.stopPropagation()} className="bg-white rounded-t-2xl md:rounded-2xl w-full max-w-md p-4 space-y-3">

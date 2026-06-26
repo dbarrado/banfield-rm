@@ -1,15 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ClipboardList, CheckCircle2, XCircle, AlertCircle, UserMinus } from 'lucide-react'
-import { demoProfes, demoCategories } from '@/lib/demo-data'
+import { demoProfes, demoCategories, getCategoriesForClub } from '@/lib/demo-data'
 import { demoTrainingRoster, getSlotsByDay, DAYS_OF_WEEK } from '@/lib/training-roster'
-import { TIRA_COLORS, TIRA_LABELS } from '@/types'
+import { TIRA_COLORS, TIRA_LABELS, type Tira } from '@/types'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { isRealClub } from '@/lib/real-clubs'
-import { persistProfeAttendance } from '@/lib/data/ops-store'
+import { persistProfeAttendance, loadTrainingSlots, loadProfes } from '@/lib/data/ops-store'
 import { hasAccess, getRequiredPlan, type Plan } from '@/lib/feature-gates'
 import { UpgradePrompt } from '@/components/upgrade-prompt'
 
@@ -35,12 +35,27 @@ export default function AsistenciaProfesPage() {
 
 function AsistenciaProfesContent() {
   const club = useCurrentClub()
+  const real = isRealClub(club.id)
   const today = new Date()
   const [selectedDay, setSelectedDay] = useState(today.getDay() === 0 ? 6 : today.getDay())
   const [attendance, setAttendance] = useState<Record<string, ProfeAttendance>>({})
   const [replacedBy, setReplacedBy] = useState<Record<string, string>>({})
 
-  const slotsToday = getSlotsByDay(selectedDay)
+  // Club real: cronograma y profes desde Supabase (no el roster demo).
+  const [realSlots, setRealSlots] = useState<any[] | null>(real ? null : demoTrainingRoster)
+  const [profes, setProfes] = useState<any[]>(demoProfes)
+  useEffect(() => {
+    if (!real) return
+    loadTrainingSlots(club.id).then(s => setRealSlots(s ?? []))
+    loadProfes(club.id).then(p => { if (p && p.length) setProfes(p) })
+  }, [real, club.id])
+
+  const cats = real ? getCategoriesForClub(club.id) : demoCategories
+  const allSlots = realSlots ?? []
+  const loadingSlots = real && realSlots === null
+  const slotsToday = real
+    ? allSlots.filter(s => s.day_of_week === selectedDay && s.is_active)
+    : getSlotsByDay(selectedDay)
 
   function setStatus(slotId: string, status: ProfeAttendance) {
     setAttendance(prev => ({ ...prev, [slotId]: status }))
@@ -69,7 +84,7 @@ function AsistenciaProfesContent() {
       <div className="flex gap-1 overflow-x-auto pb-1 -mx-3 px-3">
         {DAYS_OF_WEEK.map(d => {
           const sel = selectedDay === d.num
-          const count = demoTrainingRoster.filter(s => s.day_of_week === d.num && s.is_active).length
+          const count = (real ? allSlots : demoTrainingRoster).filter(s => s.day_of_week === d.num && s.is_active).length
           return (
             <button key={d.num} onClick={() => setSelectedDay(d.num)}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 whitespace-nowrap ${sel ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`}
@@ -109,7 +124,10 @@ function AsistenciaProfesContent() {
       </div>
 
       {/* Slots del día con su profe */}
-      {slotsToday.length === 0 && (
+      {loadingSlots && (
+        <p className="text-center text-sm text-muted-foreground py-8">Cargando cronograma…</p>
+      )}
+      {!loadingSlots && slotsToday.length === 0 && (
         <p className="text-center text-sm text-muted-foreground py-8">
           No hay prácticas programadas para este día.
         </p>
@@ -117,13 +135,13 @@ function AsistenciaProfesContent() {
 
       <div className="space-y-2">
         {slotsToday.map(slot => {
-          const titular = demoProfes.find(p => p.id === slot.profe_titular_id)
-          const suplentes = (slot.profe_suplentes_ids ?? []).map(id => demoProfes.find(p => p.id === id)).filter(Boolean) as typeof demoProfes
+          const titular = profes.find(p => p.id === slot.profe_titular_id)
+          const suplentes = (slot.profe_suplentes_ids ?? []).map((id: string) => profes.find(p => p.id === id)).filter(Boolean) as typeof demoProfes
           const suplente = suplentes[0] // primer suplente como "designado por defecto"
           const status = attendance[slot.id]
           const cfg = status ? STATUS_CONFIG[status] : null
           const courtColor = COURT_COLORS[(slot.court - 1) % COURT_COLORS.length]
-          const cats = demoCategories.filter(c => slot.category_ids.includes(c.id))
+          const slotCats = cats.filter(c => slot.category_ids.includes(c.id))
 
           return (
             <Card key={slot.id} className="border-0 shadow-sm" style={{ borderLeft: `4px solid ${cfg?.color ?? '#e5e7eb'}` }}>
@@ -138,10 +156,10 @@ function AsistenciaProfesContent() {
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-0.5">
-                    {cats.slice(0, 2).map(c => (
+                    {slotCats.slice(0, 2).map(c => (
                       <Badge key={c.id} variant="outline" className="text-[10px]">{c.name}</Badge>
                     ))}
-                    {slot.tiras.slice(0, 2).map(t => (
+                    {(slot.tiras as Tira[]).slice(0, 2).map((t: Tira) => (
                       <Badge key={t} className="text-[10px] border-0 text-white" style={{ backgroundColor: TIRA_COLORS[t] }}>
                         {TIRA_LABELS[t]}
                       </Badge>
@@ -152,7 +170,7 @@ function AsistenciaProfesContent() {
                 {/* Profe titular */}
                 <div className="flex items-center gap-2.5 pt-1">
                   <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0" style={{ backgroundColor: 'var(--club-primary, #00843D)' }}>
-                    {titular?.full_name.split(' ').map(n => n[0]).join('').slice(0, 2) ?? '?'}
+                    {(titular?.full_name ?? '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold truncate">{titular?.full_name ?? 'Sin titular'}</p>
@@ -205,7 +223,7 @@ function AsistenciaProfesContent() {
                       {suplentes.map(s => (
                         <option key={s.id} value={s.id}>{s.full_name} (suplente designado)</option>
                       ))}
-                      {demoProfes.filter(p => p.is_active && p.id !== slot.profe_titular_id && !suplentes.find(s => s.id === p.id)).map(p => (
+                      {profes.filter(p => p.is_active && p.id !== slot.profe_titular_id && !suplentes.find(s => s.id === p.id)).map(p => (
                         <option key={p.id} value={p.id}>{p.full_name}</option>
                       ))}
                     </select>

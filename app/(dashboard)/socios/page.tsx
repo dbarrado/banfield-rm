@@ -12,6 +12,8 @@ import { demoPayments, getPlayerDebts, thisMonth, getPlayersForClub, getCategori
 import { POSITION_LABELS, POSITION_COLORS } from '@/types'
 import { getAvatarUrl } from '@/lib/avatars'
 import { useCurrentClub } from '@/lib/use-current-club'
+import { isRealClub } from '@/lib/real-clubs'
+import { getRealBillings } from '@/lib/data/billing-store'
 import { getTirasForSport, getTiraLabel, getTiraColor } from '@/lib/tiras'
 import type { SportCode } from '@/lib/sports'
 
@@ -54,7 +56,24 @@ function SociosPage() {
     return (c?.sport_format_code ?? clubSportCode) as SportCode
   }
 
-  const deudores = useMemo(() => getPlayerDebts(clubPlayers, demoPayments), [clubPlayers])
+  // Estado de cuota: club real = desde billings reales (no demoPayments).
+  const real = isRealClub(club.id)
+  const realBillings = useMemo(() => real ? (getRealBillings(club.id) ?? []) : [], [real, club.id])
+  const paidActividadSet = useMemo(
+    () => new Set(realBillings.filter(b => b.fee_type === 'actividad' && b.status === 'paid').map(b => b.player_id)),
+    [realBillings]
+  )
+  function statusOf(playerId: string): 'al-dia' | 'proximo' | 'deudor' {
+    if (real) return paidActividadSet.has(playerId) ? 'al-dia' : 'deudor'
+    return getPaymentStatus(playerId)
+  }
+
+  const deudores = useMemo(
+    () => real
+      ? clubPlayers.filter(p => p.is_active && !paidActividadSet.has(p.id))
+      : getPlayerDebts(clubPlayers, demoPayments),
+    [real, clubPlayers, paidActividadSet]
+  )
   const deudorIds = useMemo(() => new Set(deudores.map(d => d.id)), [deudores])
 
   const players = useMemo(() => {
@@ -164,7 +183,7 @@ function SociosPage() {
       {/* Lista */}
       <div className="space-y-1.5 overflow-x-hidden">
         {players.map(player => {
-          const status = getPaymentStatus(player.id)
+          const status = statusOf(player.id)
           const cat = clubCategories.find(c => c.id === player.category_id)
           const waMsg = encodeURIComponent(`Hola ${player.tutor_name}, te recordamos que ${player.full_name} tiene una deuda pendiente con el Club Banfield Ramos Mejía.`)
           const statusDot = { 'al-dia': '#00843D', proximo: '#F59E0B', deudor: '#DC2626' }[status]

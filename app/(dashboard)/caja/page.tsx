@@ -23,7 +23,10 @@ export default function CajaPage() {
 
 function CajaContent() {
   const club = useCurrentClub()
-  const [movements, setMovements] = useState(demoCashMovements)
+  const real = isRealClub(club.id)
+  // Club real: caja arranca vacía (sin movimientos ni apertura demo).
+  const [movements, setMovements] = useState<typeof demoCashMovements>(real ? [] : demoCashMovements)
+  const openingAmount = real ? 0 : demoCashSession.opening_amount
   const [showAddForm, setShowAddForm] = useState(false)
   const [showCloseForm, setShowCloseForm] = useState(false)
   const [closed, setClosed] = useState(false)
@@ -40,7 +43,7 @@ function CajaContent() {
 
   const totalIncome = movements.filter(m => m.movement_type === 'income').reduce((s, m) => s + m.amount, 0)
   const totalExpense = movements.filter(m => m.movement_type === 'expense').reduce((s, m) => s + m.amount, 0)
-  const saldoEsperado = demoCashSession.opening_amount + totalIncome - totalExpense
+  const saldoEsperado = openingAmount + totalIncome - totalExpense
   const today = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })
 
   async function handleAdd(newMovement: any) {
@@ -90,7 +93,7 @@ function CajaContent() {
           <CardContent className="p-2.5 text-center">
             <p className="text-[10px] text-muted-foreground uppercase font-semibold">Apertura</p>
             <p className="text-base font-bold mt-0.5" style={{ fontFamily: "var(--font-barlow)" }}>
-              ${(demoCashSession.opening_amount / 1000).toFixed(0)}K
+              ${(openingAmount / 1000).toFixed(0)}K
             </p>
           </CardContent>
         </Card>
@@ -134,6 +137,9 @@ function CajaContent() {
       </h2>
 
       <div className="space-y-2">
+        {movements.length === 0 && (
+          <p className="text-sm text-muted-foreground">Sin movimientos registrados hoy. Usá "Cobrar cuota" o "Otro movimiento".</p>
+        )}
         {movements.map(m => {
           const cat = demoFinanceCategories.find(c => c.id === m.finance_category_id)
           const isIncome = m.movement_type === 'income'

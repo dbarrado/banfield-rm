@@ -1,11 +1,30 @@
+'use client'
+
 import { Card, CardContent } from '@/components/ui/card'
 import { TrendingUp, TrendingDown } from 'lucide-react'
 import { demoCashMovements, demoFinanceCategories } from '@/lib/demo-data'
+import { useCurrentClub } from '@/lib/use-current-club'
+import { isRealClub } from '@/lib/real-clubs'
+import { getRealBillings } from '@/lib/data/billing-store'
 
 export default function FinanzasPage() {
-  const totalIncome = demoCashMovements.filter(m => m.movement_type === 'income').reduce((s, m) => s + m.amount, 0)
-  const totalExpense = demoCashMovements.filter(m => m.movement_type === 'expense').reduce((s, m) => s + m.amount, 0)
+  const club = useCurrentClub()
+  const real = isRealClub(club.id)
+
+  // Club real: ingresos = cuotas realmente cobradas (billings amount_paid).
+  // Egresos y movimientos de caja reales aún no se listan acá (no hay loader);
+  // se muestran en cero hasta tener movimientos cargados, en vez de datos demo.
+  const realBillings = real ? (getRealBillings(club.id) ?? []) : []
+  const realIncome = realBillings.reduce((s, b) => s + (b.amount_paid ?? 0), 0)
+
+  const totalIncome = real
+    ? realIncome
+    : demoCashMovements.filter(m => m.movement_type === 'income').reduce((s, m) => s + m.amount, 0)
+  const totalExpense = real
+    ? 0
+    : demoCashMovements.filter(m => m.movement_type === 'expense').reduce((s, m) => s + m.amount, 0)
   const saldo = totalIncome - totalExpense
+  const movements = real ? [] : demoCashMovements
 
   return (
     <div className="p-3 md:p-6 space-y-3">
@@ -47,10 +66,18 @@ export default function FinanzasPage() {
       </div>
 
       <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mt-4" style={{ fontFamily: "var(--font-barlow)" }}>
-        Movimientos ({demoCashMovements.length})
+        Movimientos ({movements.length})
       </h2>
+      {real && (
+        <p className="text-xs text-muted-foreground">
+          Los ingresos reflejan las cuotas cobradas. Los movimientos de caja del día se registran desde la sección Caja.
+        </p>
+      )}
       <div className="space-y-2">
-        {demoCashMovements.map(m => {
+        {movements.length === 0 && !real && (
+          <p className="text-sm text-muted-foreground">Sin movimientos.</p>
+        )}
+        {movements.map(m => {
           const cat = demoFinanceCategories.find(c => c.id === m.finance_category_id)
           const isIncome = m.movement_type === 'income'
           return (

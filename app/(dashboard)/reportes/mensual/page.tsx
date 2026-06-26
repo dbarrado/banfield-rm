@@ -6,7 +6,9 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, FileSpreadsheet, FileText, TrendingUp, TrendingDown, Users, ChevronDown, Calendar } from 'lucide-react'
 import Link from 'next/link'
 import { useCurrentClub } from '@/lib/use-current-club'
-import { demoPlayers, demoPayments, demoCashMovements, demoFinanceCategories, demoEvents, demoAttendance, getPlayerDebts, thisMonth, lastMonth } from '@/lib/demo-data'
+import { demoPlayers, demoPayments, demoCashMovements, demoFinanceCategories, demoEvents, demoAttendance, getPlayerDebts, getPlayersForClub, thisMonth, lastMonth } from '@/lib/demo-data'
+import { isRealClub } from '@/lib/real-clubs'
+import { getRealBillings } from '@/lib/data/billing-store'
 
 const MONTH_OPTIONS = [
   { value: '2026-05', label: 'Mayo 2026' },
@@ -18,7 +20,13 @@ const MONTH_OPTIONS = [
 
 export default function ReporteMensualPage() {
   const club = useCurrentClub()
+  const real = isRealClub(club.id)
   const [period, setPeriod] = useState('2026-05')
+
+  // ── CLUB REAL: datos desde Supabase. Ingresos = cuotas cobradas (billings);
+  // socios reales; egresos/asistencia aún sin fuente cargada → 0 (no demo). ──
+  const realBillings = real ? (getRealBillings(club.id) ?? []) : []
+  const realPlayers = real ? getPlayersForClub(club.id) : []
 
   // Datos: ingresos REALES = pagos del período + movimientos manuales (donaciones, etc.)
   // Egresos = movimientos de caja del mes
@@ -26,30 +34,39 @@ export default function ReporteMensualPage() {
   const monthPaymentsActividad = monthPayments.filter(p => p.fee_type === 'actividad')
 
   // Ingresos: cuotas cobradas + matrículas + ingresos extra de caja (donaciones, etc.)
-  const ingresosCuotas = monthPaymentsActividad.reduce((s, p) => s + p.amount, 0)
-  const ingresosMatriculas = monthPayments.filter(p => p.fee_type === 'matricula').reduce((s, p) => s + p.amount, 0)
-  const otrosIngresos = demoCashMovements.filter(m => m.movement_type === 'income' && m.finance_category_id !== 'fc-1' && m.finance_category_id !== 'fc-2').reduce((s, m) => s + m.amount, 0)
+  const ingresosCuotas = real
+    ? realBillings.filter(b => b.fee_type === 'actividad').reduce((s, b) => s + (b.amount_paid ?? 0), 0)
+    : monthPaymentsActividad.reduce((s, p) => s + p.amount, 0)
+  const ingresosMatriculas = real
+    ? realBillings.filter(b => b.fee_type === 'matricula').reduce((s, b) => s + (b.amount_paid ?? 0), 0)
+    : monthPayments.filter(p => p.fee_type === 'matricula').reduce((s, p) => s + p.amount, 0)
+  const otrosIngresos = real ? 0 : demoCashMovements.filter(m => m.movement_type === 'income' && m.finance_category_id !== 'fc-1' && m.finance_category_id !== 'fc-2').reduce((s, m) => s + m.amount, 0)
   const totalIngresos = ingresosCuotas + ingresosMatriculas + otrosIngresos
 
-  // Egresos: gastos del mes desde movimientos de caja
-  const totalEgresos = demoCashMovements.filter(m => m.movement_type === 'expense').reduce((s, m) => s + m.amount, 0)
+  // Egresos: gastos del mes desde movimientos de caja (club real: aún sin loader → 0)
+  const totalEgresos = real ? 0 : demoCashMovements.filter(m => m.movement_type === 'expense').reduce((s, m) => s + m.amount, 0)
   const saldoNeto = totalIngresos - totalEgresos
 
   // Mes anterior (comparativo) — solo ingresos por cuotas para que sea simétrico
   const lastMonthPayments = demoPayments.filter(p => p.period === lastMonth && p.fee_type === 'actividad')
-  const lastMonthIncome = lastMonthPayments.reduce((s, p) => s + p.amount, 0)
+  const lastMonthIncome = real ? 0 : lastMonthPayments.reduce((s, p) => s + p.amount, 0)
   const monthIncome = totalIngresos
   const incomeVariation = lastMonthIncome > 0 ? Math.round(((monthIncome - lastMonthIncome) / lastMonthIncome) * 100) : 0
 
   // Socios
-  const totalSocios = demoPlayers.filter(p => p.is_active).length
-  const deudores = getPlayerDebts(demoPlayers, demoPayments).length
+  const totalSocios = real ? realPlayers.filter(p => p.is_active).length : demoPlayers.filter(p => p.is_active).length
+  const deudores = real
+    ? (() => {
+        const alDiaSet = new Set(realBillings.filter(b => b.fee_type === 'actividad' && b.status === 'paid').map(b => b.player_id))
+        return realPlayers.filter(p => p.is_active && !alDiaSet.has(p.id)).length
+      })()
+    : getPlayerDebts(demoPlayers, demoPayments).length
   const alDia = totalSocios - deudores
-  const cobranzaPct = Math.round((alDia / totalSocios) * 100)
+  const cobranzaPct = totalSocios > 0 ? Math.round((alDia / totalSocios) * 100) : 0
 
-  // Asistencia
-  const monthEvents = demoEvents.filter(e => e.event_type === 'practice' && !e.is_suspended)
-  const monthAtt = demoAttendance.filter(a => a.status === 'present')
+  // Asistencia (club real: sin asistencias cargadas aún → 0)
+  const monthEvents = real ? [] : demoEvents.filter(e => e.event_type === 'practice' && !e.is_suspended)
+  const monthAtt = real ? [] : demoAttendance.filter(a => a.status === 'present')
   const avgAttendance = monthEvents.length > 0
     ? Math.round((monthAtt.length / (monthEvents.length * (totalSocios / 9))) * 100)
     : 0
@@ -58,7 +75,7 @@ export default function ReporteMensualPage() {
   const incomeByCat: Record<string, number> = {}
   if (ingresosCuotas > 0) incomeByCat['Cuotas cobradas'] = ingresosCuotas
   if (ingresosMatriculas > 0) incomeByCat['Matrículas cobradas'] = ingresosMatriculas
-  for (const m of demoCashMovements.filter(x => x.movement_type === 'income')) {
+  if (!real) for (const m of demoCashMovements.filter(x => x.movement_type === 'income')) {
     const cat = demoFinanceCategories.find(c => c.id === m.finance_category_id)
     if (cat && cat.name !== 'Cuotas cobradas' && cat.name !== 'Matrículas cobradas') {
       incomeByCat[cat.name] = (incomeByCat[cat.name] || 0) + m.amount
@@ -66,7 +83,7 @@ export default function ReporteMensualPage() {
   }
   const topIncome = Object.entries(incomeByCat).sort((a, b) => b[1] - a[1]).slice(0, 5)
 
-  const expenseByCat = demoCashMovements.filter(m => m.movement_type === 'expense').reduce((acc, m) => {
+  const expenseByCat = real ? {} : demoCashMovements.filter(m => m.movement_type === 'expense').reduce((acc, m) => {
     const cat = demoFinanceCategories.find(c => c.id === m.finance_category_id)
     if (cat) acc[cat.name] = (acc[cat.name] || 0) + m.amount
     return acc
@@ -191,6 +208,7 @@ export default function ReporteMensualPage() {
           <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5" style={{ fontFamily: "var(--font-barlow)" }}>
             <TrendingUp size={14} className="text-green-600" /> Ingresos por categoría
           </p>
+          {topIncome.length === 0 && <p className="text-xs text-muted-foreground">Sin cobros registrados en el período.</p>}
           {topIncome.map(([name, amount]) => {
             const pct = Math.round((amount / totalIngresos) * 100)
             return (
@@ -216,6 +234,7 @@ export default function ReporteMensualPage() {
           <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5" style={{ fontFamily: "var(--font-barlow)" }}>
             <TrendingDown size={14} className="text-red-500" /> Egresos por categoría
           </p>
+          {topExpense.length === 0 && <p className="text-xs text-muted-foreground">Sin egresos registrados en el período.</p>}
           {topExpense.map(([name, amount]) => {
             const pct = totalEgresos > 0 ? Math.round((amount / totalEgresos) * 100) : 0
             return (

@@ -14,6 +14,8 @@ import {
 } from '@/lib/demo-data'
 import { POSITION_LABELS, POSITION_COLORS, TIRA_LABELS, TIRA_COLORS, type Tira, type Position } from '@/types'
 import { useActiveRole } from '@/lib/use-role'
+import { useCurrentClub } from '@/lib/use-current-club'
+import { isRealClub } from '@/lib/real-clubs'
 
 const ALL_TIRAS: Tira[] = ['metro', 'liga1', 'liga2', 'edefi']
 const POSITIONS: Position[] = ['arquero', 'defensor', 'mediocampista', 'delantero']
@@ -21,11 +23,38 @@ const POSITIONS: Position[] = ['arquero', 'defensor', 'mediocampista', 'delanter
 export default function RendimientoDeportivoPage() {
   // GATE de seguridad: tesoreros no entran. Padres viven en /padres/, fuera de este shell.
   const [activeRole] = useActiveRole()
+  const club = useCurrentClub()
   if (activeRole === 'tesorero') {
     return (
       <div className="p-6 text-center">
         <p className="text-sm text-muted-foreground">Este reporte es de uso exclusivo del cuerpo técnico.</p>
         <Link href="/reportes" className="text-xs text-blue-600 underline mt-2 inline-block">← Volver a Reportes</Link>
+      </div>
+    )
+  }
+  // Club real: aún no hay evaluaciones de partidos cargadas → estado vacío honesto
+  // (no mostrar el plantel/puntajes demo).
+  if (isRealClub(club.id)) {
+    return (
+      <div className="p-3 md:p-6 space-y-3">
+        <div className="flex items-center gap-2">
+          <Link href="/reportes" className="p-1.5 rounded hover:bg-gray-100">
+            <ArrowLeft size={18} />
+          </Link>
+          <h1 className="text-2xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: 'var(--club-primary, #00843D)' }}>
+            RENDIMIENTO DEPORTIVO
+          </h1>
+        </div>
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-6 text-center space-y-2">
+            <Star size={28} className="mx-auto text-muted-foreground" />
+            <p className="text-sm font-semibold">Aún no hay evaluaciones cargadas</p>
+            <p className="text-xs text-muted-foreground">
+              Las evaluaciones deportivas se generan después de cada partido, desde la sección Partidos → Puntajes.
+              Cuando el cuerpo técnico cargue puntajes, este reporte se completa automáticamente.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     )
   }
