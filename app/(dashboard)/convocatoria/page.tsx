@@ -18,6 +18,7 @@ const ALL_TIRAS: Tira[] = ['metro', 'liga1', 'liga2', 'edefi']
 export default function ConvocatoriaPage() {
   const club = useCurrentClub()
   // Datos por club (real → Supabase hidratado; demo → arrays demo). Nunca demo directo.
+  const real = isRealClub(club.id)
   const clubPlayers = getPlayersForClub(club.id)
   const clubCategories = getCategoriesForClub(club.id)
   const clubEvents = getEventsForClub(club.id)
@@ -71,7 +72,8 @@ export default function ConvocatoriaPage() {
 
   const playersWithStats = players.map(p => {
     const practiceStats = getAttendanceStats(p.id, selectedCategory)
-    const matchStats = getMatchAttendanceStats(p.id)
+    // Club real: sin partidos jugados aún, el % de partidos no debe bloquear (total 0 = elegible).
+    const matchStats = real ? { played: 0, total: 0, percentage: 0 } : getMatchAttendanceStats(p.id)
     const meetsPractice = practiceStats.percentage >= practiceThreshold || practiceStats.total === 0
     const meetsMatch = matchStats.percentage >= matchThreshold || matchStats.total === 0
     const eligible = meetsPractice && meetsMatch

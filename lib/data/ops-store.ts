@@ -100,6 +100,23 @@ export async function loadLatestConvocation(
   return { id: conv.id, playerIds: (players ?? []).map((p: any) => p.player_id), createdAt: conv.created_at }
 }
 
+// ── Partidos (alta masiva desde flyer) ──────────────────────────────────
+export async function createMatchEvents(
+  demoClubId: string,
+  matches: { categoryId: string; scheduledAt: string; rival: string; venue?: string | null; isHome?: boolean | null }[]
+): Promise<Res & { count?: number }> {
+  const ctx = sbFor(demoClubId); if (!ctx) return { ok: false, error: 'club no real' }
+  try {
+    const rows = matches.map(m => ({
+      club_id: ctx.sb, category_id: m.categoryId, event_type: 'match',
+      scheduled_at: m.scheduledAt, rival: m.rival, venue: m.venue ?? null, is_home: m.isHome ?? null,
+    }))
+    const { data, error } = await ctx.supabase.from('events').insert(rows).select('id')
+    if (error) throw error
+    return { ok: true, count: data?.length ?? 0 }
+  } catch (e: any) { console.error('[ops] matchEvents', e?.message); return { ok: false, error: e?.message } }
+}
+
 // ── Puntajes de partido ─────────────────────────────────────────────────
 export async function persistMatchRatings(
   demoClubId: string,

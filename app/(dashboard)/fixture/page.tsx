@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, MapPin, Trophy, Plus, X, CloudRain, Edit2 } from 'lucide-react'
+import { Calendar, MapPin, Trophy, Plus, X, CloudRain, Edit2, ScanLine } from 'lucide-react'
+import Link from 'next/link'
 import { getEventsForClub, getCategoriesForClub, getPlayersForClub } from '@/lib/demo-data'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { TIRA_LABELS, TIRA_COLORS } from '@/types'
@@ -58,9 +59,14 @@ export default function FixturePage() {
           </h1>
           <Badge variant="outline">{matches.length}</Badge>
         </div>
-        <button onClick={() => setShowAdd(true)} className="flex items-center gap-1 text-sm font-semibold px-3 py-2 rounded-lg text-white" style={{ backgroundColor: '#00843D' }}>
-          <Plus size={16} /> Partido
-        </button>
+        <div className="flex items-center gap-1.5">
+          <Link href="/partidos/generar" className="flex items-center gap-1 text-sm font-semibold px-3 py-2 rounded-lg border-2 border-[#00843D] text-[#00843D]">
+            <ScanLine size={16} /> Desde flyer
+          </Link>
+          <button onClick={() => setShowAdd(true)} className="flex items-center gap-1 text-sm font-semibold px-3 py-2 rounded-lg text-white" style={{ backgroundColor: '#00843D' }}>
+            <Plus size={16} /> Partido
+          </button>
+        </div>
       </div>
 
       <div className="space-y-2">
