@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Trophy, CheckCircle2, MessageCircle, Lock, List, LayoutGrid, ExternalLink, Unlock } from 'lucide-react'
@@ -9,7 +9,7 @@ import { getAttendanceStats, getMatchAttendanceStats, demoEligibilityConfig, get
 import { getAvatarUrl } from '@/lib/avatars'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { isRealClub } from '@/lib/real-clubs'
-import { persistConvocation } from '@/lib/data/ops-store'
+import { persistConvocation, loadLatestConvocation } from '@/lib/data/ops-store'
 import { POSITION_LABELS, POSITION_COLORS, TIRA_LABELS, TIRA_COLORS, type Position, type Tira } from '@/types'
 
 const POSITIONS: Position[] = ['arquero', 'defensor', 'mediocampista', 'delantero']
@@ -78,6 +78,21 @@ export default function ConvocatoriaPage() {
     return { ...p, practiceStats, matchStats, meetsPractice, meetsMatch, eligible }
   })
 
+  // Club real: al cambiar de tira/categoría, precargar la última convocatoria
+  // guardada para que el profe vea sus convocados ya marcados.
+  useEffect(() => {
+    if (!isRealClub(club.id) || !effectiveCategory || !effectiveTira) return
+    let cancelled = false
+    loadLatestConvocation(club.id, effectiveCategory, effectiveTira).then(res => {
+      if (cancelled) return
+      if (res && res.playerIds.length) {
+        setSelected(new Set(res.playerIds))
+        setSavedAt(new Date(res.createdAt).toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))
+      }
+    })
+    return () => { cancelled = true }
+  }, [club.id, effectiveCategory, effectiveTira])
+
   function togglePlayer(id: string) {
     // Si modifico la selección, vuelvo a estado "no guardado" (hay que guardar de nuevo)
     if (savedAt) setSavedAt(null)
@@ -112,10 +127,15 @@ export default function ConvocatoriaPage() {
   function saveConvocatoria() {
     const now = new Date().toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
     setSavedAt(now)
-    // PRODUCCIÓN: persistir convocatoria en Supabase (club real). Requiere un evento real seleccionado.
-    if (isRealClub(club.id) && selectedEvent) {
-      persistConvocation(club.id, { eventId: selectedEvent, playerIds: Array.from(selected) })
-        .then(res => { if (!res.ok) console.error('No se pudo persistir la convocatoria:', res.error) })
+    // PRODUCCIÓN: persistir convocatoria en Supabase (club real). Se guarda por
+    // tira + categoría; el partido es opcional (si hay fixture, se ata al evento).
+    if (isRealClub(club.id) && effectiveCategory && effectiveTira) {
+      persistConvocation(club.id, {
+        eventId: selectedEvent || null,
+        categoryId: effectiveCategory,
+        tira: effectiveTira,
+        playerIds: Array.from(selected),
+      }).then(res => { if (!res.ok) console.error('No se pudo persistir la convocatoria:', res.error) })
     }
   }
 
@@ -171,18 +191,23 @@ export default function ConvocatoriaPage() {
           {activeCategories.map(c => <option key={c.id} value={c.id}>Categoría {c.name}</option>)}
         </select>
 
-        <select
-          value={selectedEvent}
-          onChange={e => setSelectedEvent(e.target.value)}
-          className="w-full px-3 py-2 rounded-lg border text-sm font-medium bg-white"
-        >
-          <option value="">Seleccionar partido...</option>
-          {matches.map(m => (
-            <option key={m.id} value={m.id}>
-              vs. {m.rival} — {new Date(m.scheduled_at).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
-            </option>
-          ))}
-        </select>
+        <div>
+          <select
+            value={selectedEvent}
+            onChange={e => setSelectedEvent(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border text-sm font-medium bg-white"
+          >
+            <option value="">Sin partido — convocatoria por tira y categoría</option>
+            {matches.map(m => (
+              <option key={m.id} value={m.id}>
+                vs. {m.rival} — {new Date(m.scheduled_at).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
+              </option>
+            ))}
+          </select>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            El partido es opcional. Podés convocar solo con tira y categoría; si después cargás el fixture, lo asociás al rival.
+          </p>
+        </div>
 
         {/* Filtro por tira — obligatorio, no se pueden mezclar */}
         <div>

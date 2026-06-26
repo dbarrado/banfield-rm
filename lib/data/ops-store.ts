@@ -55,15 +55,24 @@ export async function loadProfeAssignments(demoClubId: string): Promise<any[] | 
 }
 
 // ── Convocatoria ────────────────────────────────────────────────────────
+// Soporta convocatoria "libre" (solo tira + categoría, sin partido) y
+// convocatoria atada a un evento (cuando exista fixture).
 export async function persistConvocation(
   demoClubId: string,
-  args: { eventId: string; playerIds: string[]; whatsappMessage?: string }
+  args: { eventId?: string | null; categoryId?: string | null; tira?: string | null; playerIds: string[]; whatsappMessage?: string }
 ): Promise<Res> {
   const ctx = sbFor(demoClubId); if (!ctx) return { ok: false, error: 'club no real' }
   try {
     const { data: conv, error: e1 } = await ctx.supabase
       .from('convocations')
-      .insert({ event_id: args.eventId, is_reused: false, whatsapp_message: args.whatsappMessage ?? null })
+      .insert({
+        club_id: ctx.sb,
+        event_id: args.eventId ?? null,
+        category_id: args.categoryId ?? null,
+        tira: args.tira ?? null,
+        is_reused: false,
+        whatsapp_message: args.whatsappMessage ?? null,
+      })
       .select('id').single()
     if (e1) throw e1
     if (args.playerIds.length) {
@@ -73,6 +82,22 @@ export async function persistConvocation(
     }
     return { ok: true, id: conv.id }
   } catch (e: any) { console.error('[ops] convocation', e?.message); return { ok: false, error: e?.message } }
+}
+
+// Trae la última convocatoria guardada para una (categoría, tira) → ids de convocados.
+export async function loadLatestConvocation(
+  demoClubId: string, categoryId: string, tira: string
+): Promise<{ id: string; playerIds: string[]; createdAt: string } | null> {
+  const ctx = sbFor(demoClubId); if (!ctx) return null
+  const { data: conv, error } = await ctx.supabase
+    .from('convocations')
+    .select('id, created_at')
+    .eq('club_id', ctx.sb).eq('category_id', categoryId).eq('tira', tira)
+    .order('created_at', { ascending: false }).limit(1).maybeSingle()
+  if (error || !conv) return null
+  const { data: players } = await ctx.supabase
+    .from('convocation_players').select('player_id').eq('convocation_id', conv.id)
+  return { id: conv.id, playerIds: (players ?? []).map((p: any) => p.player_id), createdAt: conv.created_at }
 }
 
 // ── Puntajes de partido ─────────────────────────────────────────────────
