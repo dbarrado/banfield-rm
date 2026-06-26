@@ -103,13 +103,13 @@ export async function loadLatestConvocation(
 // ── Partidos (alta masiva desde flyer) ──────────────────────────────────
 export async function createMatchEvents(
   demoClubId: string,
-  matches: { categoryId: string; scheduledAt: string; rival: string; venue?: string | null; isHome?: boolean | null }[]
+  matches: { categoryId: string; scheduledAt: string; rival: string; venue?: string | null; isHome?: boolean | null; tira?: string | null }[]
 ): Promise<Res & { count?: number }> {
   const ctx = sbFor(demoClubId); if (!ctx) return { ok: false, error: 'club no real' }
   try {
     const rows = matches.map(m => ({
       club_id: ctx.sb, category_id: m.categoryId, event_type: 'match',
-      scheduled_at: m.scheduledAt, rival: m.rival, venue: m.venue ?? null, is_home: m.isHome ?? null,
+      scheduled_at: m.scheduledAt, rival: m.rival, venue: m.venue ?? null, is_home: m.isHome ?? null, tira: m.tira ?? null,
     }))
     const { data, error } = await ctx.supabase.from('events').insert(rows).select('id')
     if (error) throw error

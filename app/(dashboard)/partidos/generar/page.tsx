@@ -9,6 +9,8 @@ import { isRealClub } from '@/lib/real-clubs'
 import { getCategoriesForClub } from '@/lib/demo-data'
 import { createMatchEvents } from '@/lib/data/ops-store'
 import { useActiveRole, ROLE_LABELS } from '@/lib/use-role'
+import { getTirasForSport } from '@/lib/tiras'
+import type { SportCode } from '@/lib/sports'
 
 type CatRow = { id: string; categoryId: string; label: string; time: string }
 
@@ -45,6 +47,7 @@ export default function GenerarPartidoPage() {
   const canGenerate = activeRole === 'admin' || activeRole === 'coordinador' || activeRole === 'profe'
 
   const cats = getCategoriesForClub(club.id).filter(c => c.is_active)
+  const tiras = getTirasForSport((club.default_sport_code ?? 'football_11') as SportCode)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [preview, setPreview] = useState<string | null>(null)
@@ -54,6 +57,7 @@ export default function GenerarPartidoPage() {
 
   // Campos editables (revisión)
   const [rival, setRival] = useState('')
+  const [tira, setTira] = useState('')
   const [isHome, setIsHome] = useState<'home' | 'away' | 'unknown'>('unknown')
   const [date, setDate] = useState('')
   const [venue, setVenue] = useState('')
@@ -117,7 +121,7 @@ export default function GenerarPartidoPage() {
   }
 
   const validRows = rows.filter(r => r.categoryId && /^\d{1,2}:\d{2}$/.test(r.time))
-  const canSubmit = !!rival.trim() && !!date && validRows.length > 0 && isHome !== 'unknown'
+  const canSubmit = !!rival.trim() && !!tira && !!date && validRows.length > 0 && isHome !== 'unknown'
 
   async function generar() {
     if (!canSubmit) return
@@ -128,6 +132,7 @@ export default function GenerarPartidoPage() {
       rival: rival.trim(),
       venue: venue.trim() || null,
       isHome: isHome === 'home',
+      tira,
     }))
     if (real) {
       const res = await createMatchEvents(club.id, matches)
@@ -203,6 +208,20 @@ export default function GenerarPartidoPage() {
               </div>
 
               <div>
+                <label className="text-[10px] uppercase font-semibold text-muted-foreground">Tira *</label>
+                <div className="flex flex-wrap gap-1.5 mt-0.5">
+                  {tiras.map(t => (
+                    <button key={t.code} onClick={() => setTira(t.code)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${tira === t.code ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`}
+                      style={tira === t.code ? { backgroundColor: t.color } : {}}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+                {!tira && <p className="text-[10px] text-amber-600 mt-1">Elegí la tira a la que corresponde este partido.</p>}
+              </div>
+
+              <div>
                 <label className="text-[10px] uppercase font-semibold text-muted-foreground">Banfield juega de *</label>
                 <div className="flex gap-2 mt-0.5">
                   {([['home', '🏠 Local'], ['away', '✈️ Visitante'], ['unknown', '— A definir']] as const).map(([val, lbl]) => (
@@ -275,7 +294,7 @@ export default function GenerarPartidoPage() {
           )}
           {!canSubmit && done === null && (
             <p className="text-[10px] text-center text-muted-foreground">
-              Para generar: rival, fecha, local/visitante y al menos una categoría con horario.
+              Para generar: rival, tira, fecha, local/visitante y al menos una categoría con horario.
             </p>
           )}
         </>
