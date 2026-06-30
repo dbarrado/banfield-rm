@@ -11,6 +11,14 @@ function sbFor(demoClubId: string) {
   return sb ? { sb, supabase: createClient() } : null
 }
 
+// TODO (defensa en profundidad): estas funciones traen TODAS las filas del
+// club sin filtrar por profe. El filtrado por "soy profe puro → solo lo mío"
+// hoy se hace en el frontend (lib/use-current-profe.ts + las páginas
+// /asistencia, /convocatoria, /plan). Si se quiere reforzar a nivel server,
+// se podría: (a) agregar policies RLS por profe_id en training_slots /
+// profe_assignments, o (b) pasar un profeId opcional acá y filtrar el query.
+// No es bloqueante porque RLS ya exige pertenencia al club (multi-tenant).
+
 // ── Lectura: cronograma / profes reales ─────────────────────────────────
 export async function loadTrainingSlots(demoClubId: string): Promise<any[] | null> {
   const ctx = sbFor(demoClubId); if (!ctx) return null

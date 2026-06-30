@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ClipboardList, CheckCircle2, XCircle, AlertCircle, User, Lock, Unlock, Clock, Radio, Plus, X, Search, UserPlus, MapPin, Sparkles, Circle } from 'lucide-react'
+import { ClipboardList, CheckCircle2, XCircle, AlertCircle, User, Lock, Unlock, Clock, Radio, Plus, X, Search, UserPlus, MapPin, Sparkles, Circle, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react'
 import { getProfeById, getProfesForClub, getAssignmentsForProfe, getProfesForTira, getPlayersForClub, getCategoriesForClub } from '@/lib/demo-data'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { TIRA_LABELS, TIRA_COLORS, type Tira, type Profe } from '@/types'
@@ -13,9 +13,11 @@ import { getSessionsForDay, TIRA_GROUPS, tiraGroupOf } from '@/lib/training-sche
 import { getActiveSlotForNow, getNextSlotForDay, type TrainingSlot } from '@/lib/training-roster'
 import { getAvatarUrl } from '@/lib/avatars'
 import { isRealClub } from '@/lib/real-clubs'
-import { persistAttendanceClose } from '@/lib/data/attendance-store'
+import { persistAttendanceUpsert, loadAttendanceForDate } from '@/lib/data/attendance-store'
 import { loadTrainingSlots } from '@/lib/data/ops-store'
 import { PlanDelDia } from '@/components/plan-del-dia'
+import { useActiveRole, useUserRoles } from '@/lib/use-role'
+import { useCurrentProfe } from '@/lib/use-current-profe'
 
 type AttendanceStatus = 'unmarked' | 'present' | 'late' | 'absent_unjustified' | 'absent_justified'
 
@@ -36,6 +38,11 @@ const ALL_TIRAS: Tira[] = ['metro', 'liga1', 'liga2', 'edefi']
 
 export default function AsistenciaPage() {
   const club = useCurrentClub()
+  const [activeRole] = useActiveRole()
+  const userRoles = useUserRoles()
+  const { profeId: myProfeId } = useCurrentProfe(club.id)
+  // Profe puro (sin admin/coordinador): solo ve y firma su propia asistencia.
+  const isPureProfe = isRealClub(club.id) && activeRole === 'profe' && !userRoles.includes('admin') && !userRoles.includes('coordinador')
   const clubPlayers = useMemo(() => getPlayersForClub(club.id), [club.id])
   const clubCategories = useMemo(() => getCategoriesForClub(club.id), [club.id])
   const activeCategories = clubCategories.filter(c => c.is_active)
@@ -79,34 +86,76 @@ export default function AsistenciaPage() {
     setAttendance({})
   }
 
-  // Club real: cargar el cronograma real y autoseleccionar el turno de hoy
+  // Navegación de días (solo club real) — para corregir asistencia de días pasados.
+  function startOfDay(d: Date) { const n = new Date(d); n.setHours(0, 0, 0, 0); return n }
+  const [viewDate, setViewDate] = useState<Date>(() => startOfDay(new Date()))
+  const isViewingToday = viewDate.getTime() === startOfDay(new Date()).getTime()
+  function dateToISO(d: Date): string {
+    const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+  const viewDateLabel = isViewingToday
+    ? `Hoy, ${viewDate.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric' })}`
+    : viewDate.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'short' })
+
+  // Club real: cargar el cronograma real
   const [realSlots, setRealSlots] = useState<TrainingSlot[]>([])
   useEffect(() => {
     if (!isRealClub(club.id)) return
     loadTrainingSlots(club.id).then(rows => {
       if (!rows) return
-      const slots = rows as TrainingSlot[]
-      setRealSlots(slots)
-      const d = new Date()
-      const dow = d.getDay()
-      const hhmm = d.toTimeString().slice(0, 5)
-      const todays = slots.filter(s => s.day_of_week === dow && s.is_active)
-        .sort((a, b) => a.start_time.localeCompare(b.start_time))
-      const active = todays.find(s => s.start_time <= hhmm && hhmm <= s.end_time)
-      const pick = active ?? todays[0]
-      if (pick) loadSlot(pick)
+      setRealSlots(rows as TrainingSlot[])
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [club.id])
 
-  const realTodaySlots = useMemo(() => {
-    const dow = new Date().getDay()
+  // Profe puro: forzar siempre su propio id (no puede ver/firmar asistencia de otros).
+  useEffect(() => {
+    if (isPureProfe && myProfeId && selectedProfe !== myProfeId) {
+      setSelectedProfe(myProfeId)
+    }
+  }, [isPureProfe, myProfeId, selectedProfe])
+
+  // Turnos del día navegado (en vez de fijo a "hoy")
+  const daySlots = useMemo(() => {
+    const dow = viewDate.getDay()
     return realSlots.filter(s => s.day_of_week === dow && s.is_active)
       .sort((a, b) => a.start_time.localeCompare(b.start_time))
-  }, [realSlots])
+  }, [realSlots, viewDate])
+
+  // Subconjunto de daySlots donde el profe puro está asignado (titular o suplente)
+  const mySlots = useMemo(() => {
+    if (!myProfeId) return []
+    return daySlots.filter(s => s.profe_titular_id === myProfeId || (s.profe_suplentes_ids ?? []).includes(myProfeId))
+  }, [daySlots, myProfeId])
+
+  const relevantSlots = isPureProfe ? mySlots : daySlots
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
+  const [showOtherSlots, setShowOtherSlots] = useState(false)
+
+  // Auto-selección del turno relevante al cambiar de día (o al cargar el cronograma)
+  useEffect(() => {
+    if (!isRealClub(club.id)) return
+    if (relevantSlots.length === 0) { setSelectedSlotId(null); return }
+    let pick: TrainingSlot | undefined
+    if (isViewingToday) {
+      const hhmm = new Date().toTimeString().slice(0, 5)
+      const active = relevantSlots.find(s => s.start_time <= hhmm && hhmm <= s.end_time)
+      const next = relevantSlots.find(s => s.start_time > hhmm)
+      pick = active ?? next ?? relevantSlots[relevantSlots.length - 1]
+    } else {
+      pick = relevantSlots[0]
+    }
+    if (pick) {
+      setSelectedSlotId(pick.id)
+      loadSlot(pick)
+    }
+    setShowOtherSlots(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [club.id, realSlots, viewDate, isPureProfe, myProfeId])
   const sessionColor = Array.from(selectedTiras)[0] ? TIRA_COLORS[Array.from(selectedTiras)[0]] : 'var(--club-primary, #00843D)'
   const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({})
   const [closed, setClosed] = useState(false)
+  const [currentEventId, setCurrentEventId] = useState<string | null>(null)
   const [log, setLog] = useState<{ action: 'open' | 'close' | 'reopen'; user: string; at: string }[]>([])
   // Visitantes (jugadores de otra tira) y no anotados (sin ficha aún)
   const [guests, setGuests] = useState<{ id: string; type: 'visitor' | 'unregistered'; name: string; tira?: Tira; categoryName?: string; notes?: string }[]>([])
@@ -153,6 +202,30 @@ export default function AsistenciaPage() {
       players: players.filter(p => p.category_id === c.id),
     }))
     .filter(g => g.players.length > 0)
+
+  // Club real: si ya hay asistencia guardada para esta categoría/día, cargarla para editar (evita duplicar al corregir).
+  const mainCategoryId = Array.from(selectedCategories)[0] ?? null
+  const viewDateISO = dateToISO(viewDate)
+  useEffect(() => {
+    if (!isRealClub(club.id) || !mainCategoryId) return
+    let cancelled = false
+    loadAttendanceForDate(club.id, { categoryId: mainCategoryId, dateISO: viewDateISO }).then(res => {
+      if (cancelled) return
+      if (res) {
+        const map: Record<string, AttendanceStatus> = {}
+        res.records.forEach(r => { map[r.playerId] = r.status as AttendanceStatus })
+        setAttendance(map)
+        setCurrentEventId(res.eventId)
+        setClosed(true)
+      } else {
+        setCurrentEventId(null)
+        setClosed(false)
+        setAttendance({})
+      }
+    })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [club.id, mainCategoryId, viewDateISO])
 
   // Profes asignados a cualquiera de las (cat × tira) seleccionadas
   const profesAsignados = Array.from(new Set(
@@ -254,36 +327,137 @@ export default function AsistenciaPage() {
         </Card>
       )}
 
-      {/* Club real: selector de turnos de hoy (cronograma real). El profe ve su tira/horario y puede elegir si está en más de uno. */}
-      {isRealClub(club.id) && realTodaySlots.length > 0 && (
-        <Card className="border-0 shadow-sm" style={{ borderLeft: '4px solid #7c3aed', background: 'linear-gradient(135deg, #f5f3ff 0%, white 100%)' }}>
-          <CardContent className="p-3 space-y-2">
+      {/* Club real: navegación de día + selector de turnos del cronograma real */}
+      {isRealClub(club.id) && (
+        <>
+          <div className="flex items-center justify-between gap-2 px-1">
+            <button
+              onClick={() => setViewDate(d => { const n = new Date(d); n.setDate(n.getDate() - 1); return n })}
+              className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50"
+              aria-label="Día anterior"
+            >
+              <ChevronLeft size={16} />
+            </button>
             <div className="flex items-center gap-1.5">
-              <Sparkles size={14} className="text-purple-600" />
-              <p className="text-xs font-bold uppercase text-purple-800" style={{ fontFamily: "var(--font-barlow)" }}>Turnos de hoy</p>
+              <p className="text-xs font-bold capitalize">{viewDateLabel}</p>
+              {!isViewingToday && (
+                <button
+                  onClick={() => setViewDate(startOfDay(new Date()))}
+                  className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700"
+                >
+                  Hoy
+                </button>
+              )}
             </div>
-            <div className="flex flex-col gap-1.5">
-              {realTodaySlots.map(s => {
-                const cats = s.category_ids.map(cid => clubCategories.find(x => x.id === cid)?.name).filter(Boolean).join(' · ')
-                const selected = usedSlot && Array.from(selectedCategories).sort().join() === [...s.category_ids].sort().join() &&
-                  Array.from(selectedTiras).sort().join() === [...s.tiras].sort().join()
-                return (
-                  <button key={s.id} onClick={() => loadSlot(s)}
-                    className={`text-left p-2 rounded-lg border-2 ${selected ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-                    <div className="flex items-center gap-2 flex-wrap text-xs">
-                      <span className="font-bold">{s.start_time}–{s.end_time}</span>
-                      {s.tiras.map(t => (
-                        <Badge key={t} className="text-[10px] border-0 text-white" style={{ backgroundColor: getTiraColor(t, clubSportCode) }}>{getTiraLabel(t, clubSportCode)}</Badge>
-                      ))}
-                      <span className="text-muted-foreground">{cats}</span>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-            <p className="text-[10px] text-muted-foreground text-center">Tocá tu turno para cargar tiras y categorías. Después podés ajustar.</p>
-          </CardContent>
-        </Card>
+            <button
+              onClick={() => setViewDate(d => { const n = new Date(d); n.setDate(n.getDate() + 1); return n })}
+              disabled={isViewingToday}
+              className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
+              aria-label="Día siguiente"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+
+          {relevantSlots.length === 0 ? (
+            <Card className="border-0 shadow-sm">
+              <CardContent className="p-3 text-center">
+                <p className="text-xs text-muted-foreground">
+                  {isPureProfe ? 'No tenés clases asignadas este día.' : 'No hay turnos cargados este día.'}
+                </p>
+              </CardContent>
+            </Card>
+          ) : isPureProfe ? (
+            // Profe puro: destacar el turno auto-seleccionado, colapsar el resto
+            <Card className="border-0 shadow-sm" style={{ borderLeft: '4px solid #7c3aed', background: 'linear-gradient(135deg, #f5f3ff 0%, white 100%)' }}>
+              <CardContent className="p-3 space-y-2">
+                <div className="flex items-center gap-1.5">
+                  <Sparkles size={14} className="text-purple-600" />
+                  <p className="text-xs font-bold uppercase text-purple-800" style={{ fontFamily: "var(--font-barlow)" }}>Tu clase</p>
+                </div>
+                {(() => {
+                  const current = mySlots.find(s => s.id === selectedSlotId) ?? mySlots[0]
+                  const others = mySlots.filter(s => s.id !== current?.id)
+                  return (
+                    <>
+                      {current && (
+                        <div className="p-2 rounded-lg border-2 border-purple-500 bg-purple-50">
+                          <div className="flex items-center gap-2 flex-wrap text-xs">
+                            <span className="font-bold">{current.start_time}–{current.end_time}</span>
+                            {current.tiras.map(t => (
+                              <Badge key={t} className="text-[10px] border-0 text-white" style={{ backgroundColor: getTiraColor(t, clubSportCode) }}>{getTiraLabel(t, clubSportCode)}</Badge>
+                            ))}
+                            <span className="text-muted-foreground">
+                              {current.category_ids.map(cid => clubCategories.find(x => x.id === cid)?.name).filter(Boolean).join(' · ')}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      {others.length > 0 && (
+                        <>
+                          <button
+                            onClick={() => setShowOtherSlots(v => !v)}
+                            className="w-full flex items-center justify-center gap-1 text-[11px] font-semibold text-purple-700 py-1"
+                          >
+                            {showOtherSlots ? 'Ocultar' : `Ver tus otras clases de ${isViewingToday ? 'hoy' : 'este día'} (${others.length})`}
+                            {showOtherSlots ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                          </button>
+                          {showOtherSlots && (
+                            <div className="flex flex-col gap-1.5">
+                              {others.map(s => (
+                                <button key={s.id} onClick={() => { setSelectedSlotId(s.id); loadSlot(s) }}
+                                  className="text-left p-2 rounded-lg border-2 border-gray-200 hover:bg-gray-50">
+                                  <div className="flex items-center gap-2 flex-wrap text-xs">
+                                    <span className="font-bold">{s.start_time}–{s.end_time}</span>
+                                    {s.tiras.map(t => (
+                                      <Badge key={t} className="text-[10px] border-0 text-white" style={{ backgroundColor: getTiraColor(t, clubSportCode) }}>{getTiraLabel(t, clubSportCode)}</Badge>
+                                    ))}
+                                    <span className="text-muted-foreground">
+                                      {s.category_ids.map(cid => clubCategories.find(x => x.id === cid)?.name).filter(Boolean).join(' · ')}
+                                    </span>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </>
+                  )
+                })()}
+              </CardContent>
+            </Card>
+          ) : (
+            // Admin/coordinador: lista completa de turnos del día, sin colapsar
+            <Card className="border-0 shadow-sm" style={{ borderLeft: '4px solid #7c3aed', background: 'linear-gradient(135deg, #f5f3ff 0%, white 100%)' }}>
+              <CardContent className="p-3 space-y-2">
+                <div className="flex items-center gap-1.5">
+                  <Sparkles size={14} className="text-purple-600" />
+                  <p className="text-xs font-bold uppercase text-purple-800" style={{ fontFamily: "var(--font-barlow)" }}>Turnos del día</p>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {daySlots.map(s => {
+                    const cats = s.category_ids.map(cid => clubCategories.find(x => x.id === cid)?.name).filter(Boolean).join(' · ')
+                    const selected = usedSlot && selectedSlotId === s.id
+                    return (
+                      <button key={s.id} onClick={() => { setSelectedSlotId(s.id); loadSlot(s) }}
+                        className={`text-left p-2 rounded-lg border-2 ${selected ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                        <div className="flex items-center gap-2 flex-wrap text-xs">
+                          <span className="font-bold">{s.start_time}–{s.end_time}</span>
+                          {s.tiras.map(t => (
+                            <Badge key={t} className="text-[10px] border-0 text-white" style={{ backgroundColor: getTiraColor(t, clubSportCode) }}>{getTiraLabel(t, clubSportCode)}</Badge>
+                          ))}
+                          <span className="text-muted-foreground">{cats}</span>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="text-[10px] text-muted-foreground text-center">Tocá un turno para cargar tiras y categorías. Después podés ajustar.</p>
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
 
       {/* Banner de slot del cronograma (solo demo) */}
@@ -354,18 +528,26 @@ export default function AsistenciaPage() {
           {/* Profe a cargo */}
           <div>
             <label className="text-[10px] font-bold uppercase text-muted-foreground">Profe a cargo</label>
-            <select
-              value={selectedProfe}
-              onChange={e => setSelectedProfe(e.target.value)}
-              className="w-full mt-1 px-2.5 py-1.5 rounded border text-sm bg-white"
-            >
-              <option value="">— Sin firmar todavía —</option>
-              {getProfesForClub(club.id).filter(p => p.is_active).map(p => (
-                <option key={p.id} value={p.id}>👤 {p.full_name}</option>
-              ))}
-            </select>
+            {isPureProfe ? (
+              <p className="w-full mt-1 px-2.5 py-1.5 rounded border text-sm bg-gray-50 font-semibold">
+                👤 {getProfeById(selectedProfe)?.full_name ?? '— Cargando tu perfil de profe —'}
+              </p>
+            ) : (
+              <select
+                value={selectedProfe}
+                onChange={e => setSelectedProfe(e.target.value)}
+                className="w-full mt-1 px-2.5 py-1.5 rounded border text-sm bg-white"
+              >
+                <option value="">— Sin firmar todavía —</option>
+                {getProfesForClub(club.id).filter(p => p.is_active).map(p => (
+                  <option key={p.id} value={p.id}>👤 {p.full_name}</option>
+                ))}
+              </select>
+            )}
             <p className="text-[10px] text-muted-foreground mt-0.5">
-              Si te suplantó otro profe hoy, elegí su nombre. Queda registrado en la firma de la asistencia.
+              {isPureProfe
+                ? 'Solo ves y firmás tus propias clases asignadas.'
+                : 'Si te suplantó otro profe hoy, elegí su nombre. Queda registrado en la firma de la asistencia.'}
             </p>
           </div>
 
@@ -659,12 +841,30 @@ export default function AsistenciaPage() {
                     playerId: pl.id,
                     status: (attendance[pl.id] ?? 'absent_unjustified') as string,
                   }))
-                  persistAttendanceClose(club.id, {
+                  let scheduledAt: string
+                  if (isViewingToday) {
+                    scheduledAt = new Date().toISOString()
+                  } else {
+                    const activeSlot = relevantSlots.find(s => s.id === selectedSlotId)
+                    const d = new Date(viewDate)
+                    if (activeSlot) {
+                      const [hh, mm] = activeSlot.start_time.split(':').map(Number)
+                      d.setHours(hh, mm, 0, 0)
+                    } else {
+                      d.setHours(12, 0, 0, 0)
+                    }
+                    scheduledAt = d.toISOString()
+                  }
+                  persistAttendanceUpsert(club.id, {
+                    eventId: currentEventId,
                     categoryId: players.length > 0 ? (players[0].category_id ?? null) : null,
-                    scheduledAt: new Date().toISOString(),
+                    scheduledAt,
                     records,
                     profeName,
-                  }).then(res => { if (!res.ok) console.error('No se pudo persistir la asistencia:', res.error) })
+                  }).then(res => {
+                    if (!res.ok) console.error('No se pudo persistir la asistencia:', res.error)
+                    else if (res.eventId) setCurrentEventId(res.eventId)
+                  })
                 }
 
                 setLog([...log, { action: log.length === 0 ? 'close' : 'close', user: profeName, at: now }])

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ClubSwitcher } from './club-switcher'
+import { CasioClock } from './casio-clock'
 import { useActiveRole, useUserRoles, ROLE_LABELS, type ActiveRole } from '@/lib/use-role'
 import { ChevronDown, Check } from 'lucide-react'
 
@@ -14,6 +15,8 @@ export function TopBar() {
   return (
     <div className="sticky top-0 z-20 bg-white border-b px-3 py-2 flex items-center justify-between gap-2">
       <ClubSwitcher />
+
+      <CasioClock />
 
       <div className="relative">
         <button

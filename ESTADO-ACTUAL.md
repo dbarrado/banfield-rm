@@ -1,7 +1,23 @@
 # Estado actual — Plantel / Banfield (handoff)
 
-**Última actualización:** 2026-06-19
+**Última actualización:** 2026-06-30
 **Para:** retomar el trabajo en otra PC.
+
+## Update 2026-06-30 (b) — Asistencia: navegación por día + edición sin duplicar
+- `/asistencia` (club real) ahora navega por día (`viewDate`, barra `‹ Hoy ›`, sin avanzar a futuro). El cronograma del día (`daySlots`) y, para profe puro, sus turnos (`mySlots`) se recalculan por `day_of_week` de `viewDate`, no por `new Date()` fijo.
+- Auto-selección de turno: hoy → activo ahora / próximo / último pasado; día pasado → primer turno del día. Profe puro con +1 turno el mismo día ve el actual destacado y el resto colapsado en "Ver tus otras clases".
+- **Edición sin duplicar**: nuevo `loadAttendanceForDate()` en `lib/data/attendance-store.ts` busca el evento de práctica (categoría+día) ya guardado y precarga sus registros (`currentEventId`, `closed=true`, se reutiliza el botón "REABRIR" ya existente para editar). `persistAttendanceClose` se reemplazó por `persistAttendanceUpsert` (si recibe `eventId`, borra+reinserta attendances de ese evento en vez de crear uno nuevo; `persistAttendanceClose` queda como alias retrocompatible sin `eventId`).
+- **Limitación conocida**: `loadAttendanceForDate` matchea solo por categoría + día calendario, no por tira/turno — si un día tuviera dos eventos de práctica para la misma categoría (turnos distintos), trae el más reciente por `scheduled_at`. No bloqueante para Banfield hoy (1 turno por categoría/día en la práctica), pero a tener en cuenta si se agregan turnos dobles.
+- Archivos: `app/(dashboard)/asistencia/page.tsx`, `lib/data/attendance-store.ts`.
+- **No se pudo correr `tsc`/`build`** en esta sesión: sandbox sin `node`/`npm`/`npx` en el PATH. Pendiente verificar en verde con Node disponible.
+
+## Update 2026-06-30
+- **Aislamiento de profe puro (no ve datos de todo el club).** Antes el rol activo era 100% simulado (`localStorage`) y cualquier rol podía elegir libremente cualquier profe en los selectores. Ahora, en club real:
+  - `lib/use-role.ts` → `useUserRoles()` lee `user_clubs.roles` (Supabase, `user_id` del usuario logueado), con cache en memoria por sesión de navegación. `useActiveRole()` se autocorrige si el rol guardado no está entre los roles reales del usuario. Club demo sigue igual (localStorage).
+  - `lib/use-current-profe.ts` (nuevo): resuelve `{ profeId, profeName }` matcheando el email de `auth.getUser()` contra `profes.email` (case-insensitive). Devuelve null en clubes demo.
+  - `/asistencia`, `/convocatoria`, `/plan`: si el rol activo es `profe` puro (sin `admin`/`coordinador` en sus roles), el selector de profe se bloquea (muestra su nombre fijo) y se autoselecciona su `profeId`; en `/plan` además se filtra el selector de categoría a sus asignaciones (`getAssignmentsForProfe`). Admin/coordinador: sin cambios, selector libre.
+  - **Pendiente / no bloqueante:** `/asistencia-profes` no se tocó (sigue con roster demo en algunos casos, ver TODO ya documentado abajo). Defensa en profundidad server-side (RLS por profe en `training_slots`/`profe_assignments`) quedó como TODO comentado en `lib/data/ops-store.ts` — hoy el filtrado es solo frontend, protegido igual por RLS multi-tenant (no anon).
+  - **No se pudo correr `tsc`/`build`** en esta sesión: el entorno no tiene `node`/`npm`/`npx` en el PATH (sandbox sin Node instalado). Revisar en verde en la próxima sesión con Node disponible antes de deployar.
 
 ## Update 2026-06-25
 - **Asignaciones profe→tira/categoría ahora se consumen en el club real.** La tabla `profe_assignments` (73 filas, cargada con la grilla "Profesores x tiras", Bruno incluido) ya existía pero la app solo leía datos demo. Se agregó:

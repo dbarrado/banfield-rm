@@ -5,12 +5,14 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Trophy, CheckCircle2, MessageCircle, Lock, List, LayoutGrid, ExternalLink, Unlock } from 'lucide-react'
 import Link from 'next/link'
-import { getAttendanceStats, getMatchAttendanceStats, demoEligibilityConfig, getProfesForClub, getAssignmentsForProfe, getPlayersForClub, getCategoriesForClub, getEventsForClub } from '@/lib/demo-data'
+import { getAttendanceStats, getMatchAttendanceStats, demoEligibilityConfig, getProfesForClub, getProfeById, getAssignmentsForProfe, getPlayersForClub, getCategoriesForClub, getEventsForClub } from '@/lib/demo-data'
 import { getAvatarUrl } from '@/lib/avatars'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { isRealClub } from '@/lib/real-clubs'
 import { persistConvocation, loadLatestConvocation } from '@/lib/data/ops-store'
 import { POSITION_LABELS, POSITION_COLORS, TIRA_LABELS, TIRA_COLORS, type Position, type Tira } from '@/types'
+import { useActiveRole, useUserRoles } from '@/lib/use-role'
+import { useCurrentProfe } from '@/lib/use-current-profe'
 
 const POSITIONS: Position[] = ['arquero', 'defensor', 'mediocampista', 'delantero']
 const ALL_TIRAS: Tira[] = ['metro', 'liga1', 'liga2', 'edefi']
@@ -19,10 +21,22 @@ export default function ConvocatoriaPage() {
   const club = useCurrentClub()
   // Datos por club (real → Supabase hidratado; demo → arrays demo). Nunca demo directo.
   const real = isRealClub(club.id)
+  const [activeRole] = useActiveRole()
+  const userRoles = useUserRoles()
+  const { profeId: myProfeId } = useCurrentProfe(club.id)
+  // Profe puro (sin admin/coordinador): solo convoca de sus propias tiras/categorías.
+  const isPureProfe = real && activeRole === 'profe' && !userRoles.includes('admin') && !userRoles.includes('coordinador')
   const clubPlayers = getPlayersForClub(club.id)
   const clubCategories = getCategoriesForClub(club.id)
   const clubEvents = getEventsForClub(club.id)
   const [selectedProfe, setSelectedProfe] = useState<string>('')
+
+  // Profe puro: forzar siempre su propio id (no puede convocar a nombre de otro profe).
+  useEffect(() => {
+    if (isPureProfe && myProfeId && selectedProfe !== myProfeId) {
+      setSelectedProfe(myProfeId)
+    }
+  }, [isPureProfe, myProfeId, selectedProfe])
   const [selectedCategory, setSelectedCategory] = useState(clubCategories[0]?.id ?? '')
   const [selectedTira, setSelectedTira] = useState<Tira | null>(null)
   const [convocarDeOtra, setConvocarDeOtra] = useState(false)
@@ -173,16 +187,22 @@ export default function ConvocatoriaPage() {
 
       {/* Selectores */}
       <div className="space-y-2">
-        <select
-          value={selectedProfe}
-          onChange={e => { setSelectedProfe(e.target.value); setSelected(new Set()); setSelectedTira(null); setConvocarDeOtra(false); }}
-          className="w-full px-3 py-2 rounded-lg border text-sm font-medium bg-white"
-        >
-          <option value="">Todos los profes (admin)</option>
-          {getProfesForClub(club.id).filter(p => p.is_active).map(p => (
-            <option key={p.id} value={p.id}>👤 {p.full_name}</option>
-          ))}
-        </select>
+        {isPureProfe ? (
+          <p className="w-full px-3 py-2 rounded-lg border text-sm font-medium bg-gray-50">
+            👤 {getProfeById(selectedProfe)?.full_name ?? '— Cargando tu perfil de profe —'}
+          </p>
+        ) : (
+          <select
+            value={selectedProfe}
+            onChange={e => { setSelectedProfe(e.target.value); setSelected(new Set()); setSelectedTira(null); setConvocarDeOtra(false); }}
+            className="w-full px-3 py-2 rounded-lg border text-sm font-medium bg-white"
+          >
+            <option value="">Todos los profes (admin)</option>
+            {getProfesForClub(club.id).filter(p => p.is_active).map(p => (
+              <option key={p.id} value={p.id}>👤 {p.full_name}</option>
+            ))}
+          </select>
+        )}
 
         <select
           value={effectiveCategory}

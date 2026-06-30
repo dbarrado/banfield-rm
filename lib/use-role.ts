@@ -1,6 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { isRealClub, realClubId } from '@/lib/real-clubs'
+import { useCurrentClub } from '@/lib/use-current-club'
 
 export type ActiveRole = 'admin' | 'profe' | 'tesorero' | 'coordinador'
 
@@ -11,9 +14,48 @@ const USER_ROLES_KEY = 'plantel_user_roles'
 // Para el demo: el usuario tiene los 4 roles asignados, puede cambiar entre ellos
 const DEFAULT_USER_ROLES: ActiveRole[] = ['admin', 'profe', 'tesorero', 'coordinador']
 
+const VALID_ROLES: ActiveRole[] = ['admin', 'profe', 'tesorero', 'coordinador']
+
+// Cache simple en memoria del proceso para no repetir el fetch a Supabase
+// en cada componente que monte el hook durante la misma sesión de navegación.
+let cachedRealRoles: ActiveRole[] | null = null
+let cachedRealRolesClub: string | null = null
+
+async function fetchRealRoles(demoClubId: string): Promise<ActiveRole[]> {
+  if (cachedRealRolesClub === demoClubId && cachedRealRoles) return cachedRealRoles
+  const sbClubId = realClubId(demoClubId)
+  if (!sbClubId) return []
+  const supabase = createClient()
+  const { data: userData } = await supabase.auth.getUser()
+  if (!userData.user) return []
+  const { data, error } = await supabase
+    .from('user_clubs')
+    .select('roles')
+    .eq('club_id', sbClubId)
+    .eq('user_id', userData.user.id)
+    .eq('is_active', true)
+    .maybeSingle()
+  if (error || !data?.roles) return []
+  const roles = (data.roles as string[]).filter((r): r is ActiveRole => VALID_ROLES.includes(r as ActiveRole))
+  cachedRealRoles = roles
+  cachedRealRolesClub = demoClubId
+  return roles
+}
+
+// Club real: roles vienen de `user_clubs.roles` (Supabase, usuario logueado).
+// Club demo: se mantiene el comportamiento simulado por localStorage.
 export function useUserRoles(): ActiveRole[] {
+  const club = useCurrentClub()
   const [roles, setRoles] = useState<ActiveRole[]>(DEFAULT_USER_ROLES)
+
   useEffect(() => {
+    if (isRealClub(club.id)) {
+      let cancelled = false
+      fetchRealRoles(club.id).then(real => {
+        if (!cancelled && real.length > 0) setRoles(real)
+      })
+      return () => { cancelled = true }
+    }
     const stored = localStorage.getItem(USER_ROLES_KEY)
     if (stored) {
       try {
@@ -21,19 +63,32 @@ export function useUserRoles(): ActiveRole[] {
         if (Array.isArray(parsed) && parsed.length > 0) setRoles(parsed)
       } catch {}
     }
-  }, [])
+  }, [club.id])
+
   return roles
 }
 
 export function useActiveRole(): [ActiveRole, (r: ActiveRole) => void] {
+  const club = useCurrentClub()
+  const userRoles = useUserRoles()
   const [role, setRole] = useState<ActiveRole>('admin')
 
   useEffect(() => {
     const stored = localStorage.getItem(ROLE_KEY) as ActiveRole | null
-    if (stored && ['admin', 'profe', 'tesorero', 'coordinador'].includes(stored)) {
+    if (stored && VALID_ROLES.includes(stored)) {
       setRole(stored)
     }
   }, [])
+
+  // Club real: si el rol activo guardado no está entre los roles reales del
+  // usuario (p.ej. quedó en "admin" de una sesión demo previa), corregir al
+  // primer rol que sí tiene asignado.
+  useEffect(() => {
+    if (!isRealClub(club.id)) return
+    if (userRoles.length > 0 && !userRoles.includes(role)) {
+      setRole(userRoles[0])
+    }
+  }, [club.id, userRoles, role])
 
   function update(r: ActiveRole) {
     localStorage.setItem(ROLE_KEY, r)

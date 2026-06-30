@@ -5,10 +5,12 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { ClipboardList, Plus, Trash2, Save, Calendar } from 'lucide-react'
-import { getCategoriesForClub } from '@/lib/demo-data'
+import { getCategoriesForClub, getAssignmentsForProfe } from '@/lib/demo-data'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { isRealClub } from '@/lib/real-clubs'
 import { loadPlan, savePlan, type PlanItem } from '@/lib/data/plan-store'
+import { useActiveRole, useUserRoles } from '@/lib/use-role'
+import { useCurrentProfe } from '@/lib/use-current-profe'
 
 function todayISO() {
   const d = new Date()
@@ -17,7 +19,20 @@ function todayISO() {
 
 export default function PlanPage() {
   const club = useCurrentClub()
-  const categories = useMemo(() => getCategoriesForClub(club.id).filter(c => c.is_active), [club.id])
+  const [activeRole] = useActiveRole()
+  const userRoles = useUserRoles()
+  const { profeId: myProfeId, profeName: myProfeName } = useCurrentProfe(club.id)
+  // Profe puro (sin admin/coordinador): solo carga/ve el plan de sus categorías asignadas.
+  const isPureProfe = isRealClub(club.id) && activeRole === 'profe' && !userRoles.includes('admin') && !userRoles.includes('coordinador')
+  const allCategories = useMemo(() => getCategoriesForClub(club.id).filter(c => c.is_active), [club.id])
+  const myAssignedCategoryIds = useMemo(() => {
+    if (!isPureProfe || !myProfeId) return null
+    return new Set(getAssignmentsForProfe(myProfeId).map(a => a.category_id))
+  }, [isPureProfe, myProfeId])
+  const categories = useMemo(() => {
+    if (!myAssignedCategoryIds) return allCategories
+    return allCategories.filter(c => myAssignedCategoryIds.has(c.id))
+  }, [allCategories, myAssignedCategoryIds])
   const [categoryId, setCategoryId] = useState('')
   const [date, setDate] = useState(todayISO())
   const [title, setTitle] = useState('')
@@ -26,7 +41,8 @@ export default function PlanPage() {
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
-    if (categories.length && !categoryId) setCategoryId(categories[0].id)
+    if (!categories.length) return
+    if (!categoryId || !categories.some(c => c.id === categoryId)) setCategoryId(categories[0].id)
   }, [categories, categoryId])
 
   // Cargar el plan existente al cambiar categoría/fecha (club real)
@@ -74,7 +90,9 @@ export default function PlanPage() {
         </h1>
       </div>
       <p className="text-sm text-muted-foreground mb-4">
-        El coordinador carga los ejercicios de cada día por categoría. Los profes lo ven junto con la asistencia.
+        {isPureProfe
+          ? `Solo ves y cargás el plan de tus categorías asignadas${myProfeName ? ` (${myProfeName})` : ''}.`
+          : 'El coordinador carga los ejercicios de cada día por categoría. Los profes lo ven junto con la asistencia.'}
       </p>
 
       <Card className="border-0 shadow-sm mb-3">

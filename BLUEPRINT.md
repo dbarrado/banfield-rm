@@ -75,6 +75,10 @@ Cuatro roles activos. El menú lateral se filtra según rol + día de la semana 
 
 El usuario tiene un set de roles asignado y elige cuál tiene "activo" desde el switcher. En producción esto vive en `user_roles` (M2M con `users` y `clubs`).
 
+**Club real (Banfield):** `lib/use-role.ts` lee los roles reales desde `user_clubs.roles` (Supabase, matcheando `user_id` del usuario logueado), con cache en memoria. Club demo: sigue simulado por `localStorage`. `lib/use-current-profe.ts` resuelve "quién soy yo como profe" matcheando el email de `auth.getUser()` contra `profes.email` (case-insensitive).
+
+**Aislamiento de profe puro:** en `/asistencia`, `/convocatoria` y `/plan` (club real), si el rol activo es `profe` y el usuario NO tiene también `admin`/`coordinador` entre sus roles, el selector de "profe a cargo" se bloquea y se autoselecciona su propio id — solo ve/firma/carga sus propias tiras y categorías asignadas (`getAssignmentsForProfe`). Admin y coordinador no tienen restricción (selector libre, ven todo el club). `/asistencia-profes` queda pendiente de este mismo wiring (hoy usa roster demo en algunos casos, ver TODO en el archivo).
+
 ---
 
 ## 5. Catálogo de deportes
@@ -124,6 +128,11 @@ KPIs principales del club: socios activos, asistencia del día, próximo partido
 - "Visitantes" (de otra tira) y "no anotados" (sin ficha) sumables al toque
 - KPIs en vivo: presentes / tarde / ausentes / sin marcar + barra de %
 - Cierre con firma del profe + log de auditoría
+- **Club real — navegación de día (`viewDate`)**: barra `‹ día — ›` arriba de los turnos, navega solo hacia atrás (no se agenda futuro). El cronograma del día (`daySlots`) y, para profe puro, el subconjunto donde está asignado (`mySlots`) se recalculan por `day_of_week` del `viewDate`.
+- **Auto-selección de turno por día**: si `viewDate` es hoy, busca el slot activo ahora → si no hay, el próximo a empezar → si no hay, el último que ya pasó. Si `viewDate` es un día pasado, toma el primer slot del día (ordenado por hora). Profe puro ve solo su(s) turno(s) (`mySlots`); admin/coordinador ve todos los del día (`daySlots`).
+- **Profe puro con varios turnos el mismo día**: el turno auto-seleccionado se muestra destacado; el resto queda colapsado detrás de "Ver tus otras clases de hoy (N)".
+- **Edición de asistencia ya cerrada (sin duplicar)**: al cambiar de categoría/día se llama `loadAttendanceForDate(club.id, { categoryId, dateISO })` (`lib/data/attendance-store.ts`). Si ya existe un evento de práctica para esa categoría+día, precarga sus registros, fija `currentEventId` y deja la pantalla en `closed=true` (se reutiliza el botón "REABRIR" existente para editar). Al volver a cerrar, `persistAttendanceUpsert` reemplaza las attendances del mismo `eventId` en vez de crear un evento nuevo.
+  - **Limitación conocida**: el match de `loadAttendanceForDate` es solo por categoría + día calendario (no por tira/turno). Si hubiera dos eventos de práctica el mismo día para la misma categoría (ej. dos turnos con distinta tira), trae el más reciente por `scheduled_at` — no hay forma de desambiguar hoy a nivel de `events`.
 
 ### 6.5 `/asistencia-profes` — Asistencia de profes
 - Lo toma el coordinador
