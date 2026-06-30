@@ -11,7 +11,7 @@ import { useCurrentClub } from '@/lib/use-current-club'
 import { isRealClub } from '@/lib/real-clubs'
 import { persistConvocation, loadLatestConvocation } from '@/lib/data/ops-store'
 import { POSITION_LABELS, POSITION_COLORS, TIRA_LABELS, TIRA_COLORS, type Position, type Tira } from '@/types'
-import { useActiveRole, useUserRoles } from '@/lib/use-role'
+import { useUserRoles } from '@/lib/use-role'
 import { useCurrentProfe } from '@/lib/use-current-profe'
 
 const POSITIONS: Position[] = ['arquero', 'defensor', 'mediocampista', 'delantero']
@@ -21,11 +21,10 @@ export default function ConvocatoriaPage() {
   const club = useCurrentClub()
   // Datos por club (real → Supabase hidratado; demo → arrays demo). Nunca demo directo.
   const real = isRealClub(club.id)
-  const [activeRole] = useActiveRole()
   const userRoles = useUserRoles()
   const { profeId: myProfeId } = useCurrentProfe(club.id)
-  // Profe puro (sin admin/coordinador): solo convoca de sus propias tiras/categorías.
-  const isPureProfe = real && activeRole === 'profe' && !userRoles.includes('admin') && !userRoles.includes('coordinador')
+  // Profe puro = sus roles son únicamente profe (sin admin/coordinador), sin depender del rol activo.
+  const isPureProfe = real && userRoles.includes('profe') && !userRoles.includes('admin') && !userRoles.includes('coordinador')
   const clubPlayers = getPlayersForClub(club.id)
   const clubCategories = getCategoriesForClub(club.id)
   const clubEvents = getEventsForClub(club.id)

@@ -9,7 +9,7 @@ import { getCategoriesForClub, getAssignmentsForProfe } from '@/lib/demo-data'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { isRealClub } from '@/lib/real-clubs'
 import { loadPlan, savePlan, type PlanItem } from '@/lib/data/plan-store'
-import { useActiveRole, useUserRoles } from '@/lib/use-role'
+import { useUserRoles } from '@/lib/use-role'
 import { useCurrentProfe } from '@/lib/use-current-profe'
 
 function todayISO() {
@@ -19,11 +19,10 @@ function todayISO() {
 
 export default function PlanPage() {
   const club = useCurrentClub()
-  const [activeRole] = useActiveRole()
   const userRoles = useUserRoles()
   const { profeId: myProfeId, profeName: myProfeName } = useCurrentProfe(club.id)
-  // Profe puro (sin admin/coordinador): solo carga/ve el plan de sus categorías asignadas.
-  const isPureProfe = isRealClub(club.id) && activeRole === 'profe' && !userRoles.includes('admin') && !userRoles.includes('coordinador')
+  // Profe puro = sus roles son únicamente profe (sin admin/coordinador), sin depender del rol activo.
+  const isPureProfe = isRealClub(club.id) && userRoles.includes('profe') && !userRoles.includes('admin') && !userRoles.includes('coordinador')
   const allCategories = useMemo(() => getCategoriesForClub(club.id).filter(c => c.is_active), [club.id])
   const myAssignedCategoryIds = useMemo(() => {
     if (!isPureProfe || !myProfeId) return null

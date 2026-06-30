@@ -16,7 +16,7 @@ import { isRealClub } from '@/lib/real-clubs'
 import { persistAttendanceUpsert, loadAttendanceForDate } from '@/lib/data/attendance-store'
 import { loadTrainingSlots } from '@/lib/data/ops-store'
 import { PlanDelDia } from '@/components/plan-del-dia'
-import { useActiveRole, useUserRoles } from '@/lib/use-role'
+import { useUserRoles } from '@/lib/use-role'
 import { useCurrentProfe } from '@/lib/use-current-profe'
 
 type AttendanceStatus = 'unmarked' | 'present' | 'late' | 'absent_unjustified' | 'absent_justified'
@@ -38,11 +38,11 @@ const ALL_TIRAS: Tira[] = ['metro', 'liga1', 'liga2', 'edefi']
 
 export default function AsistenciaPage() {
   const club = useCurrentClub()
-  const [activeRole] = useActiveRole()
   const userRoles = useUserRoles()
   const { profeId: myProfeId } = useCurrentProfe(club.id)
-  // Profe puro (sin admin/coordinador): solo ve y firma su propia asistencia.
-  const isPureProfe = isRealClub(club.id) && activeRole === 'profe' && !userRoles.includes('admin') && !userRoles.includes('coordinador')
+  // Profe puro = sus roles son únicamente profe (sin admin/coordinador). No depende del
+  // rol activo (que se autocorrige con delay desde localStorage y podía quedar pegado en 'admin').
+  const isPureProfe = isRealClub(club.id) && userRoles.includes('profe') && !userRoles.includes('admin') && !userRoles.includes('coordinador')
   const clubPlayers = useMemo(() => getPlayersForClub(club.id), [club.id])
   const clubCategories = useMemo(() => getCategoriesForClub(club.id), [club.id])
   const activeCategories = clubCategories.filter(c => c.is_active)
