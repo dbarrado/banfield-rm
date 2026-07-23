@@ -1,7 +1,45 @@
 # Estado actual — Plantel / Banfield (handoff)
 
-**Última actualización:** 2026-06-30
+**Última actualización:** 2026-07-23
 **Para:** retomar el trabajo en otra PC.
+
+## Update 2026-07-23 — Convocatoria "de la semana" + fixture real + alta manual de partidos
+- **Premisa nueva (pedido de Diego): entrar a Convocatoria = convocar esta semana.** En
+  `/convocatoria` ya no hay que elegir partido en un dropdown: el partido de los próximos 7 días
+  para la (categoría, tira) activa se auto-selecciona y se muestra como banner verde ("Esta semana:
+  vs Rival — sáb 26 jul 10:00 · sede"). Si no hay en la semana, toma el próximo existente
+  ("Próximo partido"); si no hay ninguno, banner punteado "Sin partido cargado esta semana —
+  convocás igual" con link "+ Cargar partido" a `/fixture`. "Cambiar" aparece solo con 2+ candidatos.
+  Los partidos con `events.tira` se filtran por la tira activa.
+- **Fix estructural: los partidos reales ahora SE LEEN.** `createMatchEvents` escribía en Supabase
+  pero nada los leía de vuelta (fixture y convocatoria miraban solo memoria demo → para el club real
+  no aparecían). Nueva `loadMatchEvents()` en `lib/data/ops-store.ts`; la consumen `/fixture` (hidrata
+  al entrar) y `/convocatoria`. `Event.tira` agregado al tipo (la columna ya existía en la base).
+- **Alta de partidos no solo desde el flyer:** (a) el modal "Nuevo partido por tira" de `/fixture`
+  (que era demo-only) ahora persiste con `createMatchEvents` para el club real, pasando la tira, y
+  recarga el fixture con ids reales; (b) `/partidos/generar` suma botón "Cargar a mano (sin flyer)"
+  que abre el mismo formulario de revisión vacío. Título pasó a "GENERAR PARTIDO".
+- **Probado contra Supabase con login real** (script `data-import/test-match-events.mjs`):
+  insert+select+delete de events OK, la tira va y vuelve. En la base hay 6 partidos históricos
+  vs Atlas (28-jun, liga2) de la prueba original del flyer.
+- **Pendiente:** reprogramar/suspender partidos en `/fixture` siguen solo en memoria para el club
+  real (no persisten). `tsc --noEmit` y `next build` en verde.
+
+## Update 2026-07-16 — rol `asistencia_manana` + verificación de las altas de profes
+- **Altas verificadas (nada que hacer):** los 16 profes de `profes` tienen usuario de Supabase Auth con su email, email confirmado y la clave estándar seteada. Roles en `user_clubs`: 14 `profe`, Emmanuel Muñoz `coordinador`+`profe`, Edgardo Morel `coordinador`. Al 16-jul solo Bruno Gismondi se había logueado alguna vez.
+- **Login real probado en la app** (dev server + CDP): Pablo Simone y Mauro Salotti (profes puros) ven solo sus clases del día con los chicos correctos; Salotti confirma que el caso "profe sin turnos como titular" funciona, porque `mySlots` resuelve por `profe_assignments`. Edgardo Morel (coordinador) ve todos los turnos del día.
+- **Rol nuevo `asistencia_manana`:** firma la asistencia de los turnos que arrancan antes de las 14:00, sin el resto de las atribuciones del coordinador. Ver detalle en `BLUEPRINT.md` §4. Código: `lib/use-role.ts` (rol, label, nav), `lib/training-roster.ts` (`MORNING_END`, `isMorningSlot`), `app/(dashboard)/asistencia/page.tsx` (`isMorningTaker`, `relevantSlots`), `app/(dashboard)/dashboard/page.tsx` (quick actions).
+- **Asignado a los dos coordinadores** (Morel y Muñoz) vía `supabase/migrations/0003_rol_asistencia_manana.sql`, ya aplicada. Para ellos no cambia nada — `admin`/`coordinador` absorben el rol y siguen viendo el día completo. El rol existe para poder delegar la asistencia de la mañana a alguien que NO sea coordinador. Probado en aislamiento (dejando a Morel solo con ese rol): ve los 9 turnos de la mañana del jueves y ninguno de la tarde.
+- **`tsc --noEmit` y `next build` en verde** en esta sesión (Node disponible).
+- **Riesgo de seguridad abierto:** el usuario admin `dbarrado@strategic-ia.com` tiene la MISMA clave estándar que los 16 profes. Cualquiera de ellos entra como admin (cuotas, caja, datos de 450 chicos). Cambiar antes de repartir accesos.
+
+## Update 2026-07-07 — `mySlots`/categorías de asistencia ya no confían en `training_slots.profe_titular_id` + migración que separa turnos por tira
+- **Contexto:** se detectó (auditando Supabase contra la planilla fuente `Profesores x tiras (1).docx`, en Descargas del usuario) que `profe_assignments` está bien cargado (coincide 100% con la planilla), pero `training_slots` (el cronograma real armado a mano en Supabase) tenía turnos con `category_ids`/`profe_titular_id`/`profe_suplentes_ids` desalineados de la planilla. Causa raíz: muchos turnos agrupaban 2-4 tiras simultáneas (mismo horario, distinta cancha) bajo un único `profe_titular_id`, cuando cada tira tiene su propio plantel en la planilla. Caso más grave: Matías Villegas habilitado para Metro 2010-2012, pero cargado como titular de un turno Liga Ramos 2017-2018.
+- **Fix frontend en `app/(dashboard)/asistencia/page.tsx`:** `mySlots` (turnos del profe puro) y las categorías que se muestran/seleccionan por turno (`loadSlot`, `profeAllowedCategoryIds`, la tarjeta "Tu clase") ya NO usan `profe_titular_id`/`profe_suplentes_ids` del turno para decidir qué le corresponde a un profe. En su lugar, nueva función `myValidCategoriesInSlot(slot, profeId)` cruza `slot.category_ids` × `slot.tiras` contra `getProfesForTira()` (que resuelve contra `profe_assignments` real, hidratado desde Supabase).
+- **Fix de datos — migración `supabase/migrations/0002_split_training_slots_by_tira.sql`** (aplicada a Supabase el 2026-07-07): separó cada turno multi-tira en una fila por tira (y, dentro de cada tira, por el límite Juveniles/Infantiles de la planilla cuando un turno cruzaba ese límite bajo un solo profe). El titular/suplentes de cada fila nueva sale 1:1 de la planilla, no de lo que había cargado antes. Resultado: 35 turnos originales desactivados (`is_active=false`, quedan de historial) → 99 turnos nuevos, uno por tira, con el profe correcto. Categorías/tiras sin ningún profe en la planilla (ej. edefi 2014-2017, liga2 2017-2018, liga1 2018-2019) se descartaron — no existe nadie a quien asignarles esa clase. "2019" no está en la planilla; se asumió que sigue en el grupo Metro Infantiles (Pablo Simone/Mauro Salotti/Ramiro Carrillo) — **a confirmar con el club**.
+- **No se tocó:** `/asistencia-profes` (asistencia *de* profes, para pagos/control) sigue usando `profe_titular_id`/`profe_suplentes_ids` tal cual — ahí interesa quién efectivamente trabajó ese turno puntual.
+- **Pendiente:** confirmar con el club el supuesto sobre categoría "2019", y revisar si algún turno con categorías/tira sin profe en la planilla (los que quedaron "huérfanos" al separar) necesita cargarse manualmente. Detalle turno por turno del estado previo en `profes-tiras-categorias-inconsistencias.md` (Descargas del usuario, desactualizado post-migración pero útil como bitácora).
+- **No se pudo correr `tsc`/`build`** en esta sesión: sandbox sin `node`/`npm`/`npx` en el PATH (mismo problema que sesiones anteriores). Revisar en verde con Node disponible antes de deployar.
 
 ## Update 2026-06-30 (b) — Asistencia: navegación por día + edición sin duplicar
 - `/asistencia` (club real) ahora navega por día (`viewDate`, barra `‹ Hoy ›`, sin avanzar a futuro). El cronograma del día (`daySlots`) y, para profe puro, sus turnos (`mySlots`) se recalculan por `day_of_week` de `viewDate`, no por `new Date()` fijo.

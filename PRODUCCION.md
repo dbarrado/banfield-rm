@@ -33,14 +33,15 @@ en `pending_registrations` — es una decisión de seguridad aparte (hoy RLS las
 | Módulo | Tablas | Lectura real | Escritura real |
 | --- | --- | --- | --- |
 | Auth + seguridad (RLS) | auth.users, profiles, user_clubs | ✅ | ✅ (440 auth / 0 anon, probado) |
+| Roles / accesos de profes | user_clubs.roles | ✅ | ✅ 16 profes con usuario+clave; login real probado (profe, coordinador, asistencia_manana) |
 | Socios listado/ficha | players, categories | ✅ | ✅ alta (`players-store`, probado) · ⬜ edición ficha |
 | Cuotas / Cobranzas | billings | ✅ | ✅ condonar/ajustar (`billing-store`) |
 | Caja / Cobrar | payments, billings | ✅ | ✅ cobro+recargo transfer (probado $66.000) · ⬜ cash_sessions/movements |
 | Config cobranza/cuota | fee_configs, billing_configs | ✅ (valores) | ⬜ editar desde UI |
 | Asistencia | events, attendances | — | ✅ cierre persiste (`attendance-store`, probado) |
 | **Plan de entrenamiento** | session_plans, session_plan_items | ✅ (`/plan` + vista en asistencia) | ✅ coordinador carga, probado |
-| Convocatoria | convocations, convocation_players | ⬜ | ⬜ |
-| Partidos | events, match_ratings, observations | ⬜ | ⬜ |
+| Convocatoria | convocations, convocation_players | ✅ precarga última + partido de la semana auto | ✅ libre por tira+categoría (probado) |
+| Partidos / Fixture | events, match_ratings, observations | ✅ `loadMatchEvents` (fixture+convocatoria, probado 23-jul) | ✅ alta desde flyer y a mano (`createMatchEvents`, probado 23-jul) · ⬜ reprogramar/suspender persisten |
 | Asistencia profes | profe_attendance_records | ⬜ | ⬜ |
 | Profes / Cronograma | profes, training_slots | ⬜ | ⬜ |
 | Inscripciones (self-onboarding) | pending_registrations, registration_codes, tutor_* | ⬜ | ⬜ |

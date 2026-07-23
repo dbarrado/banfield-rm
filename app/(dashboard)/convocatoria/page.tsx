@@ -1,16 +1,16 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Trophy, CheckCircle2, MessageCircle, Lock, List, LayoutGrid, ExternalLink, Unlock } from 'lucide-react'
+import { Trophy, CheckCircle2, MessageCircle, Lock, List, LayoutGrid, ExternalLink, Unlock, Calendar } from 'lucide-react'
 import Link from 'next/link'
 import { getAttendanceStats, getMatchAttendanceStats, demoEligibilityConfig, getProfesForClub, getProfeById, getAssignmentsForProfe, getPlayersForClub, getCategoriesForClub, getEventsForClub } from '@/lib/demo-data'
 import { getAvatarUrl } from '@/lib/avatars'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { isRealClub } from '@/lib/real-clubs'
-import { persistConvocation, loadLatestConvocation } from '@/lib/data/ops-store'
-import { POSITION_LABELS, POSITION_COLORS, TIRA_LABELS, TIRA_COLORS, type Position, type Tira } from '@/types'
+import { persistConvocation, loadLatestConvocation, loadMatchEvents } from '@/lib/data/ops-store'
+import { POSITION_LABELS, POSITION_COLORS, TIRA_LABELS, TIRA_COLORS, type Position, type Tira, type Event } from '@/types'
 import { useUserRoles } from '@/lib/use-role'
 import { useCurrentProfe } from '@/lib/use-current-profe'
 
@@ -27,7 +27,16 @@ export default function ConvocatoriaPage() {
   const isPureProfe = real && userRoles.includes('profe') && !userRoles.includes('admin') && !userRoles.includes('coordinador')
   const clubPlayers = getPlayersForClub(club.id)
   const clubCategories = getCategoriesForClub(club.id)
-  const clubEvents = getEventsForClub(club.id)
+  const demoClubEvents = getEventsForClub(club.id)
+  // Club real: los partidos viven en Supabase (events), no en memoria.
+  const [realMatches, setRealMatches] = useState<Event[]>([])
+  useEffect(() => {
+    if (!real) return
+    let cancelled = false
+    loadMatchEvents(club.id).then(evs => { if (!cancelled && evs) setRealMatches(evs as Event[]) })
+    return () => { cancelled = true }
+  }, [real, club.id])
+  const clubEvents = real ? realMatches : demoClubEvents
   const [selectedProfe, setSelectedProfe] = useState<string>('')
 
   // Profe puro: forzar siempre su propio id (no puede convocar a nombre de otro profe).
@@ -39,7 +48,8 @@ export default function ConvocatoriaPage() {
   const [selectedCategory, setSelectedCategory] = useState(clubCategories[0]?.id ?? '')
   const [selectedTira, setSelectedTira] = useState<Tira | null>(null)
   const [convocarDeOtra, setConvocarDeOtra] = useState(false)
-  const [selectedEvent, setSelectedEvent] = useState(clubEvents.filter(e => e.event_type === 'match')[0]?.id ?? '')
+  // Se auto-selecciona el partido de la semana (ver efecto más abajo)
+  const [selectedEvent, setSelectedEvent] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   // Flujo guardar → enviar: primero guardar localmente, después enviar por WhatsApp
   const [savedAt, setSavedAt] = useState<string | null>(null)
@@ -61,7 +71,6 @@ export default function ConvocatoriaPage() {
     ? selectedCategory
     : (activeCategories[0]?.id ?? selectedCategory)
 
-  const matches = clubEvents.filter(e => e.event_type === 'match' && e.category_id === effectiveCategory)
   // Tiras de la categoría que efectivamente tienen jugadores
   const tirasInCategoryAll = ALL_TIRAS.filter(t =>
     clubPlayers.some(p => p.category_id === effectiveCategory && p.tira === t)
@@ -78,6 +87,30 @@ export default function ConvocatoriaPage() {
   const effectiveTira: Tira | null = selectedTira && tirasInCategory.includes(selectedTira)
     ? selectedTira
     : (tirasInCategory[0] ?? null)
+
+  // Partidos de la categoría (y de la tira, si el partido tiene tira cargada)
+  const matches = clubEvents.filter(e =>
+    e.event_type === 'match' && e.category_id === effectiveCategory &&
+    (!e.tira || !effectiveTira || e.tira === effectiveTira)
+  )
+  // Entrar a Convocatoria = convocar esta semana: se auto-elige el partido
+  // de los próximos 7 días (o el próximo que haya, si la semana está vacía).
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
+  const weekEnd = new Date(todayStart); weekEnd.setDate(weekEnd.getDate() + 7)
+  const upcoming = matches
+    .filter(m => !m.is_suspended && new Date(m.scheduled_at) >= todayStart)
+    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
+  const weekMatch = upcoming.find(m => new Date(m.scheduled_at) < weekEnd) ?? null
+  const autoMatch = weekMatch ?? upcoming[0] ?? null
+  const [showEventPicker, setShowEventPicker] = useState(false)
+  const autoKeyRef = useRef('')
+  useEffect(() => {
+    const key = `${effectiveCategory}|${effectiveTira ?? ''}|${autoMatch?.id ?? ''}`
+    if (autoKeyRef.current === key) return
+    autoKeyRef.current = key
+    setSelectedEvent(autoMatch?.id ?? '')
+    setShowEventPicker(false)
+  }, [effectiveCategory, effectiveTira, autoMatch?.id])
 
   const players = effectiveTira
     ? clubPlayers.filter(p => p.category_id === effectiveCategory && p.is_active && p.tira === effectiveTira)
@@ -212,22 +245,45 @@ export default function ConvocatoriaPage() {
           {activeCategories.map(c => <option key={c.id} value={c.id}>Categoría {c.name}</option>)}
         </select>
 
+        {/* Partido de la semana — se elige solo. Entrar acá = convocar esta semana. */}
         <div>
-          <select
-            value={selectedEvent}
-            onChange={e => setSelectedEvent(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border text-sm font-medium bg-white"
-          >
-            <option value="">Sin partido — convocatoria por tira y categoría</option>
-            {matches.map(m => (
-              <option key={m.id} value={m.id}>
-                vs. {m.rival} — {new Date(m.scheduled_at).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
-              </option>
-            ))}
-          </select>
-          <p className="text-[10px] text-muted-foreground mt-1">
-            El partido es opcional. Podés convocar solo con tira y categoría; si después cargás el fixture, lo asociás al rival.
-          </p>
+          {autoMatch && !showEventPicker ? (
+            <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2">
+              <Calendar size={14} className="text-green-700 shrink-0" />
+              <p className="text-sm text-green-800 flex-1">
+                <span className="font-bold">{weekMatch ? 'Esta semana' : 'Próximo partido'}:</span>{' '}
+                vs. {autoMatch.rival ?? 'Por definir'} — {new Date(autoMatch.scheduled_at).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })} {new Date(autoMatch.scheduled_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                {autoMatch.venue ? ` · ${autoMatch.venue}` : ''}
+              </p>
+              {matches.length > 1 && (
+                <button onClick={() => setShowEventPicker(true)} className="text-[11px] underline text-green-700 shrink-0">
+                  Cambiar
+                </button>
+              )}
+            </div>
+          ) : !autoMatch ? (
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-2">
+              <p className="text-xs text-muted-foreground">
+                Sin partido cargado esta semana — convocás igual por tira y categoría.
+              </p>
+              <Link href="/fixture" className="text-[11px] font-semibold underline shrink-0" style={{ color: '#00843D' }}>
+                + Cargar partido
+              </Link>
+            </div>
+          ) : (
+            <select
+              value={selectedEvent}
+              onChange={e => setSelectedEvent(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border text-sm font-medium bg-white"
+            >
+              <option value="">Sin partido — convocatoria por tira y categoría</option>
+              {matches.map(m => (
+                <option key={m.id} value={m.id}>
+                  vs. {m.rival} — {new Date(m.scheduled_at).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* Filtro por tira — obligatorio, no se pueden mezclar */}

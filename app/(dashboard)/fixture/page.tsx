@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, MapPin, Trophy, Plus, X, CloudRain, Edit2, ScanLine } from 'lucide-react'
 import Link from 'next/link'
 import { getEventsForClub, getCategoriesForClub, getPlayersForClub } from '@/lib/demo-data'
 import { useCurrentClub } from '@/lib/use-current-club'
+import { isRealClub } from '@/lib/real-clubs'
+import { loadMatchEvents, createMatchEvents } from '@/lib/data/ops-store'
 import { TIRA_LABELS, TIRA_COLORS } from '@/types'
 
 type FixtureMatch = {
@@ -17,6 +19,7 @@ type FixtureMatch = {
   is_home: boolean | null
   venue: string | null
   is_suspended: boolean
+  tira?: string | null
 }
 
 export default function FixturePage() {
@@ -40,6 +43,22 @@ export default function FixturePage() {
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<FixtureMatch | null>(null)
   const [reprogramming, setReprogramming] = useState<FixtureMatch | null>(null)
+
+  // Club real: el fixture vive en Supabase (events), no en memoria.
+  const real = isRealClub(club.id)
+  async function reloadRealMatches() {
+    const evs = await loadMatchEvents(club.id)
+    if (evs) {
+      setMatches(evs.map(e => ({
+        id: e.id, category_id: e.category_id, rival: e.rival, scheduled_at: e.scheduled_at,
+        is_home: e.is_home, venue: e.venue, is_suspended: e.is_suspended, tira: e.tira ?? null,
+      })))
+    }
+  }
+  useEffect(() => {
+    if (real) reloadRealMatches()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [club.id, real])
 
   const sorted = [...matches].sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
 
@@ -78,9 +97,16 @@ export default function FixturePage() {
             <Card key={match.id} className="border-0 shadow-sm" style={{ borderLeft: `4px solid ${match.is_suspended ? '#DC2626' : isPast ? '#9ca3af' : '#00843D'}` }}>
               <CardContent className="p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <Badge variant="outline" className="text-xs" style={{ borderColor: '#00843D', color: '#00843D' }}>
-                    Cat. {cat?.name ?? '—'}
-                  </Badge>
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="outline" className="text-xs" style={{ borderColor: '#00843D', color: '#00843D' }}>
+                      Cat. {cat?.name ?? '—'}
+                    </Badge>
+                    {match.tira && TIRA_LABELS[match.tira] && (
+                      <Badge className="text-[10px] text-white border-0" style={{ backgroundColor: TIRA_COLORS[match.tira] ?? '#6b7280' }}>
+                        {TIRA_LABELS[match.tira]}
+                      </Badge>
+                    )}
+                  </div>
                   <Badge variant="outline" className={`text-xs ${match.is_home ? 'text-blue-700 border-blue-300' : 'text-gray-500'}`}>
                     {match.is_home ? '🏠 Local' : '✈️ Visitante'}
                   </Badge>
@@ -131,9 +157,19 @@ export default function FixturePage() {
           categories={demoCategories}
           players={demoPlayers}
           onClose={() => setShowAdd(false)}
-          onSubmit={(newMatches) => {
-            const withIds = newMatches.map((m, i) => ({ ...m, id: `ev-new-${Date.now()}-${i}` }))
-            setMatches([...matches, ...withIds])
+          onSubmit={async (newMatches) => {
+            if (real) {
+              // Persistir en Supabase y recargar el fixture con los ids reales
+              const res = await createMatchEvents(club.id, newMatches.map(m => ({
+                categoryId: m.category_id, scheduledAt: m.scheduled_at, rival: m.rival,
+                venue: m.venue ?? null, isHome: m.is_home ?? null, tira: m.tira ?? null,
+              })))
+              if (!res.ok) { alert(`No se pudieron crear los partidos: ${res.error ?? 'error'}`); return }
+              await reloadRealMatches()
+            } else {
+              const withIds = newMatches.map((m, i) => ({ ...m, id: `ev-new-${Date.now()}-${i}` }))
+              setMatches([...matches, ...withIds])
+            }
             setShowAdd(false)
           }}
         />
@@ -192,6 +228,7 @@ function NewMatchModal({ onClose, onSubmit, categories, players }: { onClose: ()
       is_home: isHome,
       venue,
       is_suspended: false,
+      tira,
     }))
     onSubmit(matches)
   }

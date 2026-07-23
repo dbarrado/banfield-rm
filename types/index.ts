@@ -230,6 +230,7 @@ export interface Event {
   created_at: string
   category?: Category
   club_id?: string  // si no está, se asume Banfield (legacy)
+  tira?: Tira | null  // partidos por tira (events.tira en Supabase)
 }
 
 export interface Attendance {

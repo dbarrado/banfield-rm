@@ -64,7 +64,7 @@ El usuario puede pertenecer a varios clubes y rotar entre ellos con el **ClubSwi
 
 ## 4. Roles
 
-Cuatro roles activos. El menú lateral se filtra según rol + día de la semana (un profe ve "Partidos" como ítem primario los sábados, "Asistencia" los días de semana).
+Cinco roles activos. El menú lateral se filtra según rol + día de la semana (un profe ve "Partidos" como ítem primario los sábados, "Asistencia" los días de semana).
 
 | Rol | Acceso |
 | --- | --- |
@@ -72,10 +72,13 @@ Cuatro roles activos. El menú lateral se filtra según rol + día de la semana 
 | **profe** | Asistencia, convocatorias, fixture, partidos, ficha de socios. |
 | **tesorero** | Cobros, caja, finanzas, reportes, cobranzas, socios. |
 | **coordinador** | Deportivo + tesorería (pero no admin). Toma asistencia de profes. |
+| **asistencia_manana** | Solo firma la asistencia de los turnos de la mañana (cualquier tira/categoría). |
 
 El usuario tiene un set de roles asignado y elige cuál tiene "activo" desde el switcher. En producción esto vive en `user_roles` (M2M con `users` y `clubs`).
 
 **Club real (Banfield):** `lib/use-role.ts` lee los roles reales desde `user_clubs.roles` (Supabase, matcheando `user_id` del usuario logueado), con cache en memoria. Club demo: sigue simulado por `localStorage`. `lib/use-current-profe.ts` resuelve "quién soy yo como profe" matcheando el email de `auth.getUser()` contra `profes.email` (case-insensitive).
+
+**Rol `asistencia_manana` (club real):** habilita firmar la asistencia de los turnos que arrancan antes de las 14:00 (`MORNING_END`/`isMorningSlot` en `lib/training-roster.ts`, mismo criterio que el `shift` de `lib/training-schedule.ts`), sin las demás atribuciones del coordinador. En `/asistencia` ve la lista "Turnos de la mañana" (los del día filtrados) y elige tira/categoría libremente, como un coordinador pero acotado al turno. Si además es `profe`, ve también sus propias clases de la tarde. `admin`/`coordinador` lo absorben: quien ya tiene alguno de esos sigue viendo el día completo. Hoy lo tienen los dos coordinadores (Edgardo Morel, Emmanuel Muñoz) — son quienes venían tomando la asistencia de la mañana; el rol existe para poder delegarlo sin entregar el rol de coordinador. Asignación en `supabase/migrations/0003_rol_asistencia_manana.sql`.
 
 **Aislamiento de profe puro:** en `/asistencia`, `/convocatoria` y `/plan` (club real), si el rol activo es `profe` y el usuario NO tiene también `admin`/`coordinador` entre sus roles, el selector de "profe a cargo" se bloquea y se autoselecciona su propio id — solo ve/firma/carga sus propias tiras y categorías asignadas (`getAssignmentsForProfe`). Admin y coordinador no tienen restricción (selector libre, ven todo el club). `/asistencia-profes` queda pendiente de este mismo wiring (hoy usa roster demo en algunos casos, ver TODO en el archivo).
 
@@ -129,7 +132,9 @@ KPIs principales del club: socios activos, asistencia del día, próximo partido
 - KPIs en vivo: presentes / tarde / ausentes / sin marcar + barra de %
 - Cierre con firma del profe + log de auditoría
 - **Club real — navegación de día (`viewDate`)**: barra `‹ día — ›` arriba de los turnos, navega solo hacia atrás (no se agenda futuro). El cronograma del día (`daySlots`) y, para profe puro, el subconjunto donde está asignado (`mySlots`) se recalculan por `day_of_week` del `viewDate`.
-- **Auto-selección de turno por día**: si `viewDate` es hoy, busca el slot activo ahora → si no hay, el próximo a empezar → si no hay, el último que ya pasó. Si `viewDate` es un día pasado, toma el primer slot del día (ordenado por hora). Profe puro ve solo su(s) turno(s) (`mySlots`); admin/coordinador ve todos los del día (`daySlots`).
+- **`mySlots` / categorías de "tu clase" (profe puro) se derivan de `profe_assignments`, no de `training_slots.profe_titular_id`/`profe_suplentes_ids`**: `training_slots` (el cronograma real de Supabase) solo define horario/cancha/tiras/categorías *posibles* de un turno. Quién dicta cada categoría dentro de ese turno se resuelve con `getProfesForTira(categoryId, tira)` contra `profe_assignments` (fuente: planilla "Profesores x tiras", cargada 1:1 en esa tabla). Motivo: se detectaron turnos en `training_slots` con `profe_titular_id`/`category_ids` desalineados de la planilla real (ver `myValidCategoriesInSlot` en `app/(dashboard)/asistencia/page.tsx`) — confiar en esos campos hacía que un profe viera categorías ajenas o no viera turnos propios. `asistencia-profes` (registro de asistencia *del* profe, no la del club) sigue usando `profe_titular_id`/`profe_suplentes_ids` tal cual están en el turno, porque ahí lo que importa es quién efectivamente trabajó ese slot, no la habilitación formal.
+- **`training_slots`: una fila = una tira** (desde `supabase/migrations/0002_split_training_slots_by_tira.sql`, 2026-07-07). Antes una misma fila podía listar 2-4 tiras simultáneas (mismo horario, distinta cancha) bajo un solo `profe_titular_id`, lo cual no tiene sentido porque cada tira tiene su propio plantel según la planilla. Se separó cada turno en una fila por tira (y por el corte Juveniles/Infantiles de la planilla cuando correspondía), con titular/suplentes recalculados 1:1 desde la planilla. Los turnos viejos quedaron con `is_active=false` (historial, no se borraron). Si se carga cronograma nuevo a mano, cargar **una tira por fila**, no agrupar varias.
+- **Auto-selección de turno por día**: si `viewDate` es hoy, busca el slot activo ahora → si no hay, el próximo a empezar → si no hay, el último que ya pasó. Si `viewDate` es un día pasado, toma el primer slot del día (ordenado por hora). Profe puro ve solo su(s) turno(s) (`mySlots`); admin/coordinador ve todos los del día (`daySlots`); `asistencia_manana` ve los del día que arrancan antes de las 14:00, más sus clases propias si además es profe (`relevantSlots`).
 - **Profe puro con varios turnos el mismo día**: el turno auto-seleccionado se muestra destacado; el resto queda colapsado detrás de "Ver tus otras clases de hoy (N)".
 - **Edición de asistencia ya cerrada (sin duplicar)**: al cambiar de categoría/día se llama `loadAttendanceForDate(club.id, { categoryId, dateISO })` (`lib/data/attendance-store.ts`). Si ya existe un evento de práctica para esa categoría+día, precarga sus registros, fija `currentEventId` y deja la pantalla en `closed=true` (se reutiliza el botón "REABRIR" existente para editar). Al volver a cerrar, `persistAttendanceUpsert` reemplaza las attendances del mismo `eventId` en vez de crear un evento nuevo.
   - **Limitación conocida**: el match de `loadAttendanceForDate` es solo por categoría + día calendario (no por tira/turno). Si hubiera dos eventos de práctica el mismo día para la misma categoría (ej. dos turnos con distinta tira), trae el más reciente por `scheduled_at` — no hay forma de desambiguar hoy a nivel de `events`.
@@ -142,13 +147,26 @@ KPIs principales del club: socios activos, asistencia del día, próximo partido
 - KPIs por estado
 
 ### 6.6 `/convocatoria` — Convocatoria a partido
+- **Premisa de simplicidad: entrar a Convocatoria = convocar esta semana.** El partido de los
+  próximos 7 días para la (categoría, tira) elegida se auto-selecciona y se muestra como banner
+  ("Esta semana: vs Rival — sáb 26 jul 10:00 · sede"); si no hay partido en la semana se toma el
+  próximo que exista ("Próximo partido"), y si no hay ninguno se convoca igual por tira+categoría
+  (link "+ Cargar partido" al fixture). Botón "Cambiar" solo si hay más de un partido candidato.
+- Los partidos con `events.tira` cargada se filtran por la tira activa; sin tira, aplican a todas.
 - Lista de jugadores eligibles según umbral (`min_practice_percentage` configurable)
 - Override por convocatoria (queda en log de auditoría con motivo)
-- Reusable de convocatoria previa
+- Precarga de la última convocatoria guardada de esa (categoría, tira); partido opcional
 - WhatsApp pre-armado con la lista
+- Club real: lectura de partidos vía `loadMatchEvents` (ops-store); guarda con `persistConvocation`
 
 ### 6.7 `/fixture` y `/partidos`
-- Calendario de partidos
+- Calendario de partidos. **Club real: se hidrata de Supabase (`loadMatchEvents`)**
+- **Alta de partidos por dos vías equivalentes** (ambas persisten con `createMatchEvents`, con `tira`):
+  1. `/partidos/generar` — foto del flyer + IA de visión (`/api/scan-flyer`), revisar/editar y generar;
+     incluye botón "Cargar a mano (sin flyer)" que abre el mismo formulario vacío
+  2. Modal "Nuevo partido por tira" en `/fixture` — crea un partido por cada categoría de la tira
+     con horarios default escalonados
+- Reprogramar/suspender: aún solo en memoria para el club real (⬜ persistencia pendiente)
 - `/partidos/[id]`: detalle del partido con cancha visual y formación táctica
   - Selector de **formación** según deporte (4-4-2, 4-3-3, etc.)
   - **Cambios:** drag & drop (desktop) + **tap-to-swap** (mobile, banner amber sticky con cancelar)

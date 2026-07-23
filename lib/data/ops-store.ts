@@ -108,6 +108,20 @@ export async function loadLatestConvocation(
   return { id: conv.id, playerIds: (players ?? []).map((p: any) => p.player_id), createdAt: conv.created_at }
 }
 
+// ── Partidos: lectura del fixture real ──────────────────────────────────
+// Devuelve los partidos del club (events.event_type='match') con la forma
+// del tipo Event, para que fixture/convocatoria los consuman igual que demo.
+export async function loadMatchEvents(demoClubId: string): Promise<any[] | null> {
+  const ctx = sbFor(demoClubId); if (!ctx) return null
+  const { data, error } = await ctx.supabase
+    .from('events')
+    .select('id,category_id,event_type,scheduled_at,is_suspended,suspension_reason,rival,venue,is_home,tira,created_at')
+    .eq('club_id', ctx.sb).eq('event_type', 'match')
+    .order('scheduled_at')
+  if (error) { console.error('[ops] loadMatchEvents', error.message); return [] }
+  return (data ?? []).map(e => ({ ...e, club_id: demoClubId, created_by: null }))
+}
+
 // ── Partidos (alta masiva desde flyer) ──────────────────────────────────
 export async function createMatchEvents(
   demoClubId: string,

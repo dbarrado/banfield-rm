@@ -161,11 +161,11 @@ export default function GenerarPartidoPage() {
         <Link href="/fixture" className="p-1.5 rounded hover:bg-gray-100"><ArrowLeft size={18} /></Link>
         <ScanLine size={20} style={{ color: '#00843D' }} />
         <h1 className="text-2xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: '#00843D' }}>
-          GENERAR PARTIDO DESDE FLYER
+          GENERAR PARTIDO
         </h1>
       </div>
       <p className="text-xs text-muted-foreground">
-        Subí la foto del flyer. La IA reconoce rival, lugar y horarios por categoría. Después revisás, completás lo que falte y generás los partidos.
+        Subí la foto del flyer (la IA reconoce rival, lugar y horarios por categoría) o cargalo a mano. Después revisás, completás lo que falte y generás los partidos.
       </p>
 
       {/* Subir */}
@@ -184,6 +184,19 @@ export default function GenerarPartidoPage() {
               <Upload size={16} /> {preview ? 'Cambiar imagen' : 'Subir / sacar foto del flyer'}
             </button>
           </div>
+          {!reviewed && !scanning && (
+            <button
+              onClick={() => {
+                setError(''); setDone(null); setPreview(null)
+                setRival(''); setTira(''); setIsHome('unknown'); setDate(''); setVenue(''); setDateText('')
+                setRows([{ id: `r-${Date.now()}`, categoryId: '', label: '', time: '' }])
+                setReviewed(true)
+              }}
+              className="w-full mt-2 py-2 rounded-lg border-2 border-[#00843D] text-[#00843D] font-semibold text-sm flex items-center justify-center gap-2"
+            >
+              <Plus size={15} /> Cargar a mano (sin flyer)
+            </button>
+          )}
           {scanning && (
             <p className="text-sm text-muted-foreground flex items-center gap-2 mt-3">
               <Loader2 size={16} className="animate-spin" /> Leyendo el flyer con IA…
