@@ -142,6 +142,7 @@ export default function DashboardPage() {
     profe:        ['asistencia', 'convocatoria', 'fixture', 'socios'],
     tesorero:     ['cobrar', 'caja', 'cobranzas', 'socios'],
     coordinador:  ['asistencia', 'asistProfes', 'convocatoria', 'cobrar'],
+    asistencia_manana: ['asistencia', 'socios'],
   }
   const quickActions = (actionsByRole[activeRole] ?? actionsByRole.admin).map(k => allActions[k])
 

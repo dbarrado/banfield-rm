@@ -10,7 +10,7 @@ import { TIRA_LABELS, TIRA_COLORS, type Tira, type Profe } from '@/types'
 import { getTiraLabel, getTiraColor, getTirasForSport } from '@/lib/tiras'
 import type { SportCode } from '@/lib/sports'
 import { getSessionsForDay, TIRA_GROUPS, tiraGroupOf } from '@/lib/training-schedule'
-import { getActiveSlotForNow, getNextSlotForDay, type TrainingSlot } from '@/lib/training-roster'
+import { getActiveSlotForNow, getNextSlotForDay, isMorningSlot, type TrainingSlot } from '@/lib/training-roster'
 import { getAvatarUrl } from '@/lib/avatars'
 import { isRealClub } from '@/lib/real-clubs'
 import { persistAttendanceUpsert, loadAttendanceForDate } from '@/lib/data/attendance-store'
@@ -40,9 +40,14 @@ export default function AsistenciaPage() {
   const club = useCurrentClub()
   const userRoles = useUserRoles()
   const { profeId: myProfeId } = useCurrentProfe(club.id)
-  // Profe puro = sus roles son únicamente profe (sin admin/coordinador). No depende del
+  // Admin y coordinador ven y firman todos los turnos del día, sin restricción.
+  const hasFullAccess = userRoles.includes('admin') || userRoles.includes('coordinador')
+  // Rol acotado: firma la asistencia de los turnos de la mañana (cualquier tira/categoría),
+  // sin el resto de las atribuciones del coordinador.
+  const isMorningTaker = isRealClub(club.id) && userRoles.includes('asistencia_manana') && !hasFullAccess
+  // Profe puro = sus roles son únicamente profe (sin admin/coordinador/asistencia_manana). No depende del
   // rol activo (que se autocorrige con delay desde localStorage y podía quedar pegado en 'admin').
-  const isPureProfe = isRealClub(club.id) && userRoles.includes('profe') && !userRoles.includes('admin') && !userRoles.includes('coordinador')
+  const isPureProfe = isRealClub(club.id) && userRoles.includes('profe') && !hasFullAccess && !isMorningTaker
   const clubPlayers = useMemo(() => getPlayersForClub(club.id), [club.id])
   const clubCategories = useMemo(() => getCategoriesForClub(club.id), [club.id])
   const activeCategories = clubCategories.filter(c => c.is_active)
@@ -77,8 +82,19 @@ export default function AsistenciaPage() {
   const initialTiras = (nextSlot?.tiras ?? TIRA_GROUPS.find(g => g.id === initialGroup)?.tiras ?? ['metro']) as Tira[]
   const [selectedTiras, setSelectedTiras] = useState<Set<Tira>>(new Set(initialTiras))
 
+  // Categorías del turno que el profe realmente tiene habilitadas (profe_assignments,
+  // fuente: "Profesores x tiras"). El turno (training_slots) solo define horario/cancha/
+  // categorías posibles — quién dicta cada una sale de la habilitación real, no de
+  // profe_titular_id/profe_suplentes_ids (que puede estar mal cargado en el cronograma).
+  function myValidCategoriesInSlot(slot: TrainingSlot, profeId: string): string[] {
+    return slot.category_ids.filter(catId =>
+      slot.tiras.some(t => getProfesForTira(catId, t).some(p => p.id === profeId))
+    )
+  }
+
   function loadSlot(slot: TrainingSlot) {
-    setSelectedCategories(new Set(slot.category_ids))
+    const myCatIds = isPureProfe && myProfeId ? myValidCategoriesInSlot(slot, myProfeId) : null
+    setSelectedCategories(new Set(myCatIds && myCatIds.length > 0 ? myCatIds : slot.category_ids))
     setSelectedTiras(new Set(slot.tiras))
     // En club real el filtro por profe (asignaciones demo) no aplica → dejar libre
     setSelectedProfe(isRealClub(club.id) ? '' : (slot.profe_titular_id ?? ''))
@@ -122,13 +138,27 @@ export default function AsistenciaPage() {
       .sort((a, b) => a.start_time.localeCompare(b.start_time))
   }, [realSlots, viewDate])
 
-  // Subconjunto de daySlots donde el profe puro está asignado (titular o suplente)
+  // Subconjunto de daySlots donde el profe puro está habilitado en al menos una categoría
+  // (según profe_assignments, no según profe_titular_id/profe_suplentes_ids del turno —
+  // ese campo puede estar desactualizado respecto del cronograma real "Profesores x tiras").
   const mySlots = useMemo(() => {
     if (!myProfeId) return []
-    return daySlots.filter(s => s.profe_titular_id === myProfeId || (s.profe_suplentes_ids ?? []).includes(myProfeId))
+    return daySlots.filter(s => myValidCategoriesInSlot(s, myProfeId).length > 0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [daySlots, myProfeId])
 
-  const relevantSlots = isPureProfe ? mySlots : daySlots
+  // Turnos que el usuario puede firmar hoy, según su rol:
+  //  - profe puro    → solo sus clases
+  //  - asist. mañana → todos los turnos de la mañana, más sus clases propias si además es profe
+  //  - admin/coord   → todo el día
+  const relevantSlots = useMemo(() => {
+    if (isPureProfe) return mySlots
+    if (!isMorningTaker) return daySlots
+    const morning = daySlots.filter(isMorningSlot)
+    const own = mySlots.filter(s => !morning.some(m => m.id === s.id))
+    return [...morning, ...own].sort((a, b) => a.start_time.localeCompare(b.start_time))
+  }, [isPureProfe, isMorningTaker, mySlots, daySlots])
+
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
   const [showOtherSlots, setShowOtherSlots] = useState(false)
 
@@ -151,7 +181,20 @@ export default function AsistenciaPage() {
     }
     setShowOtherSlots(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [club.id, realSlots, viewDate, isPureProfe, myProfeId])
+  }, [club.id, realSlots, viewDate, isPureProfe, isMorningTaker, myProfeId])
+
+  // Profe puro: tiras/categorías habilitadas para ESTA sesión = las del turno que tiene
+  // cargado ahora (selectedSlotId). El resto se muestra atenuado y no se puede tocar.
+  const currentMySlot = isPureProfe ? (mySlots.find(s => s.id === selectedSlotId) ?? null) : null
+  const profeAllowedTiras: string[] | null = isPureProfe
+    ? (currentMySlot ? currentMySlot.tiras : Array.from(new Set(mySlots.flatMap(s => s.tiras))))
+    : null
+  const profeAllowedCategoryIds: string[] | null = isPureProfe && myProfeId
+    ? (currentMySlot
+        ? myValidCategoriesInSlot(currentMySlot, myProfeId)
+        : Array.from(new Set(mySlots.flatMap(s => myValidCategoriesInSlot(s, myProfeId)))))
+    : null
+
   const sessionColor = Array.from(selectedTiras)[0] ? TIRA_COLORS[Array.from(selectedTiras)[0]] : 'var(--club-primary, #00843D)'
   const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({})
   const [closed, setClosed] = useState(false)
@@ -363,7 +406,11 @@ export default function AsistenciaPage() {
             <Card className="border-0 shadow-sm">
               <CardContent className="p-3 text-center">
                 <p className="text-xs text-muted-foreground">
-                  {isPureProfe ? 'No tenés clases asignadas este día.' : 'No hay turnos cargados este día.'}
+                  {isPureProfe
+                    ? 'No tenés clases asignadas este día.'
+                    : isMorningTaker
+                      ? 'No hay turnos de la mañana este día.'
+                      : 'No hay turnos cargados este día.'}
                 </p>
               </CardContent>
             </Card>
@@ -388,7 +435,8 @@ export default function AsistenciaPage() {
                               <Badge key={t} className="text-[10px] border-0 text-white" style={{ backgroundColor: getTiraColor(t, clubSportCode) }}>{getTiraLabel(t, clubSportCode)}</Badge>
                             ))}
                             <span className="text-muted-foreground">
-                              {current.category_ids.map(cid => clubCategories.find(x => x.id === cid)?.name).filter(Boolean).join(' · ')}
+                              {(myProfeId ? myValidCategoriesInSlot(current, myProfeId) : current.category_ids)
+                                .map(cid => clubCategories.find(x => x.id === cid)?.name).filter(Boolean).join(' · ')}
                             </span>
                           </div>
                         </div>
@@ -413,7 +461,8 @@ export default function AsistenciaPage() {
                                       <Badge key={t} className="text-[10px] border-0 text-white" style={{ backgroundColor: getTiraColor(t, clubSportCode) }}>{getTiraLabel(t, clubSportCode)}</Badge>
                                     ))}
                                     <span className="text-muted-foreground">
-                                      {s.category_ids.map(cid => clubCategories.find(x => x.id === cid)?.name).filter(Boolean).join(' · ')}
+                                      {(myProfeId ? myValidCategoriesInSlot(s, myProfeId) : s.category_ids)
+                                        .map(cid => clubCategories.find(x => x.id === cid)?.name).filter(Boolean).join(' · ')}
                                     </span>
                                   </div>
                                 </button>
@@ -428,15 +477,18 @@ export default function AsistenciaPage() {
               </CardContent>
             </Card>
           ) : (
-            // Admin/coordinador: lista completa de turnos del día, sin colapsar
+            // Admin/coordinador: lista completa de turnos del día, sin colapsar.
+            // Asistencia mañana: mismo formato, acotado a los turnos que puede firmar.
             <Card className="border-0 shadow-sm" style={{ borderLeft: '4px solid #7c3aed', background: 'linear-gradient(135deg, #f5f3ff 0%, white 100%)' }}>
               <CardContent className="p-3 space-y-2">
                 <div className="flex items-center gap-1.5">
                   <Sparkles size={14} className="text-purple-600" />
-                  <p className="text-xs font-bold uppercase text-purple-800" style={{ fontFamily: "var(--font-barlow)" }}>Turnos del día</p>
+                  <p className="text-xs font-bold uppercase text-purple-800" style={{ fontFamily: "var(--font-barlow)" }}>
+                    {isMorningTaker ? 'Turnos de la mañana' : 'Turnos del día'}
+                  </p>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  {daySlots.map(s => {
+                  {relevantSlots.map(s => {
                     const cats = s.category_ids.map(cid => clubCategories.find(x => x.id === cid)?.name).filter(Boolean).join(' · ')
                     const selected = usedSlot && selectedSlotId === s.id
                     return (
@@ -557,6 +609,19 @@ export default function AsistenciaPage() {
             <div className="flex gap-1 mt-1 flex-wrap">
               {(clubTiras.length > 0 ? clubTiras.map(x => x.code) : (['metro', 'liga1', 'liga2', 'edefi'] as string[])).map(t => {
                 const sel = selectedTiras.has(t)
+                const allowed = !profeAllowedTiras || profeAllowedTiras.includes(t)
+                if (!allowed) {
+                  return (
+                    <button
+                      key={t}
+                      disabled
+                      title="No corresponde a tu clase"
+                      className="px-2.5 py-1 rounded-full text-xs font-semibold border-2 border-gray-100 text-gray-300 bg-gray-50 cursor-not-allowed"
+                    >
+                      {getTiraLabel(t, clubSportCode)}
+                    </button>
+                  )
+                }
                 return (
                   <button
                     key={t}
@@ -575,8 +640,21 @@ export default function AsistenciaPage() {
           <div>
             <label className="text-[10px] font-bold uppercase text-muted-foreground">Categorías</label>
             <div className="flex gap-1 mt-1 flex-wrap">
-              {filteredCategories.map(c => {
+              {(isPureProfe ? activeCategories : filteredCategories).map(c => {
                 const sel = selectedCategories.has(c.id)
+                const allowed = !profeAllowedCategoryIds || profeAllowedCategoryIds.includes(c.id)
+                if (!allowed) {
+                  return (
+                    <button
+                      key={c.id}
+                      disabled
+                      title="No corresponde a tu clase"
+                      className="px-2.5 py-1 rounded-full text-xs font-semibold border-2 border-gray-100 text-gray-300 bg-gray-50 cursor-not-allowed"
+                    >
+                      {c.name}
+                    </button>
+                  )
+                }
                 return (
                   <button
                     key={c.id}

@@ -15,6 +15,14 @@ export type TrainingSlot = {
   is_active: boolean
 }
 
+// Un turno es "de la mañana" si arranca antes de las 14:00 — mismo criterio que
+// el `shift` de lib/training-schedule.ts. Define el alcance del rol asistencia_manana.
+export const MORNING_END = '14:00'
+
+export function isMorningSlot(slot: Pick<TrainingSlot, 'start_time'>): boolean {
+  return slot.start_time < MORNING_END
+}
+
 export const DAYS_OF_WEEK = [
   { num: 1, label: 'Lun', full: 'Lunes' },
   { num: 2, label: 'Mar', full: 'Martes' },

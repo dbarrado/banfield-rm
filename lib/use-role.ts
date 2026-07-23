@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { isRealClub, realClubId } from '@/lib/real-clubs'
 import { useCurrentClub } from '@/lib/use-current-club'
 
-export type ActiveRole = 'admin' | 'profe' | 'tesorero' | 'coordinador'
+export type ActiveRole = 'admin' | 'profe' | 'tesorero' | 'coordinador' | 'asistencia_manana'
 
 const ROLE_KEY = 'plantel_active_role'
 const USER_ROLES_KEY = 'plantel_user_roles'
@@ -14,7 +14,7 @@ const USER_ROLES_KEY = 'plantel_user_roles'
 // Para el demo: el usuario tiene los 4 roles asignados, puede cambiar entre ellos
 const DEFAULT_USER_ROLES: ActiveRole[] = ['admin', 'profe', 'tesorero', 'coordinador']
 
-const VALID_ROLES: ActiveRole[] = ['admin', 'profe', 'tesorero', 'coordinador']
+const VALID_ROLES: ActiveRole[] = ['admin', 'profe', 'tesorero', 'coordinador', 'asistencia_manana']
 
 // Cache simple en memoria del proceso para no repetir el fetch a Supabase
 // en cada componente que monte el hook durante la misma sesión de navegación.
@@ -104,6 +104,7 @@ export const ROLE_LABELS: Record<ActiveRole, { label: string; emoji: string; des
   profe:        { label: 'Profe',        emoji: '🏃', description: 'Asistencia, convocatorias, partidos' },
   tesorero:     { label: 'Tesorero',     emoji: '💰', description: 'Caja, cobros, finanzas, reportes' },
   coordinador:  { label: 'Coordinador',  emoji: '🎯', description: 'Deportivo + acceso a tesorería' },
+  asistencia_manana: { label: 'Asistencia mañana', emoji: '🌅', description: 'Toma asistencia de los turnos de la mañana' },
 }
 
 // Items visibles por rol — Profe se adapta según día (lun-vie vs sáb-dom)
@@ -135,6 +136,13 @@ export function getRoleNavItems(role: ActiveRole, dayOfWeek: number): { primary:
       secondary: ['/convocatoria', '/fixture', '/partidos', '/socios', '/inscripciones', '/config/cronograma', '/config/profes', '/deportes', '/cobranzas', '/finanzas', '/reportes', '/caja', '/tienda', '/invitar'],
     }
   }
+  if (role === 'asistencia_manana') {
+    // Alcance acotado: firmar la asistencia de los turnos de la mañana y ver el plan del día.
+    return {
+      primary: ['/dashboard', '/asistencia', '/plan'],
+      secondary: ['/socios', '/fixture'],
+    }
+  }
   // Profe — adapta según día
   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
   if (isWeekend) {
@@ -154,4 +162,5 @@ export const ROLE_NAV_ITEMS: Record<ActiveRole, { primary: string[]; secondary: 
   profe: getRoleNavItems('profe', 1),
   tesorero: getRoleNavItems('tesorero', 1),
   coordinador: getRoleNavItems('coordinador', 1),
+  asistencia_manana: getRoleNavItems('asistencia_manana', 1),
 }
