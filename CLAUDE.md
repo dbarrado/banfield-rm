@@ -37,3 +37,16 @@ No commitees secretos: `.env.local` y `data-import/` están gitignored (este úl
 ## Verificación antes de cerrar
 - `npx tsc --noEmit` y `npm run build` en verde.
 - Si tocaste escritura real, probar el insert contra Supabase con login real (ver scripts de prueba en historial).
+- Verificación visual con dev server + Chrome CDP headless: scripts reusables en `data-import/`
+  (`cdp-verify-convocatoria.mjs` admin, `cdp-verify-profe.mjs` profe puro). OJO: limpiar cookies
+  antes de loguear otro usuario — si hay sesión previa, /login redirige al dashboard.
+
+## ⚠️ REGLA — Todo cambio se sube a producción
+Después de verificar, SIEMPRE commit + push a `main` (Vercel deploya banfield-rm.vercel.app solo).
+Diego y los profes usan la app online: un cambio local sin pushear es un cambio que no existe.
+Confirmar que el deploy quede READY (Vercel MCP o curl) antes de reportar terminado.
+
+## Roles — matriz de permisos clave
+- **Profe puro** (solo rol `profe`): ve/crea partidos SOLO de sus categorías+tiras (`profe_assignments`);
+  convocatoria fija a su nombre; plan de entrenamiento SOLO LECTURA; asistencia solo de sus clases.
+- **Coordinador/admin**: sin restricciones; el plan de entrenamiento lo definen ellos.

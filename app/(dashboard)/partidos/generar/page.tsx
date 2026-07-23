@@ -6,9 +6,10 @@ import { Card, CardContent } from '@/components/ui/card'
 import { ArrowLeft, Upload, ScanLine, Trophy, Plus, X, Check, Loader2, MapPin, Calendar } from 'lucide-react'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { isRealClub } from '@/lib/real-clubs'
-import { getCategoriesForClub } from '@/lib/demo-data'
+import { getCategoriesForClub, getAssignmentsForProfe } from '@/lib/demo-data'
 import { createMatchEvents } from '@/lib/data/ops-store'
-import { useActiveRole, ROLE_LABELS } from '@/lib/use-role'
+import { useActiveRole, useUserRoles, ROLE_LABELS } from '@/lib/use-role'
+import { useCurrentProfe } from '@/lib/use-current-profe'
 import { getTirasForSport } from '@/lib/tiras'
 import type { SportCode } from '@/lib/sports'
 
@@ -46,9 +47,17 @@ export default function GenerarPartidoPage() {
   const [activeRole] = useActiveRole()
   const canGenerate = activeRole === 'admin' || activeRole === 'coordinador' || activeRole === 'profe'
 
-  const cats = getCategoriesForClub(club.id).filter(c => c.is_active)
-  const tiras = getTirasForSport((club.default_sport_code ?? 'football_11') as SportCode)
-  const fileRef = useRef<HTMLInputElement>(null)
+  // Profe puro: solo puede generar partidos de sus categorías/tiras asignadas.
+  const userRoles = useUserRoles()
+  const { profeId: myProfeId } = useCurrentProfe(club.id)
+  const isPureProfe = real && userRoles.includes('profe') && !userRoles.includes('admin') && !userRoles.includes('coordinador')
+  const myAssignments = isPureProfe && myProfeId ? getAssignmentsForProfe(myProfeId) : null
+
+  const allCats = getCategoriesForClub(club.id).filter(c => c.is_active)
+  const allTiras = getTirasForSport((club.default_sport_code ?? 'football_11') as SportCode)
+  const tiras = myAssignments ? allTiras.filter(t => myAssignments.some(a => a.tira === t.code)) : allTiras
+  const fileRef = useRef<HTMLInputElement>(null)      // cámara (capture)
+  const galleryRef = useRef<HTMLInputElement>(null)   // galería / archivos
 
   const [preview, setPreview] = useState<string | null>(null)
   const [scanning, setScanning] = useState(false)
@@ -65,6 +74,11 @@ export default function GenerarPartidoPage() {
   const [dateText, setDateText] = useState('')
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState<number | null>(null)
+
+  // Categorías elegibles: profe puro → solo las suyas (y de la tira elegida, si hay)
+  const cats = myAssignments
+    ? allCats.filter(c => myAssignments.some(a => a.category_id === c.id && (!tira || a.tira === tira)))
+    : allCats
 
   function matchCategory(label: string): string {
     const l = String(label).trim().toLowerCase()
@@ -120,7 +134,7 @@ export default function GenerarPartidoPage() {
     setRows(rows.filter(r => r.id !== id))
   }
 
-  const validRows = rows.filter(r => r.categoryId && /^\d{1,2}:\d{2}$/.test(r.time))
+  const validRows = rows.filter(r => r.categoryId && cats.some(c => c.id === r.categoryId) && /^\d{1,2}:\d{2}$/.test(r.time))
   const canSubmit = !!rival.trim() && !!tira && !!date && validRows.length > 0 && isHome !== 'unknown'
 
   async function generar() {
@@ -172,6 +186,7 @@ export default function GenerarPartidoPage() {
       <Card className="border-0 shadow-sm">
         <CardContent className="p-3">
           <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={onFile} className="hidden" />
+          <input ref={galleryRef} type="file" accept="image/*" onChange={onFile} className="hidden" />
           <div className="flex items-center gap-3">
             {preview ? (
               <img src={preview} alt="flyer" className="w-20 h-20 object-cover rounded-lg border" />
@@ -180,9 +195,14 @@ export default function GenerarPartidoPage() {
                 <Upload size={22} />
               </div>
             )}
-            <button onClick={() => fileRef.current?.click()} className="flex-1 py-2.5 rounded-lg text-white font-semibold text-sm flex items-center justify-center gap-2" style={{ backgroundColor: '#00843D' }}>
-              <Upload size={16} /> {preview ? 'Cambiar imagen' : 'Subir / sacar foto del flyer'}
-            </button>
+            <div className="flex-1 space-y-1.5">
+              <button onClick={() => fileRef.current?.click()} className="w-full py-2.5 rounded-lg text-white font-semibold text-sm flex items-center justify-center gap-2" style={{ backgroundColor: '#00843D' }}>
+                <ScanLine size={16} /> {preview ? 'Sacar otra foto' : 'Sacar foto del flyer'}
+              </button>
+              <button onClick={() => galleryRef.current?.click()} className="w-full py-2.5 rounded-lg border-2 border-[#00843D] text-[#00843D] font-semibold text-sm flex items-center justify-center gap-2">
+                <Upload size={16} /> Elegir de la galería
+              </button>
+            </div>
           </div>
           {!reviewed && !scanning && (
             <button

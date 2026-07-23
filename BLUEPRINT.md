@@ -153,6 +153,9 @@ KPIs principales del club: socios activos, asistencia del día, próximo partido
   próximo que exista ("Próximo partido"), y si no hay ninguno se convoca igual por tira+categoría
   (link "+ Cargar partido" al fixture). Botón "Cambiar" solo si hay más de un partido candidato.
 - Los partidos con `events.tira` cargada se filtran por la tira activa; sin tira, aplican a todas.
+- **Profe puro**: ve y crea partidos SOLO de sus (categoría, tira) asignadas (`profe_assignments`);
+  el fixture se filtra con el mismo criterio. El plan de entrenamiento (`/plan`) es SOLO LECTURA
+  para el profe puro — lo define el coordinador.
 - Lista de jugadores eligibles según umbral (`min_practice_percentage` configurable)
 - Override por convocatoria (queda en log de auditoría con motivo)
 - Precarga de la última convocatoria guardada de esa (categoría, tira); partido opcional

@@ -3,6 +3,26 @@
 **Última actualización:** 2026-07-23
 **Para:** retomar el trabajo en otra PC.
 
+## Update 2026-07-23 (b) — Permisos de profe: partidos solo suyos, plan solo lectura, flyer desde galería
+- **Pedidos de Diego (mismo día, segunda tanda):**
+  1. **Plan de entrenamiento**: lo define el coordinador; el profe puro ahora lo ve SOLO LECTURA
+     (`/plan` sin textareas ni guardar; muestra ejercicios como tarjetas; "el coordinador todavía no
+     cargó el plan" si está vacío). Coordinador/admin siguen editando igual.
+  2. **Fixture filtrado**: profe puro ve SOLO los partidos de sus (categoría, tira) asignadas
+     (`isMine()` contra `profe_assignments`; partidos sin tira matchean por categoría).
+  3. **Alta de partido limitada**: tanto el modal "Nuevo partido por tira" de `/fixture` como
+     `/partidos/generar` ofrecen al profe puro solo SUS tiras y SUS categorías (y `validRows`
+     valida contra las permitidas, por si la IA del flyer mapea una categoría ajena).
+  4. **Flyer desde galería**: `/partidos/generar` ahora tiene dos botones — "Sacar foto del flyer"
+     (input con `capture`) y "Elegir de la galería" (input sin `capture`, que en el celu abría
+     solo la cámara).
+- **Verificado con login real de profe** (Bruno Gismondi, liga2 cats 2013-2016): fixture muestra 3/6
+  partidos (los suyos), plan solo lectura con sus 4 categorías, generar ofrece solo su tira.
+  Script `data-import/cdp-verify-profe.mjs` (reusable). GOTCHA de testing: limpiar cookies antes de
+  loguear otro usuario — con sesión previa /login redirige al dashboard y el login nuevo no ocurre.
+- **Regla operativa nueva (en CLAUDE.md): todo cambio verificado se commitea y pushea a producción**
+  (Vercel). Un cambio local sin pushear no existe para el club.
+
 ## Update 2026-07-23 — Convocatoria "de la semana" + fixture real + alta manual de partidos
 - **Premisa nueva (pedido de Diego): entrar a Convocatoria = convocar esta semana.** En
   `/convocatoria` ya no hay que elegir partido en un dropdown: el partido de los próximos 7 días

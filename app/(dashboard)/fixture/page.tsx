@@ -5,10 +5,12 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, MapPin, Trophy, Plus, X, CloudRain, Edit2, ScanLine } from 'lucide-react'
 import Link from 'next/link'
-import { getEventsForClub, getCategoriesForClub, getPlayersForClub } from '@/lib/demo-data'
+import { getEventsForClub, getCategoriesForClub, getPlayersForClub, getAssignmentsForProfe } from '@/lib/demo-data'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { isRealClub } from '@/lib/real-clubs'
 import { loadMatchEvents, createMatchEvents } from '@/lib/data/ops-store'
+import { useUserRoles } from '@/lib/use-role'
+import { useCurrentProfe } from '@/lib/use-current-profe'
 import { TIRA_LABELS, TIRA_COLORS } from '@/types'
 
 type FixtureMatch = {
@@ -46,6 +48,16 @@ export default function FixturePage() {
 
   // Club real: el fixture vive en Supabase (events), no en memoria.
   const real = isRealClub(club.id)
+
+  // Profe puro: solo ve (y crea) partidos de sus categorías/tiras asignadas.
+  const userRoles = useUserRoles()
+  const { profeId: myProfeId } = useCurrentProfe(club.id)
+  const isPureProfe = real && userRoles.includes('profe') && !userRoles.includes('admin') && !userRoles.includes('coordinador')
+  const myAssignments = isPureProfe && myProfeId ? getAssignmentsForProfe(myProfeId) : null
+  function isMine(m: { category_id: string; tira?: string | null }): boolean {
+    if (!myAssignments) return true
+    return myAssignments.some(a => a.category_id === m.category_id && (!m.tira || a.tira === m.tira))
+  }
   async function reloadRealMatches() {
     const evs = await loadMatchEvents(club.id)
     if (evs) {
@@ -60,7 +72,8 @@ export default function FixturePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [club.id, real])
 
-  const sorted = [...matches].sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
+  const visibleMatches = matches.filter(isMine)
+  const sorted = [...visibleMatches].sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
 
   function handleReschedule(matchId: string, newDate: string, reuseConvocation: boolean) {
     setMatches(prev => prev.map(m => m.id === matchId ? { ...m, scheduled_at: newDate } : m))
@@ -76,7 +89,7 @@ export default function FixturePage() {
           <h1 className="text-2xl font-bold" style={{ fontFamily: "var(--font-barlow)", color: '#00843D' }}>
             FIXTURE
           </h1>
-          <Badge variant="outline">{matches.length}</Badge>
+          <Badge variant="outline">{visibleMatches.length}</Badge>
         </div>
         <div className="flex items-center gap-1.5">
           <Link href="/partidos/generar" className="flex items-center gap-1 text-sm font-semibold px-3 py-2 rounded-lg border-2 border-[#00843D] text-[#00843D]">
@@ -156,6 +169,7 @@ export default function FixturePage() {
         <NewMatchModal
           categories={demoCategories}
           players={demoPlayers}
+          assignments={myAssignments}
           onClose={() => setShowAdd(false)}
           onSubmit={async (newMatches) => {
             if (real) {
@@ -179,11 +193,13 @@ export default function FixturePage() {
   )
 }
 
-function NewMatchModal({ onClose, onSubmit, categories, players }: { onClose: () => void; onSubmit: (matches: any[]) => void; categories: any[]; players: any[] }) {
+function NewMatchModal({ onClose, onSubmit, categories, players, assignments }: { onClose: () => void; onSubmit: (matches: any[]) => void; categories: any[]; players: any[]; assignments?: { category_id: string; tira: string }[] | null }) {
   const demoCategories = categories
   const demoPlayers = players
-  const ALL_TIRAS: ('metro' | 'liga1' | 'liga2' | 'edefi')[] = ['metro', 'liga1', 'liga2', 'edefi']
-  const [tira, setTira] = useState<'metro' | 'liga1' | 'liga2' | 'edefi'>('metro')
+  // Profe puro (assignments != null): solo sus tiras y categorías asignadas
+  const BASE_TIRAS: ('metro' | 'liga1' | 'liga2' | 'edefi')[] = ['metro', 'liga1', 'liga2', 'edefi']
+  const ALL_TIRAS = assignments ? BASE_TIRAS.filter(t => assignments.some(a => a.tira === t)) : BASE_TIRAS
+  const [tira, setTira] = useState<'metro' | 'liga1' | 'liga2' | 'edefi'>(ALL_TIRAS[0] ?? 'metro')
   const [rival, setRival] = useState('')
   const [date, setDate] = useState('')
   const [isHome, setIsHome] = useState(true)
@@ -191,9 +207,10 @@ function NewMatchModal({ onClose, onSubmit, categories, players }: { onClose: ()
   const [address, setAddress] = useState('Av. Rivadavia 14250, Ramos Mejía')
   const [shareLink, setShareLink] = useState('')
 
-  // Categorías que tienen jugadores en esa tira
+  // Categorías que tienen jugadores en esa tira (profe puro: solo las suyas en esa tira)
   const categoriesInTira = demoCategories.filter(c =>
-    c.is_active && demoPlayers.some(p => p.category_id === c.id && p.tira === tira)
+    c.is_active && demoPlayers.some(p => p.category_id === c.id && p.tira === tira) &&
+    (!assignments || assignments.some(a => a.category_id === c.id && a.tira === tira))
   )
 
   // Horarios default — secuencia típica de un sábado por la mañana, escalonado por categoría
