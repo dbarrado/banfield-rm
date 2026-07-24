@@ -42,8 +42,8 @@ export function ProfeDashboard({ club }: { club: Club }) {
   const [takenCats, setTakenCats] = useState<Set<string>>(new Set())
   const [plans, setPlans] = useState<Record<string, DayPlan>>({})
   const [lowAtt, setLowAtt] = useState<{ id: string; name: string; cat: string; pct: number }[] | null>(null)
-  // Colapsable: por defecto se muestran solo los primeros 4
-  const [showAllLow, setShowAllLow] = useState(false)
+  // Sección colapsable: cerrada por defecto; al abrir muestra la lista COMPLETA (sin corte)
+  const [lowOpen, setLowOpen] = useState(false)
 
   useEffect(() => {
     if (!profeId) return
@@ -187,42 +187,50 @@ export function ProfeDashboard({ club }: { club: Club }) {
         </div>
       )}
 
-      {/* Chicos con baja asistencia (mis categorías/tiras) */}
+      {/* Chicos con baja asistencia (mis categorías/tiras) — colapsable, lista completa al abrir */}
       <div>
-        <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5" style={{ fontFamily: 'var(--font-barlow)' }}>
-          <AlertTriangle size={14} /> PARA SEGUIR — BAJA ASISTENCIA
-        </h2>
         {lowAtt === null ? (
           <p className="text-sm text-muted-foreground">Cargando…</p>
         ) : lowAtt.length === 0 ? (
           <Card className="border-0 shadow-sm">
-            <CardContent className="p-3 text-sm text-muted-foreground">
-              Todos tus chicos están arriba del umbral de asistencia. 💪
+            <CardContent className="p-3 text-sm text-muted-foreground flex items-center gap-1.5">
+              <AlertTriangle size={14} className="text-green-600" /> Todos tus chicos están arriba del umbral de asistencia. 💪
             </CardContent>
           </Card>
         ) : (
           <Card className="border-0 shadow-sm" style={{ borderLeft: '4px solid #F59E0B' }}>
-            <CardContent className="p-3 space-y-1">
-              {(showAllLow ? lowAtt : lowAtt.slice(0, 4)).map(p => (
-                <Link key={p.id} href={`/socios/${p.id}`} className="flex items-center justify-between py-1 border-b last:border-0 hover:bg-amber-50 rounded px-1 -mx-1">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold truncate">{p.name}</p>
-                    <p className="text-[10px] text-muted-foreground">Cat. {p.cat}</p>
-                  </div>
-                  <span className="text-sm font-bold flex-shrink-0" style={{ color: p.pct < 30 ? '#DC2626' : '#F59E0B' }}>
-                    {p.pct}%
-                  </span>
-                </Link>
-              ))}
-              {lowAtt.length > 4 && (
-                <button
-                  onClick={() => setShowAllLow(v => !v)}
-                  className="w-full pt-1.5 text-xs font-semibold text-amber-700 flex items-center justify-center gap-1"
-                >
-                  {showAllLow
-                    ? <>Mostrar menos <ChevronUp size={13} /></>
-                    : <>Ver todos ({lowAtt.length}) <ChevronDown size={13} /></>}
-                </button>
+            <CardContent className="p-3">
+              <button
+                onClick={() => setLowOpen(v => !v)}
+                className="w-full flex items-center justify-between gap-2"
+              >
+                <span className="text-sm font-bold uppercase tracking-wider text-amber-700 flex items-center gap-1.5" style={{ fontFamily: 'var(--font-barlow)' }}>
+                  <AlertTriangle size={14} /> PARA SEGUIR — BAJA ASISTENCIA
+                </span>
+                <span className="flex items-center gap-1.5 flex-shrink-0">
+                  <span className="text-xs font-bold text-white bg-amber-500 rounded-full px-2 py-0.5">{lowAtt.length}</span>
+                  {lowOpen ? <ChevronUp size={15} className="text-amber-700" /> : <ChevronDown size={15} className="text-amber-700" />}
+                </span>
+              </button>
+              {!lowOpen && (
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  {lowAtt.length} chico{lowAtt.length === 1 ? '' : 's'} bajo el {demoEligibilityConfig.min_practice_percentage}% — tocá para ver la lista completa.
+                </p>
+              )}
+              {lowOpen && (
+                <div className="space-y-1 mt-2">
+                  {lowAtt.map(p => (
+                    <Link key={p.id} href={`/socios/${p.id}`} className="flex items-center justify-between py-1 border-b last:border-0 hover:bg-amber-50 rounded px-1 -mx-1">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold truncate">{p.name}</p>
+                        <p className="text-[10px] text-muted-foreground">Cat. {p.cat}</p>
+                      </div>
+                      <span className="text-sm font-bold flex-shrink-0" style={{ color: p.pct < 30 ? '#DC2626' : '#F59E0B' }}>
+                        {p.pct}%
+                      </span>
+                    </Link>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
