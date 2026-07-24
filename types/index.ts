@@ -109,6 +109,10 @@ export interface Player {
   created_at: string
   category?: Category
   club_id?: string  // si no está, se asume Banfield Ramos Mejía (legacy)
+  // Excepción fija semanal: días (0=Dom..6=Sáb) en que NO viene por motivo estable
+  // (ej. colegio). En asistencia se precarga como ausente justificado esos días.
+  exempt_days?: number[]
+  exempt_reason?: string | null
 }
 
 export interface Profe {

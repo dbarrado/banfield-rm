@@ -33,7 +33,7 @@ async function hydrateFromSupabase(demoClubId: string) {
       .eq('club_id', sbClubId),
     supabase
       .from('players')
-      .select('id,full_name,dni,birth_date,category_id,tira,shift,photo_url,tutor_name,tutor_dni,tutor_email,tutor_whatsapp,primary_position,is_active,convocation_count,created_at')
+      .select('id,full_name,dni,birth_date,category_id,tira,shift,photo_url,tutor_name,tutor_dni,tutor_email,tutor_whatsapp,primary_position,is_active,convocation_count,created_at,exempt_days,exempt_reason')
       .eq('club_id', sbClubId)
       .order('full_name'),
     loadProfes(demoClubId),
@@ -73,6 +73,8 @@ async function hydrateFromSupabase(demoClubId: string) {
     convocation_count: p.convocation_count ?? 0,
     created_at: p.created_at,
     club_id: demoClubId,
+    exempt_days: p.exempt_days ?? [],
+    exempt_reason: p.exempt_reason ?? null,
   }))
 
   const profes: Profe[] = (profesRaw ?? []).map((p) => ({

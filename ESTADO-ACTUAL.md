@@ -3,6 +3,25 @@
 **Última actualización:** 2026-07-23
 **Para:** retomar el trabajo en otra PC.
 
+## Update 2026-07-24 — Justificaciones: botón en asistencia + excepción fija semanal
+- **Botón "ausente justificado" en `/asistencia`:** el estado `absent_justified` existía en el tipo,
+  la base (columna `justified_reason` incluida) y la fórmula de elegibilidad, pero la UI no tenía
+  forma de marcarlo. Cuarto botón azul (AlertCircle) en la ficha de cada chico. El tap-cycle de la
+  ficha no cambia (unmarked→present→late→absent→unmarked). Justificación retroactiva: navegar al
+  día, REABRIR, cambiar el estado, guardar — el % se recalcula al instante porque la convocatoria
+  lee la base en vivo.
+- **Excepción fija semanal (pedido de Diego: "no viene los martes por el colegio"):**
+  - Migración `0004_player_exempt_days.sql` (aplicada): `players.exempt_days smallint[]`
+    (0=Dom..6=Sáb, misma convención que `training_slots.day_of_week`) + `players.exempt_reason text`.
+  - **Ficha del socio**: card "EXCEPCIÓN SEMANAL" — chips de días + motivo, persiste con
+    `updatePlayer` (probado bajo RLS con login real: update+select+revert OK).
+  - **Asistencia**: al abrir un día SIN asistencia guardada, los chicos exceptuados ese día se
+    precargan como ausente justificado (ficha azul) con la leyenda "No viene este día — motivo".
+    El profe puede pisarlo si el chico vino igual. Si ya hay asistencia guardada para el día, se
+    respeta lo guardado (no se pisa al editar).
+  - Efecto en elegibilidad: el justificado descuenta el denominador → el % no se ve afectado.
+- Hidratación de `players` extendida con los dos campos nuevos (data-provider).
+
 ## Update 2026-07-23 (c) — Los % de la convocatoria ahora salen de la asistencia REAL
 - **Reporte de Diego:** tomó asistencia hoy (cat 2013) y los porcentajes de la convocatoria no
   la reflejaban. Causa: `getAttendanceStats` (demo-data) calcula sobre `demoEvents`/`demoAttendance`

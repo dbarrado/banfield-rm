@@ -90,6 +90,26 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
     })
     setEditingInfo(false)
   }
+  // Excepción fija semanal: días que NO viene por motivo estable (ej. colegio).
+  // En la asistencia de esos días se precarga como ausente justificado.
+  const [exemptDays, setExemptDays] = useState<number[]>(initialPlayer!.exempt_days ?? [])
+  const [exemptReason, setExemptReason] = useState(initialPlayer!.exempt_reason ?? '')
+  const [editingExempt, setEditingExempt] = useState(false)
+  const [savingExempt, setSavingExempt] = useState(false)
+
+  async function saveExempt() {
+    setSavingExempt(true)
+    if (real) {
+      const res = await updatePlayer(club.id, id, { exempt_days: exemptDays, exempt_reason: exemptReason.trim() || null })
+      setSavingExempt(false)
+      if (!res.ok) { alert(`No se pudo guardar: ${res.error ?? 'error'}`); return }
+    } else {
+      setSavingExempt(false)
+    }
+    Object.assign(initialPlayer!, { exempt_days: exemptDays, exempt_reason: exemptReason.trim() || null })
+    setEditingExempt(false)
+  }
+
   const [showPaymentForm, setShowPaymentForm] = useState(false)
   const [showObservationForm, setShowObservationForm] = useState(false)
   // Consentimientos de imagen (Ley 26.061 + 25.326)
@@ -409,6 +429,64 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
             </Card>
           )
         })()}
+
+        {/* Excepción fija semanal (colegio, etc.) */}
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground" style={{ fontFamily: "var(--font-barlow)" }}>
+                EXCEPCIÓN SEMANAL
+              </p>
+              {!editingExempt && (
+                <button onClick={() => setEditingExempt(true)} className="text-xs px-2 py-1 rounded border text-muted-foreground hover:bg-gray-50 flex items-center gap-1">
+                  <Edit2 size={11} /> Editar
+                </button>
+              )}
+            </div>
+            {!editingExempt ? (
+              exemptDays.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Sin excepciones — se espera que venga todos sus días de entrenamiento.</p>
+              ) : (
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-blue-700">
+                    No viene los {exemptDays.map(d => ['domingos', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados'][d]).join(', ')}
+                  </p>
+                  {exemptReason && <p className="text-xs text-muted-foreground">Motivo: {exemptReason}</p>}
+                  <p className="text-[10px] text-muted-foreground italic">Esos días se marca solo como ausente justificado — no le baja el % de asistencia.</p>
+                </div>
+              )
+            ) : (
+              <div className="space-y-2">
+                <div className="flex gap-1.5 flex-wrap">
+                  {[1, 2, 3, 4, 5, 6, 0].map(d => (
+                    <button
+                      key={d}
+                      onClick={() => setExemptDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d])}
+                      className={`px-2.5 py-1.5 rounded-full text-xs font-semibold border ${exemptDays.includes(d) ? 'text-white border-transparent bg-blue-600' : 'border-gray-200 text-gray-600'}`}
+                    >
+                      {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'][d]}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  value={exemptReason}
+                  onChange={e => setExemptReason(e.target.value)}
+                  placeholder="Motivo (ej: colegio doble turno)"
+                  className="w-full px-3 py-2 border rounded-lg text-sm"
+                />
+                <div className="flex gap-2">
+                  <button onClick={saveExempt} disabled={savingExempt} className="flex-1 py-2 rounded-lg text-white text-xs font-bold disabled:opacity-50" style={{ backgroundColor: '#00843D' }}>
+                    {savingExempt ? 'Guardando…' : 'Guardar'}
+                  </button>
+                  <button onClick={() => { setExemptDays(initialPlayer!.exempt_days ?? []); setExemptReason(initialPlayer!.exempt_reason ?? ''); setEditingExempt(false) }} className="flex-1 py-2 rounded-lg border text-xs font-semibold">
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Datos del tutor */}
         <Card className="border-0 shadow-sm">

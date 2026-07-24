@@ -263,7 +263,12 @@ export default function AsistenciaPage() {
       } else {
         setCurrentEventId(null)
         setClosed(false)
-        setAttendance({})
+        // Excepción semanal: precargar como ausente justificado a los que NO vienen
+        // este día por motivo fijo (ej. colegio) — el profe puede pisarlo si vino igual.
+        const dow = viewDate.getDay()
+        const pre: Record<string, AttendanceStatus> = {}
+        clubPlayers.forEach(p => { if (p.exempt_days?.includes(dow)) pre[p.id] = 'absent_justified' })
+        setAttendance(pre)
       }
     })
     return () => { cancelled = true }
@@ -769,6 +774,11 @@ export default function AsistenciaPage() {
                     </span>
                     <span className="text-[10px] text-muted-foreground">Conv: {player.convocation_count}</span>
                   </div>
+                  {player.exempt_days?.includes(viewDate.getDay()) && (
+                    <p className="text-[10px] text-blue-700 font-semibold mt-0.5 truncate">
+                      No viene este día{player.exempt_reason ? ` — ${player.exempt_reason}` : ''}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
                   <button

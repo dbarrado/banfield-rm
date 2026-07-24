@@ -139,6 +139,14 @@ KPIs principales del club: socios activos, asistencia del día, próximo partido
 - **Edición de asistencia ya cerrada (sin duplicar)**: al cambiar de categoría/día se llama `loadAttendanceForDate(club.id, { categoryId, dateISO })` (`lib/data/attendance-store.ts`). Si ya existe un evento de práctica para esa categoría+día, precarga sus registros, fija `currentEventId` y deja la pantalla en `closed=true` (se reutiliza el botón "REABRIR" existente para editar). Al volver a cerrar, `persistAttendanceUpsert` reemplaza las attendances del mismo `eventId` en vez de crear un evento nuevo.
   - **Limitación conocida**: el match de `loadAttendanceForDate` es solo por categoría + día calendario (no por tira/turno). Si hubiera dos eventos de práctica el mismo día para la misma categoría (ej. dos turnos con distinta tira), trae el más reciente por `scheduled_at` — no hay forma de desambiguar hoy a nivel de `events`.
 
+### 6.4b Justificaciones de asistencia
+- **Puntual**: botón azul "ausente justificado" en la ficha del chico en `/asistencia`.
+  Retroactivo: navegar al día → REABRIR → cambiar estado → guardar (el % se recalcula en vivo).
+- **Fija semanal** (`players.exempt_days` 0=Dom..6=Sáb + `exempt_reason`): se configura en la
+  ficha del socio (card "Excepción semanal"). En `/asistencia`, los días exceptuados el chico se
+  precarga como ausente justificado (el profe puede pisarlo); si ya hay asistencia guardada ese
+  día, se respeta lo guardado. El justificado descuenta el denominador del % de elegibilidad.
+
 ### 6.5 `/asistencia-profes` — Asistencia de profes
 - Lo toma el coordinador
 - Vista del cronograma del día con titular asignado por slot
