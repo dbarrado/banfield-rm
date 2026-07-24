@@ -52,4 +52,6 @@ Confirmar que el deploy quede READY (Vercel MCP o curl) antes de reportar termin
   En socios: **NO ve nada de plata** (estado de cuota, historial de pagos, deudores, descuentos
   hermanos, WhatsApp de deuda) — sí ve datos del chico, tutor y excepción semanal (definición
   Diego 24-jul). La excepción semanal la puede cargar también el profe.
+  Dashboard propio (`components/profe-dashboard.tsx`): mis clases de hoy + plan del día +
+  baja asistencia; sin KPIs de club.
 - **Coordinador/admin**: sin restricciones; el plan de entrenamiento lo definen ellos.

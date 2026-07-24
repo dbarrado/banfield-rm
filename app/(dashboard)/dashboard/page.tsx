@@ -20,7 +20,8 @@ import { isRealClub } from '@/lib/real-clubs'
 import { getRealBillings } from '@/lib/data/billing-store'
 import { DEFAULT_FEE_ACTIVIDAD } from '@/lib/billings'
 import { useCurrentClub } from '@/lib/use-current-club'
-import { useActiveRole } from '@/lib/use-role'
+import { useActiveRole, useUserRoles } from '@/lib/use-role'
+import { ProfeDashboard } from '@/components/profe-dashboard'
 import { demoClubs } from '@/lib/clubs'
 import { getReferralActivationStatus, getReferralProgress } from '@/lib/referrals'
 import { Gift, Sparkles } from 'lucide-react'
@@ -146,8 +147,12 @@ export default function DashboardPage() {
   }
   const quickActions = (actionsByRole[activeRole] ?? actionsByRole.admin).map(k => allActions[k])
 
-  return (
-    <div className="p-3 md:p-6 space-y-4">
+  // Profe puro: dashboard propio, 100% deportivo (sin KPIs de plata ni datos de club).
+  const userRoles = useUserRoles()
+  const isPureProfe = real && userRoles.includes('profe') && !userRoles.includes('admin') && !userRoles.includes('coordinador')
+
+  const headerAndActions = (
+    <>
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
@@ -177,6 +182,21 @@ export default function DashboardPage() {
           </Link>
         ))}
       </div>
+    </>
+  )
+
+  if (isPureProfe) {
+    return (
+      <div className="p-3 md:p-6 space-y-4">
+        {headerAndActions}
+        <ProfeDashboard club={club} />
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-3 md:p-6 space-y-4">
+      {headerAndActions}
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

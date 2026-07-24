@@ -3,6 +3,21 @@
 **Última actualización:** 2026-07-23
 **Para:** retomar el trabajo en otra PC.
 
+## Update 2026-07-24 (c) — Dashboard propio del profe
+- **Definición de Diego (AskUserQuestion):** bloques "Mis clases de hoy" + "Plan del día" +
+  "Baja asistencia"; KPIs de club (socios/recaudado/deudores) FUERA para el profe.
+- Nuevo `components/profe-dashboard.tsx`; `/dashboard` hace early-return con él para profe puro
+  (header + quick actions por rol se mantienen). Bloques:
+  1. **Mis clases de hoy**: `training_slots` del día filtrados por `profe_assignments` (cat×tira),
+     hora/categorías/tira/cancha + botón a /asistencia; tilde "Tomada" si la categoría ya tiene
+     práctica registrada hoy (`loadPracticeCategoriesForDate`, nuevo en attendance-store).
+  2. **Plan del día**: `loadPlan` de las categorías de los turnos de hoy, solo lectura.
+  3. **Para seguir — baja asistencia**: `loadPracticeStats` por categoría, jugadores de sus
+     (cat×tira) con % < umbral (demoEligibilityConfig), orden ascendente, top 8.
+- Verificado vía CDP como Bruno: 3 clases reales del viernes, sin Recaudado/Deudores/Socios activos.
+- Nota: el dashboard de admin/coordinador quedó igual (incluye "Próximos partidos" que para el club
+  real sigue calculando con demo/fecha fija — pendiente de wirear a loadMatchEvents).
+
 ## Update 2026-07-24 (b) — Profe puro no ve plata en socios
 - **Definición de Diego (AskUserQuestion):** el profe ve "todo menos plata" en la ficha del socio,
   y la excepción semanal la puede cargar también él (queda como estaba).

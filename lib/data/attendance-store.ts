@@ -55,6 +55,26 @@ export async function loadAttendanceForDate(
   }
 }
 
+// Categorías con práctica ya registrada en una fecha (tilde "asistencia tomada"
+// en el dashboard del profe).
+export async function loadPracticeCategoriesForDate(demoClubId: string, dateISO: string): Promise<Set<string>> {
+  const sb = realClubId(demoClubId)
+  if (!sb) return new Set()
+  const supabase = createClient()
+  const startISO = `${dateISO}T00:00:00.000Z`
+  const end = new Date(`${dateISO}T00:00:00.000Z`)
+  end.setUTCDate(end.getUTCDate() + 1)
+  const { data, error } = await supabase
+    .from('events')
+    .select('category_id')
+    .eq('club_id', sb)
+    .eq('event_type', 'practice')
+    .gte('scheduled_at', startISO)
+    .lt('scheduled_at', end.toISOString())
+  if (error) { console.error('[attendance-store] loadPracticeCategoriesForDate:', error.message); return new Set() }
+  return new Set((data ?? []).map((e) => e.category_id as string).filter(Boolean))
+}
+
 // Estadísticas reales de asistencia a prácticas de una categoría, por jugador
 // (para los porcentajes de elegibilidad de la convocatoria).
 // El total es POR JUGADOR (cantidad de prácticas donde tiene registro), no el total
