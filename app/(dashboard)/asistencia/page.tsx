@@ -792,6 +792,13 @@ export default function AsistenciaPage() {
                     className={`w-8 h-8 rounded-md flex items-center justify-center border ${status === 'absent_unjustified' ? 'text-white border-transparent' : 'border-gray-200 text-gray-400 bg-white'}`}
                     style={status === 'absent_unjustified' ? { backgroundColor: '#DC2626' } : {}}
                   ><XCircle size={15} /></button>
+                  <button
+                    onClick={() => !closed && setStatus(player.id, status === 'absent_justified' ? 'unmarked' : 'absent_justified')}
+                    disabled={closed}
+                    title="Ausente justificado (avisó / certificado)"
+                    className={`w-8 h-8 rounded-md flex items-center justify-center border ${status === 'absent_justified' ? 'text-white border-transparent' : 'border-gray-200 text-gray-400 bg-white'}`}
+                    style={status === 'absent_justified' ? { backgroundColor: '#3b82f6' } : {}}
+                  ><AlertCircle size={15} /></button>
                 </div>
               </CardContent>
             </Card>
