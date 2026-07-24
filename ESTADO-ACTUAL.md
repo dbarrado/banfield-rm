@@ -3,6 +3,22 @@
 **Última actualización:** 2026-07-23
 **Para:** retomar el trabajo en otra PC.
 
+## Update 2026-07-24 (e) — Revisión coordinador + fix próximos partidos + guía coordinador
+- **Revisión del rol coordinador con login real (Morel):** todo funciona — ve los 7 turnos del día
+  en asistencia, plan editable, asistencia de profes con titulares/suplentes reales, selector libre
+  de profes en convocatoria, 9 partidos en fixture, cronograma (99 turnos) y socios con plata.
+- **Fix deployado:** "Próximos partidos" del dashboard (admin/coordinador) ahora usa events reales
+  (`loadMatchEvents`) desde hoy y muestra fecha/hora en horario LOCAL (bug: timestamptz UTC
+  mostraba sáb 10:00 como vie 13:00). Tira desde `events.tira`.
+- **Guía del coordinador** (PDF + video 3:07) en `data-import/instructivo-coordinador/` (gitignored,
+  mismo motivo PII). Mismo pipeline que la de profes.
+- **Guía de profes v2:** portada con el escudo real del club (`public/escudo-banfield.png`),
+  sección PREGUNTAS FRECUENTES basada en persona ("Profe Colo", avatar generado con gpt-image-2):
+  listados desactualizados (baja/alta/tira equivocada → coordinador; invitados → "Otros que
+  vinieron"), asistencia olvidada/errónea (flechas + REABRIR), certificado tardío, clave olvidada
+  (resetea el club), partido sin cargar, % injusto (override "Excepción" en no elegibles), sin señal.
+- Videos de ambas guías con escudo en la portada.
+
 ## Update 2026-07-24 (d) — "Mi clave" + instructivo para profes (PDF y video)
 - **Página `/clave` ("Mi clave")**: cualquier usuario logueado cambia SU contraseña
   (`supabase.auth.updateUser`, mínimo 8). En el menú de todos los roles. Motivo: los profes
