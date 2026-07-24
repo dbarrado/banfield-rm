@@ -24,6 +24,7 @@ import {
   Lock,
   UserPlus,
   Dumbbell,
+  KeyRound,
 } from 'lucide-react'
 import { hasAccess, getRequiredPlan, type Plan } from '@/lib/feature-gates'
 import { createClient } from '@/lib/supabase/client'
@@ -59,6 +60,7 @@ const allItems: NavItem[] = [
   { href: '/config/cronograma', icon: Calendar, label: 'Cronograma' },
   { href: '/config/profes', icon: Users, label: 'Profes' },
   { href: '/deportes', icon: Volleyball, label: 'Deportes' },
+  { href: '/clave', icon: KeyRound, label: 'Mi clave' },
 ]
 
 export function Sidebar() {

@@ -112,13 +112,13 @@ export function getRoleNavItems(role: ActiveRole, dayOfWeek: number): { primary:
   if (role === 'admin') {
     return {
       primary: ['/dashboard', '/socios', '/asistencia', '/cobranzas'],
-      secondary: ['/plan', '/caja', '/convocatoria', '/fixture', '/partidos', '/asistencia-profes', '/finanzas', '/reportes', '/tienda', '/inscripciones', '/invitar', '/config'],
+      secondary: ['/plan', '/caja', '/convocatoria', '/fixture', '/partidos', '/asistencia-profes', '/finanzas', '/reportes', '/tienda', '/inscripciones', '/invitar', '/config', '/clave'],
     }
   }
   if (role === 'tesorero') {
     return {
       primary: ['/dashboard', '/cobranzas', '/caja', '/finanzas'],
-      secondary: ['/socios', '/reportes', '/tienda', '/invitar'],
+      secondary: ['/socios', '/reportes', '/tienda', '/invitar', '/clave'],
     }
   }
   if (role === 'coordinador') {
@@ -128,19 +128,19 @@ export function getRoleNavItems(role: ActiveRole, dayOfWeek: number): { primary:
     if (isWeekend) {
       return {
         primary: ['/dashboard', '/partidos', '/asistencia-profes', '/asistencia'],
-        secondary: ['/plan', '/convocatoria', '/fixture', '/socios', '/inscripciones', '/config/cronograma', '/config/profes', '/deportes', '/cobranzas', '/finanzas', '/reportes', '/caja', '/tienda', '/invitar'],
+        secondary: ['/plan', '/convocatoria', '/fixture', '/socios', '/inscripciones', '/config/cronograma', '/config/profes', '/deportes', '/cobranzas', '/finanzas', '/reportes', '/caja', '/tienda', '/invitar', '/clave'],
       }
     }
     return {
       primary: ['/dashboard', '/plan', '/asistencia', '/asistencia-profes'],
-      secondary: ['/convocatoria', '/fixture', '/partidos', '/socios', '/inscripciones', '/config/cronograma', '/config/profes', '/deportes', '/cobranzas', '/finanzas', '/reportes', '/caja', '/tienda', '/invitar'],
+      secondary: ['/convocatoria', '/fixture', '/partidos', '/socios', '/inscripciones', '/config/cronograma', '/config/profes', '/deportes', '/cobranzas', '/finanzas', '/reportes', '/caja', '/tienda', '/invitar', '/clave'],
     }
   }
   if (role === 'asistencia_manana') {
     // Alcance acotado: firmar la asistencia de los turnos de la mañana y ver el plan del día.
     return {
       primary: ['/dashboard', '/asistencia', '/plan'],
-      secondary: ['/socios', '/fixture'],
+      secondary: ['/socios', '/fixture', '/clave'],
     }
   }
   // Profe — adapta según día
@@ -148,12 +148,12 @@ export function getRoleNavItems(role: ActiveRole, dayOfWeek: number): { primary:
   if (isWeekend) {
     return {
       primary: ['/dashboard', '/partidos', '/convocatoria', '/asistencia'],
-      secondary: ['/fixture', '/socios'],
+      secondary: ['/fixture', '/socios', '/clave'],
     }
   }
   return {
     primary: ['/dashboard', '/asistencia', '/plan', '/convocatoria'],
-    secondary: ['/fixture', '/partidos', '/socios'],
+    secondary: ['/fixture', '/partidos', '/socios', '/clave'],
   }
 }
 
