@@ -3,6 +3,21 @@
 **Última actualización:** 2026-07-23
 **Para:** retomar el trabajo en otra PC.
 
+## Update 2026-07-24 (d) — "Mi clave" + instructivo para profes (PDF y video)
+- **Página `/clave` ("Mi clave")**: cualquier usuario logueado cambia SU contraseña
+  (`supabase.auth.updateUser`, mínimo 8). En el menú de todos los roles. Motivo: los profes
+  entran con clave inicial estándar y ahora pueden reemplazarla solos. Deployado.
+- **Instructivo para profes** (pedido de Diego: simple y bien gráfico): PDF + HTML standalone con
+  capturas REALES de producción (vista de Bruno, viewport celular). Incluye clave inicial y cómo
+  cambiarla. Vive en `data-import/instructivo-profes/` (**gitignored a propósito**: el repo es
+  público y las capturas tienen nombres de menores). Capturas reproducibles con
+  `data-import/cdp-capturas-instructivo.mjs` (datos de muestra se insertan y revierten).
+- **Video instructivo** (2:44, 1080x1920 vertical, ~12 MB, WhatsApp-ready): placas HTML→PNG por
+  sección + voz TTS OpenAI `gpt-4o-mini-tts` (voz "ash", instrucción rioplatense; key personal
+  global — NO se usó la key ElevenLabs de Aromas por regla de no cruzar keys entre proyectos) +
+  ffmpeg (zoompan + fades + concat). Pipeline completo en `data-import/instructivo-profes/video/`
+  (guion.json + gen-slides.mjs + gen-audios.mjs). Regenerable al cambiar la app.
+
 ## Update 2026-07-24 (c) — Dashboard propio del profe
 - **Definición de Diego (AskUserQuestion):** bloques "Mis clases de hoy" + "Plan del día" +
   "Baja asistencia"; KPIs de club (socios/recaudado/deudores) FUERA para el profe.
