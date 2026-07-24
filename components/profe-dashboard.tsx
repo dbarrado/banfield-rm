@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
-import { CheckCircle2, ClipboardList, AlertTriangle, CalendarDays } from 'lucide-react'
+import { CheckCircle2, ClipboardList, AlertTriangle, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react'
 import { getAssignmentsForProfe, getPlayersForClub, getCategoriesForClub, demoEligibilityConfig } from '@/lib/demo-data'
 import { useCurrentProfe } from '@/lib/use-current-profe'
 import { loadTrainingSlots } from '@/lib/data/ops-store'
@@ -42,6 +42,8 @@ export function ProfeDashboard({ club }: { club: Club }) {
   const [takenCats, setTakenCats] = useState<Set<string>>(new Set())
   const [plans, setPlans] = useState<Record<string, DayPlan>>({})
   const [lowAtt, setLowAtt] = useState<{ id: string; name: string; cat: string; pct: number }[] | null>(null)
+  // Colapsable: por defecto se muestran solo los primeros 4
+  const [showAllLow, setShowAllLow] = useState(false)
 
   useEffect(() => {
     if (!profeId) return
@@ -201,7 +203,7 @@ export function ProfeDashboard({ club }: { club: Club }) {
         ) : (
           <Card className="border-0 shadow-sm" style={{ borderLeft: '4px solid #F59E0B' }}>
             <CardContent className="p-3 space-y-1">
-              {lowAtt.slice(0, 8).map(p => (
+              {(showAllLow ? lowAtt : lowAtt.slice(0, 4)).map(p => (
                 <Link key={p.id} href={`/socios/${p.id}`} className="flex items-center justify-between py-1 border-b last:border-0 hover:bg-amber-50 rounded px-1 -mx-1">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold truncate">{p.name}</p>
@@ -212,8 +214,15 @@ export function ProfeDashboard({ club }: { club: Club }) {
                   </span>
                 </Link>
               ))}
-              {lowAtt.length > 8 && (
-                <p className="text-[11px] text-muted-foreground pt-1">+{lowAtt.length - 8} más — umbral {demoEligibilityConfig.min_practice_percentage}%</p>
+              {lowAtt.length > 4 && (
+                <button
+                  onClick={() => setShowAllLow(v => !v)}
+                  className="w-full pt-1.5 text-xs font-semibold text-amber-700 flex items-center justify-center gap-1"
+                >
+                  {showAllLow
+                    ? <>Mostrar menos <ChevronUp size={13} /></>
+                    : <>Ver todos ({lowAtt.length}) <ChevronDown size={13} /></>}
+                </button>
               )}
             </CardContent>
           </Card>
