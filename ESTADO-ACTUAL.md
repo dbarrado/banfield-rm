@@ -3,6 +3,20 @@
 **Última actualización:** 2026-07-23
 **Para:** retomar el trabajo en otra PC.
 
+## Update 2026-07-24 (b) — Profe puro no ve plata en socios
+- **Definición de Diego (AskUserQuestion):** el profe ve "todo menos plata" en la ficha del socio,
+  y la excepción semanal la puede cargar también él (queda como estaba).
+- **Ficha del socio** (profe puro): ocultos la card "Cuota" (Al día/Deudor), "HISTORIAL DE PAGOS",
+  los % de descuento por hermanos (la lista de hermanos sigue visible) y el mensaje de WhatsApp
+  pasa a saludo neutro (nunca menciona deuda). Sigue viendo: datos del chico, tutor completo,
+  apto médico, posiciones, evaluación, asistencia, excepción semanal (editable).
+- **Listado de socios** (profe puro): ocultos el filtro "🚩 Deudores", el punto de color de estado
+  de cuota sobre el avatar y el botón de WhatsApp de deuda.
+- **NOTA pendiente (dicho a Diego):** los botones de edición de datos personales/tutor en la ficha
+  siguen abiertos a cualquier rol logueado — restringirlos si Diego lo pide.
+- Verificado vía CDP con login real de Bruno (profe): sin chip Deudores ni cards de plata;
+  excepción y tutor visibles. `tsc` + `build` verdes.
+
 ## Update 2026-07-24 — Justificaciones: botón en asistencia + excepción fija semanal
 - **Botón "ausente justificado" en `/asistencia`:** el estado `absent_justified` existía en el tipo,
   la base (columna `justified_reason` incluida) y la fórmula de elegibilidad, pero la UI no tenía

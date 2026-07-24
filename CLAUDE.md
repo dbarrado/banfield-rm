@@ -49,4 +49,7 @@ Confirmar que el deploy quede READY (Vercel MCP o curl) antes de reportar termin
 ## Roles — matriz de permisos clave
 - **Profe puro** (solo rol `profe`): ve/crea partidos SOLO de sus categorías+tiras (`profe_assignments`);
   convocatoria fija a su nombre; plan de entrenamiento SOLO LECTURA; asistencia solo de sus clases.
+  En socios: **NO ve nada de plata** (estado de cuota, historial de pagos, deudores, descuentos
+  hermanos, WhatsApp de deuda) — sí ve datos del chico, tutor y excepción semanal (definición
+  Diego 24-jul). La excepción semanal la puede cargar también el profe.
 - **Coordinador/admin**: sin restricciones; el plan de entrenamiento lo definen ellos.

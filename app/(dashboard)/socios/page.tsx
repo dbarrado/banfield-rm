@@ -15,6 +15,7 @@ import { useCurrentClub } from '@/lib/use-current-club'
 import { isRealClub } from '@/lib/real-clubs'
 import { getRealBillings } from '@/lib/data/billing-store'
 import { getTirasForSport, getTiraLabel, getTiraColor } from '@/lib/tiras'
+import { useUserRoles } from '@/lib/use-role'
 import type { SportCode } from '@/lib/sports'
 
 function getPaymentStatus(playerId: string) {
@@ -58,6 +59,9 @@ function SociosPage() {
 
   // Estado de cuota: club real = desde billings reales (no demoPayments).
   const real = isRealClub(club.id)
+  // Profe puro: NO ve nada de plata (dot de cuota, filtro deudores, WhatsApp de deuda).
+  const userRoles = useUserRoles()
+  const isPureProfe = real && userRoles.includes('profe') && !userRoles.includes('admin') && !userRoles.includes('coordinador')
   const realBillings = useMemo(() => real ? (getRealBillings(club.id) ?? []) : [], [real, club.id])
   const paidActividadSet = useMemo(
     () => new Set(realBillings.filter(b => b.fee_type === 'actividad' && b.status === 'paid').map(b => b.player_id)),
@@ -132,13 +136,15 @@ function SociosPage() {
       {/* Filtros acumulativos */}
       <div className="space-y-2">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <button
-            onClick={() => setShowDeudores(!showDeudores)}
-            className={`px-2.5 py-1 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${showDeudores ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`}
-            style={showDeudores ? { backgroundColor: '#DC2626' } : {}}
-          >
-            🚩 Deudores ({deudores.length})
-          </button>
+          {!isPureProfe && (
+            <button
+              onClick={() => setShowDeudores(!showDeudores)}
+              className={`px-2.5 py-1 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${showDeudores ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'}`}
+              style={showDeudores ? { backgroundColor: '#DC2626' } : {}}
+            >
+              🚩 Deudores ({deudores.length})
+            </button>
+          )}
           {hasActiveFilters && (
             <button
               onClick={() => { setShowDeudores(false); setSelectedTira(null); setSelectedCategory(null); setSearch(''); }}
@@ -196,12 +202,14 @@ function SociosPage() {
                     <div className="w-10 h-10 rounded-full overflow-hidden bg-white">
                       <img src={getAvatarUrl(player)} alt="" className="w-full h-full object-cover" />
                     </div>
-                    {/* Dot de estado de cuota sobre el avatar */}
-                    <span
-                      className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white"
-                      style={{ backgroundColor: statusDot }}
-                      title={statusLabel[status]}
-                    />
+                    {/* Dot de estado de cuota sobre el avatar (oculto para profe puro) */}
+                    {!isPureProfe && (
+                      <span
+                        className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white"
+                        style={{ backgroundColor: statusDot }}
+                        title={statusLabel[status]}
+                      />
+                    )}
                   </div>
 
                   {/* Nombre + meta en 2 líneas */}
@@ -218,8 +226,8 @@ function SociosPage() {
                     </p>
                   </div>
 
-                  {/* WhatsApp solo si es deudor */}
-                  {status === 'deudor' && player.tutor_whatsapp && (
+                  {/* WhatsApp solo si es deudor (oculto para profe puro: no ve deudas) */}
+                  {!isPureProfe && status === 'deudor' && player.tutor_whatsapp && (
                     <a
                       href={`https://wa.me/54${player.tutor_whatsapp}?text=${waMsg}`}
                       target="_blank"

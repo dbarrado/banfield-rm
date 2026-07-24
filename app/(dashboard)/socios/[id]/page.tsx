@@ -13,7 +13,7 @@ import { isRealClub } from '@/lib/real-clubs'
 import { updatePlayer } from '@/lib/data/players-store'
 import { getRealBillings } from '@/lib/data/billing-store'
 import { DEFAULT_FEE_ACTIVIDAD } from '@/lib/billings'
-import { useActiveRole } from '@/lib/use-role'
+import { useActiveRole, useUserRoles } from '@/lib/use-role'
 import { POSITION_LABELS, POSITION_COLORS, type Position } from '@/types'
 import { getAvatarUrl } from '@/lib/avatars'
 import { getTiraLabel, getTiraColor } from '@/lib/tiras'
@@ -137,6 +137,9 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
   // ROL ACTIVO: tesorero NO ve evaluación deportiva (no es su área). Padres tampoco — el padre vive en /padres/, fuera de este shell.
   const [activeRole] = useActiveRole()
   const canSeeRatings = activeRole === 'admin' || activeRole === 'profe' || activeRole === 'coordinador'
+  // Profe puro: NO ve nada de plata (estado de cuota, pagos, descuentos por hermanos).
+  const userRoles = useUserRoles()
+  const isPureProfe = real && userRoles.includes('profe') && !userRoles.includes('admin') && !userRoles.includes('coordinador')
   const ratingHistory = canSeeRatings ? getRatingsForPlayer(player.id) : []
   const ratingStats = canSeeRatings ? getPlayerRatingStats(player.id) : null
   const playerSportCode = (cat?.sport_format_code ?? 'football_11') as SportCode
@@ -179,8 +182,9 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
     reader.readAsDataURL(file)
   }
 
+  // Profe puro: mensaje neutro siempre (no ve ni comunica deudas)
   const waMsg = encodeURIComponent(
-    status === 'deudor'
+    status === 'deudor' && !isPureProfe
       ? `Hola ${info.tutor_name}, te recordamos que ${info.full_name} tiene una deuda pendiente con el Club Banfield Ramos Mejía.`
       : `Hola ${info.tutor_name}, soy del Club Banfield Ramos Mejía.`
   )
@@ -251,14 +255,16 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
               <p className="text-[10px] text-muted-foreground">veces este año</p>
             </CardContent>
           </Card>
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-2.5 text-center">
-              <p className="text-[10px] uppercase font-semibold text-muted-foreground">Cuota</p>
-              <p className="text-base font-bold mt-1" style={{ fontFamily: "var(--font-barlow)", color: statusColor }}>
-                {statusLabel}
-              </p>
-            </CardContent>
-          </Card>
+          {!isPureProfe && (
+            <Card className="border-0 shadow-sm">
+              <CardContent className="p-2.5 text-center">
+                <p className="text-[10px] uppercase font-semibold text-muted-foreground">Cuota</p>
+                <p className="text-base font-bold mt-1" style={{ fontFamily: "var(--font-barlow)", color: statusColor }}>
+                  {statusLabel}
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Asistencia detallada: año y semana */}
@@ -394,7 +400,7 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
                   <p className="text-xs font-bold uppercase tracking-wider text-purple-700 flex items-center gap-1.5" style={{ fontFamily: "var(--font-barlow)" }}>
                     <UsersIcon size={12} /> HERMANOS EN EL CLUB ({siblings.length})
                   </p>
-                  {myDiscount.discount_pct > 0 && (
+                  {!isPureProfe && myDiscount.discount_pct > 0 && (
                     <Badge className="text-[10px] bg-purple-100 text-purple-700 border-0">
                       {myDiscount.order}° hijo · {myDiscount.discount_pct}% off
                     </Badge>
@@ -414,7 +420,7 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
                             <p className="text-xs font-semibold truncate">{s.full_name}</p>
                             <p className="text-[10px] text-muted-foreground">Cat. {sCat?.name}</p>
                           </div>
-                          {sDiscount.discount_pct > 0 && (
+                          {!isPureProfe && sDiscount.discount_pct > 0 && (
                             <span className="text-[10px] text-purple-700 font-bold">{sDiscount.discount_pct}% off</span>
                           )}
                         </div>
@@ -422,9 +428,11 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
                     )
                   })}
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-2 italic">
-                  Configurado: 2° hijo {demoSiblingDiscountConfig.second_child_pct}% off · 3° y siguientes {demoSiblingDiscountConfig.third_or_more_pct}% off
-                </p>
+                {!isPureProfe && (
+                  <p className="text-[10px] text-muted-foreground mt-2 italic">
+                    Configurado: 2° hijo {demoSiblingDiscountConfig.second_child_pct}% off · 3° y siguientes {demoSiblingDiscountConfig.third_or_more_pct}% off
+                  </p>
+                )}
               </CardContent>
             </Card>
           )
@@ -747,7 +755,8 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
           </CardContent>
         </Card>
 
-        {/* Pagos */}
+        {/* Pagos — profe puro NO ve nada de plata */}
+        {!isPureProfe && (
         <Card className="border-0 shadow-sm">
           <CardContent className="p-3">
             <div className="flex items-center justify-between mb-2">
@@ -778,6 +787,7 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ id: st
             </div>
           </CardContent>
         </Card>
+        )}
 
         {/* Observaciones */}
         <Card className="border-0 shadow-sm">
