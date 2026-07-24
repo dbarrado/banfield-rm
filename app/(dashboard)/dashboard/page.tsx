@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Users, TrendingUp, AlertTriangle, Calendar, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
@@ -18,6 +18,8 @@ import { getTiraLabel, getTiraColor } from '@/lib/tiras'
 import type { SportCode } from '@/lib/sports'
 import { isRealClub } from '@/lib/real-clubs'
 import { getRealBillings } from '@/lib/data/billing-store'
+import { loadMatchEvents } from '@/lib/data/ops-store'
+import type { Event } from '@/types'
 import { DEFAULT_FEE_ACTIVIDAD } from '@/lib/billings'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { useActiveRole, useUserRoles } from '@/lib/use-role'
@@ -34,6 +36,15 @@ export default function DashboardPage() {
 
   const real = isRealClub(club.id)
   const realBillings = real ? (getRealBillings(club.id) ?? []) : []
+
+  // Club real: los partidos del fixture viven en Supabase, no en memoria demo.
+  const [realMatches, setRealMatches] = useState<Event[]>([])
+  useEffect(() => {
+    if (!real) return
+    let cancelled = false
+    loadMatchEvents(club.id).then(evs => { if (!cancelled && evs) setRealMatches(evs as Event[]) })
+    return () => { cancelled = true }
+  }, [real, club.id])
 
   const totalSocios = real
     ? clubPlayers.filter(p => p.is_active).length
@@ -56,8 +67,10 @@ export default function DashboardPage() {
   const target = cuotaActividad * totalSocios
   const incomePercent = target > 0 ? Math.round((monthlyIncome / target) * 100) : 0
   // Próximos partidos agrupados: por (fecha, rival, tira) — todas las categorías que juegan ese día contra ese rival con esa tira
-  const today = new Date('2026-05-07')
-  const allUpcoming = clubEvents
+  // Club real: partidos reales desde HOY. Demo: fecha fija de la simulación.
+  const today = real ? new Date(new Date().setHours(0, 0, 0, 0)) : new Date('2026-05-07')
+  const matchSource = real ? realMatches : clubEvents
+  const allUpcoming = matchSource
     .filter(e => e.event_type === 'match' && !e.is_suspended && new Date(e.scheduled_at) > today)
     .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
 
@@ -73,15 +86,17 @@ export default function DashboardPage() {
   }
   const groupsMap = new Map<string, GroupedMatch>()
   for (const m of allUpcoming) {
-    const dateOnly = m.scheduled_at.split('T')[0]
-    const time = m.scheduled_at.split('T')[1]?.slice(0, 5) ?? '—'
+    // Fecha/hora en horario LOCAL (los eventos reales vienen timestamptz en UTC)
+    const dt = new Date(m.scheduled_at)
+    const dateOnly = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+    const time = dt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })
     // Inferir tira: la mayoría de la categoría
     const playersOfCat = clubPlayers.filter(p => p.category_id === m.category_id)
     const tiraCount: Record<string, number> = {}
     for (const p of playersOfCat) tiraCount[p.tira] = (tiraCount[p.tira] || 0) + 1
-    // Inferir tira por id del evento si tiene patrón
+    // Tira: eventos reales la traen en events.tira; demo se infiere por id o mayoría
     const tiraFromId = m.id.match(/ev-match-\d+-(\w+)-/)?.[1] as Tira | undefined
-    const tira = tiraFromId ?? (Object.entries(tiraCount).sort((a, b) => b[1] - a[1])[0]?.[0] as Tira | null)
+    const tira = (m.tira as Tira | undefined) ?? tiraFromId ?? (Object.entries(tiraCount).sort((a, b) => b[1] - a[1])[0]?.[0] as Tira | null)
     const key = `${dateOnly}-${m.rival}-${tira}`
     const cat = clubCategories.find(c => c.id === m.category_id)
     if (!groupsMap.has(key)) {
@@ -340,7 +355,7 @@ export default function DashboardPage() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {groupedMatches.map(g => {
-              const date = new Date(g.date)
+              const date = new Date(`${g.date}T12:00:00`)
               const sc = (club.default_sport_code ?? 'football_11') as SportCode
               const tiraColor = g.tira ? getTiraColor(g.tira, sc) : '#9ca3af'
               const tiraLabel = g.tira ? getTiraLabel(g.tira, sc) : '—'
