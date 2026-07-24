@@ -55,6 +55,54 @@ export async function loadAttendanceForDate(
   }
 }
 
+// Estadísticas reales de asistencia a prácticas de una categoría, por jugador
+// (para los porcentajes de elegibilidad de la convocatoria).
+// El total es POR JUGADOR (cantidad de prácticas donde tiene registro), no el total
+// de eventos de la categoría: en categorías multi-tira cada tira firma su propia
+// práctica, y un chico no debe ser penalizado por prácticas de otra tira.
+// Sin registros → total 0 → la convocatoria lo trata como elegible (sin datos no bloquea).
+export async function loadPracticeStats(
+  demoClubId: string,
+  categoryId: string
+): Promise<Record<string, { attended: number; justified: number; total: number; percentage: number }> | null> {
+  const sb = realClubId(demoClubId)
+  if (!sb) return null
+  const supabase = createClient()
+  try {
+    const { data: evs, error: e1 } = await supabase
+      .from('events')
+      .select('id')
+      .eq('club_id', sb)
+      .eq('category_id', categoryId)
+      .eq('event_type', 'practice')
+      .eq('is_suspended', false)
+    if (e1) throw e1
+    const ids = (evs ?? []).map((e) => e.id)
+    if (!ids.length) return {}
+    const { data: atts, error: e2 } = await supabase
+      .from('attendances')
+      .select('player_id, status')
+      .in('event_id', ids)
+    if (e2) throw e2
+    const out: Record<string, { attended: number; justified: number; total: number; percentage: number }> = {}
+    for (const a of atts ?? []) {
+      const cur = out[a.player_id as string] ?? { attended: 0, justified: 0, total: 0, percentage: 0 }
+      cur.total++
+      if (a.status === 'present' || a.status === 'late') cur.attended++
+      else if (a.status === 'absent_justified') cur.justified++
+      out[a.player_id as string] = cur
+    }
+    for (const pid of Object.keys(out)) {
+      const s = out[pid]
+      s.percentage = Math.round((s.attended / Math.max(s.total - s.justified, 1)) * 100)
+    }
+    return out
+  } catch (e: any) {
+    console.error('[attendance-store] loadPracticeStats:', e?.message ?? e)
+    return null
+  }
+}
+
 export async function persistAttendanceUpsert(
   demoClubId: string,
   args: {

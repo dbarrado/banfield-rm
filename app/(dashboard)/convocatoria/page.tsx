@@ -10,6 +10,7 @@ import { getAvatarUrl } from '@/lib/avatars'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { isRealClub } from '@/lib/real-clubs'
 import { persistConvocation, loadLatestConvocation, loadMatchEvents } from '@/lib/data/ops-store'
+import { loadPracticeStats } from '@/lib/data/attendance-store'
 import { POSITION_LABELS, POSITION_COLORS, TIRA_LABELS, TIRA_COLORS, type Position, type Tira, type Event } from '@/types'
 import { useUserRoles } from '@/lib/use-role'
 import { useCurrentProfe } from '@/lib/use-current-profe'
@@ -116,8 +117,21 @@ export default function ConvocatoriaPage() {
     ? clubPlayers.filter(p => p.category_id === effectiveCategory && p.is_active && p.tira === effectiveTira)
     : []
 
+  // Club real: los porcentajes de prácticas salen de las asistencias REALES guardadas
+  // en Supabase (loadPracticeStats), no de los datos demo en memoria.
+  const [realPracticeStats, setRealPracticeStats] = useState<Record<string, { attended: number; justified: number; total: number; percentage: number }> | null>(null)
+  useEffect(() => {
+    if (!real || !effectiveCategory) return
+    let cancelled = false
+    setRealPracticeStats(null)
+    loadPracticeStats(club.id, effectiveCategory).then(s => { if (!cancelled) setRealPracticeStats(s) })
+    return () => { cancelled = true }
+  }, [real, club.id, effectiveCategory])
+
   const playersWithStats = players.map(p => {
-    const practiceStats = getAttendanceStats(p.id, selectedCategory)
+    const practiceStats = real
+      ? (realPracticeStats?.[p.id] ?? { attended: 0, justified: 0, total: 0, percentage: 0 })
+      : getAttendanceStats(p.id, selectedCategory)
     // Club real: sin partidos jugados aún, el % de partidos no debe bloquear (total 0 = elegible).
     const matchStats = real ? { played: 0, total: 0, percentage: 0 } : getMatchAttendanceStats(p.id)
     const meetsPractice = practiceStats.percentage >= practiceThreshold || practiceStats.total === 0

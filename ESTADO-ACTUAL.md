@@ -3,6 +3,22 @@
 **Última actualización:** 2026-07-23
 **Para:** retomar el trabajo en otra PC.
 
+## Update 2026-07-23 (c) — Los % de la convocatoria ahora salen de la asistencia REAL
+- **Reporte de Diego:** tomó asistencia hoy (cat 2013) y los porcentajes de la convocatoria no
+  la reflejaban. Causa: `getAttendanceStats` (demo-data) calcula sobre `demoEvents`/`demoAttendance`
+  en memoria — la asistencia real se guardaba en Supabase pero nunca se leía para elegibilidad
+  (mismo patrón que el fixture en el update (a)).
+- **Fix:** `loadPracticeStats(clubId, categoryId)` en `lib/data/attendance-store.ts` — lee events
+  practice + attendances de la categoría y devuelve stats por jugador. La convocatoria (club real)
+  usa eso en vez del cálculo demo. Detalles de la fórmula:
+  - El **total es POR JUGADOR** (prácticas donde tiene registro), no el total de eventos de la
+    categoría: en categorías multi-tira cada tira firma su propia práctica y un chico no debe ser
+    penalizado por prácticas de otra tira.
+  - `late` cuenta como asistió; `absent_justified` descuenta el denominador (igual que demo).
+  - Sin registros → total 0 → elegible (sin datos no se bloquea a nadie).
+- **Verificado** contra la base (cat 2013: 6 chicos 100%, 18 con 50%, 47 con 0% — la UI coincide)
+  y en la app vía CDP con login real.
+
 ## Update 2026-07-23 (b) — Permisos de profe: partidos solo suyos, plan solo lectura, flyer desde galería
 - **Pedidos de Diego (mismo día, segunda tanda):**
   1. **Plan de entrenamiento**: lo define el coordinador; el profe puro ahora lo ve SOLO LECTURA

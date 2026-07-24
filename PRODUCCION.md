@@ -38,7 +38,7 @@ en `pending_registrations` — es una decisión de seguridad aparte (hoy RLS las
 | Cuotas / Cobranzas | billings | ✅ | ✅ condonar/ajustar (`billing-store`) |
 | Caja / Cobrar | payments, billings | ✅ | ✅ cobro+recargo transfer (probado $66.000) · ⬜ cash_sessions/movements |
 | Config cobranza/cuota | fee_configs, billing_configs | ✅ (valores) | ⬜ editar desde UI |
-| Asistencia | events, attendances | — | ✅ cierre persiste (`attendance-store`, probado) |
+| Asistencia | events, attendances | ✅ edición del día (`loadAttendanceForDate`) + % elegibilidad convocatoria (`loadPracticeStats`, 23-jul) | ✅ cierre persiste (`attendance-store`, probado) |
 | **Plan de entrenamiento** | session_plans, session_plan_items | ✅ (`/plan` + vista en asistencia) | ✅ coordinador carga, probado |
 | Convocatoria | convocations, convocation_players | ✅ precarga última + partido de la semana auto | ✅ libre por tira+categoría (probado) |
 | Partidos / Fixture | events, match_ratings, observations | ✅ `loadMatchEvents` (fixture+convocatoria, probado 23-jul) | ✅ alta desde flyer y a mano (`createMatchEvents`, probado 23-jul) · ⬜ reprogramar/suspender persisten |
