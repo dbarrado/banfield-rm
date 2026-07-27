@@ -66,6 +66,8 @@ export default function PlanPage() {
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
   const [monthReload, setMonthReload] = useState(0)
+  // "Este plan es para varias categorías": al guardar, se escribe también en estas
+  const [extraCats, setExtraCats] = useState<Set<string>>(new Set())
 
   // Autocompletar: biblioteca de ejercicios/títulos ya usados en el club
   const [library, setLibrary] = useState<{ exercises: ExerciseSuggestion[]; titles: string[] }>({ exercises: [], titles: [] })
@@ -122,7 +124,7 @@ export default function PlanPage() {
   // Cargar el plan del día seleccionado
   useEffect(() => {
     if (!categoryId) return
-    setSaved(false); setCopyMsg('')
+    setSaved(false); setCopyMsg(''); setExtraCats(new Set())
     if (!real) { setItems([{ position: 1, description: '', duration_min: null }]); setTitle(''); return }
     let cancel = false
     setLoading(true)
@@ -145,9 +147,22 @@ export default function PlanPage() {
     if (!real) { setSaved(true); return }
     setLoading(true)
     const res = await savePlan(club.id, categoryId, date, title, items)
+    // Si el plan es para varias categorías, se guarda igual en cada una
+    let extrasOk = 0
+    if (res.ok && extraCats.size) {
+      for (const catId of extraCats) {
+        const r = await savePlan(club.id, catId, date, title, items)
+        if (r.ok) extrasOk++
+      }
+    }
     setLoading(false)
-    if (res.ok) { setSaved(true); setMonthReload(x => x + 1) }
-    else alert(`No se pudo guardar: ${res.error}`)
+    if (res.ok) {
+      setSaved(true)
+      setMonthReload(x => x + 1)
+      if (extraCats.size) setCopyMsg(`✓ Guardado en ${1 + extrasOk} categorías para este día.`)
+    } else {
+      alert(`No se pudo guardar: ${res.error}`)
+    }
   }
 
   const hasSavedPlan = monthPlans.has(date)
@@ -331,18 +346,23 @@ export default function PlanPage() {
             )}
           </div>
 
-          {items.map((it, idx) => (
-            <div key={idx} className="flex gap-2 items-start">
-              <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 mt-1"
-                style={{ backgroundColor: club.primary_color }}>{idx + 1}</div>
-              <div className="flex-1 space-y-1.5">
-                <div className="relative">
-                  <textarea value={it.description} onChange={e => updateItem(idx, { description: e.target.value })}
-                    placeholder={idx === 0 && !library.exercises.length ? `Ejercicio ${idx + 1} — descripción` : `Ejercicio ${idx + 1} — escribí y elegí de los ya usados`}
-                    rows={2}
+          {/* Ejercicios: UNA línea cada uno — Enter agrega la siguiente */}
+          <div className="space-y-1.5">
+            {items.map((it, idx) => (
+              <div key={idx} className="flex gap-1.5 items-center">
+                <span className="w-5 text-xs font-bold text-center flex-shrink-0" style={{ color: club.primary_color }}>{idx + 1}</span>
+                <div className="relative flex-1 min-w-0">
+                  <input
+                    type="text"
+                    value={it.description}
+                    onChange={e => updateItem(idx, { description: e.target.value })}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && idx === items.length - 1 && it.description.trim()) { e.preventDefault(); addItem() }
+                    }}
+                    placeholder={idx === 0 ? 'Ejercicio (escribí y elegí de los ya usados)' : `Ejercicio ${idx + 1}`}
                     onFocus={() => setFocusField(idx)}
                     onBlur={() => setTimeout(() => setFocusField(f => f === idx ? null : f), 150)}
-                    className="w-full px-3 py-2 border rounded-lg text-sm resize-none" />
+                    className="w-full px-3 py-2 border rounded-lg text-sm" />
                   {focusField === idx && exerciseSuggestions(it.description).length > 0 && (
                     <div className="absolute z-20 left-0 right-0 top-full bg-white border rounded-lg shadow-lg overflow-hidden">
                       {exerciseSuggestions(it.description).map(s => (
@@ -356,26 +376,45 @@ export default function PlanPage() {
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <input type="number" min={0} value={it.duration_min ?? ''} onChange={e => updateItem(idx, { duration_min: e.target.value ? Number(e.target.value) : null })}
-                    placeholder="min" className="w-20 px-2 py-1.5 border rounded-lg text-sm" />
-                  <span className="text-xs text-muted-foreground">minutos</span>
-                  {items.length > 1 && (
-                    <button onClick={() => removeItem(idx)} className="ml-auto text-red-500 p-1 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
-                  )}
-                </div>
+                <input type="number" min={0} value={it.duration_min ?? ''} onChange={e => updateItem(idx, { duration_min: e.target.value ? Number(e.target.value) : null })}
+                  placeholder="min" title="Minutos" className="w-14 px-2 py-2 border rounded-lg text-sm text-center flex-shrink-0" />
+                {items.length > 1 ? (
+                  <button onClick={() => removeItem(idx)} className="text-red-400 p-1 hover:bg-red-50 rounded flex-shrink-0"><Trash2 size={13} /></button>
+                ) : <span className="w-[21px] flex-shrink-0" />}
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
 
           <button onClick={addItem} className="w-full py-2 rounded-xl border-2 border-dashed text-xs font-semibold text-muted-foreground hover:bg-gray-50 flex items-center justify-center gap-1">
             <Plus size={13} /> Agregar ejercicio
           </button>
 
+          {/* ¿El plan es para varias categorías? Se guarda en todas de una */}
+          <div>
+            <p className="text-[11px] font-semibold text-muted-foreground mb-1">¿Es para varias categorías? Marcá cuáles más:</p>
+            <div className="flex flex-wrap gap-1.5">
+              {allCategories.filter(c => c.id !== categoryId).map(c => {
+                const on = extraCats.has(c.id)
+                return (
+                  <button key={c.id} onClick={() => { setExtraCats(prev => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n }); setSaved(false) }}
+                    className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${on ? 'text-white border-transparent' : 'border-gray-200 text-gray-500'}`}
+                    style={on ? { backgroundColor: club.primary_color } : {}}>
+                    {c.name}
+                  </button>
+                )
+              })}
+              <button
+                onClick={() => { setExtraCats(new Set(allCategories.filter(c => c.id !== categoryId).map(c => c.id))); setSaved(false) }}
+                className="px-2.5 py-1 rounded-full text-xs font-semibold border border-dashed border-gray-300 text-gray-500">
+                Todas
+              </button>
+            </div>
+          </div>
+
           <button onClick={handleSave} disabled={loading}
             className="w-full py-3 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
             style={{ backgroundColor: club.primary_color }}>
-            <Save size={16} /> {loading ? 'Guardando…' : saved ? '✓ Plan guardado' : `Guardar plan — ${catName} · ${fromISO(date).getDate()}/${monthAnchor.month + 1}`}
+            <Save size={16} /> {loading ? 'Guardando…' : saved ? '✓ Plan guardado' : `Guardar plan — ${catName}${extraCats.size ? ` + ${extraCats.size} más` : ''} · ${fromISO(date).getDate()}/${monthAnchor.month + 1}`}
           </button>
 
           {/* Duplicar */}
