@@ -3,6 +3,11 @@
 **Última actualización:** 2026-07-23
 **Para:** retomar el trabajo en otra PC.
 
+## Update 2026-07-24 (g) — Guías v2 con el plan mensual
+- Video del coordinador re-ensamblado (3:32): sección 4 regrabada con la planificación mensual,
+  replicación y autocompletar (capturas 40/41 tomadas en PROD como Morel, con planes de muestra
+  cat 2010 semana 3-7 ago — borrarlos cuando Diego termine de probar). PDF Guía Coordinador v2 ídem.
+
 ## Update 2026-07-24 (f) — Plan de entrenamiento MENSUAL con replicación y autocompletar
 - **Pedido de Diego:** el coordinador planifica MENSUALMENTE (mes → semanas → días) y necesita
   replicar fácil: mismo plan a otros días, a otras categorías, y semanas enteras a otras semanas.
