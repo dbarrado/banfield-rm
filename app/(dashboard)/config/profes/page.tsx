@@ -12,7 +12,9 @@ import { getProfesForClub, getCategoriesForClub, getAssignmentsForProfe } from '
 import { TIRA_LABELS, TIRA_COLORS } from '@/types'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { isRealClub } from '@/lib/real-clubs'
-import { createProfe, updateProfe, setProfeAssignments } from '@/lib/data/ops-store'
+import { updateProfe, setProfeAssignments } from '@/lib/data/ops-store'
+import { createClient } from '@/lib/supabase/client'
+import { realClubId } from '@/lib/real-clubs'
 
 type ProfeRow = { id: string; full_name: string; email?: string | null; whatsapp?: string | null; is_active: boolean }
 type Pair = { category_id: string; tira: string }
@@ -30,6 +32,8 @@ export default function ProfesPage() {
   )
 
   const [showForm, setShowForm] = useState(false)
+  const [altaMsg, setAltaMsg] = useState('')
+  const [altaBusy, setAltaBusy] = useState(false)
   const [editing, setEditing] = useState<ProfeRow | null>(null)
   const [confirmBaja, setConfirmBaja] = useState<ProfeRow | null>(null)
   const [showBajas, setShowBajas] = useState(false)
@@ -198,34 +202,55 @@ export default function ProfesPage() {
               <h3 className="text-lg font-bold" style={{ fontFamily: "var(--font-barlow)" }}>NUEVO PROFE</h3>
               <button onClick={() => setShowForm(false)} className="text-2xl text-muted-foreground">×</button>
             </div>
-            <form onSubmit={(e) => {
+            <form onSubmit={async (e) => {
               e.preventDefault()
               const fd = new FormData(e.currentTarget)
               const full_name = String(fd.get('full_name') ?? '').trim()
+              const email = String(fd.get('email') ?? '').trim()
               const whatsapp = String(fd.get('whatsapp') ?? '').trim()
               if (!full_name) return
+              setAltaMsg('')
               if (real) {
-                createProfe(club.id, { full_name, whatsapp: whatsapp || null }).then(r => {
-                  if (!r.ok) { alert(`No se pudo crear: ${r.error}`); return }
-                  setProfes(prev => [...prev, { id: r.id!, full_name, whatsapp, is_active: true }])
-                  setAssignMap(prev => ({ ...prev, [r.id!]: [] }))
+                // Alta completa: usuario + rol + ficha + mail de bienvenida (edge function)
+                if (!email) { setAltaMsg('⚠ El email es obligatorio: es el usuario con el que entra a la app.'); return }
+                setAltaBusy(true)
+                const supabase = createClient()
+                const { data, error } = await supabase.functions.invoke('alta-profe', {
+                  body: { club_id: realClubId(club.id), full_name, email, whatsapp },
                 })
+                setAltaBusy(false)
+                const res = (data ?? {}) as { ok?: boolean; profeId?: string; emailSent?: boolean; error?: string }
+                if (error || !res.ok) { setAltaMsg(`⚠ ${res.error ?? error?.message ?? 'No se pudo crear.'}`); return }
+                setProfes(prev => [...prev, { id: res.profeId!, full_name, email, whatsapp, is_active: true }])
+                setAssignMap(prev => ({ ...prev, [res.profeId!]: [] }))
+                setShowForm(false)
+                alert(res.emailSent
+                  ? `✅ ${full_name} ya tiene usuario y le llegó el mail de bienvenida con su acceso.\n\nAhora tocalo en la lista para asignarle sus tiras y categorías.`
+                  : `✅ ${full_name} ya tiene usuario (clave inicial estándar), pero el mail no salió — pasale el acceso por WhatsApp.\n\nAhora tocalo en la lista para asignarle sus tiras y categorías.`)
               } else {
-                setProfes(prev => [...prev, { id: `pf-new-${Date.now()}`, full_name, whatsapp, is_active: true }])
+                setProfes(prev => [...prev, { id: `pf-new-${Date.now()}`, full_name, email, whatsapp, is_active: true }])
+                setShowForm(false)
               }
-              setShowForm(false)
             }} className="space-y-3">
               <div>
                 <label className="text-xs font-semibold mb-1 block">Nombre completo *</label>
                 <input name="full_name" type="text" required placeholder="Juan Pérez" className="w-full px-3 py-2.5 border rounded-lg text-sm" />
               </div>
               <div>
+                <label className="text-xs font-semibold mb-1 block">Email * <span className="font-normal text-muted-foreground">(va a ser su usuario)</span></label>
+                <input name="email" type="email" required placeholder="juan@gmail.com" className="w-full px-3 py-2.5 border rounded-lg text-sm" />
+              </div>
+              <div>
                 <label className="text-xs font-semibold mb-1 block">WhatsApp</label>
                 <input name="whatsapp" type="tel" placeholder="11 4500 1111" className="w-full px-3 py-2.5 border rounded-lg text-sm" />
               </div>
-              <p className="text-xs text-muted-foreground">Después de crearlo, tocalo en la lista para asignarle sus tiras y categorías.</p>
-              <button type="submit" className="w-full py-3 rounded-xl text-white font-bold text-sm" style={{ backgroundColor: 'var(--club-primary, #00843D)' }}>
-                CREAR PROFE
+              <p className="text-xs text-muted-foreground">
+                Se crea su usuario con la clave inicial del club y <b>le llega un mail</b> con el acceso
+                y el recordatorio de cambiar la clave. Después tocalo en la lista para asignarle tiras y categorías.
+              </p>
+              {altaMsg && <p className="text-xs text-amber-600 font-semibold">{altaMsg}</p>}
+              <button type="submit" disabled={altaBusy} className="w-full py-3 rounded-xl text-white font-bold text-sm disabled:opacity-50" style={{ backgroundColor: 'var(--club-primary, #00843D)' }}>
+                {altaBusy ? 'Creando usuario…' : 'CREAR PROFE Y ENVIAR ACCESO'}
               </button>
             </form>
           </div>
