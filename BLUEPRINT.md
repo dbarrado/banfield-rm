@@ -147,6 +147,22 @@ KPIs principales del club: socios activos, asistencia del día, próximo partido
   precarga como ausente justificado (el profe puede pisarlo); si ya hay asistencia guardada ese
   día, se respeta lo guardado. El justificado descuenta el denominador del % de elegibilidad.
 
+### 6.4c `/plan` — Planificación MENSUAL del entrenamiento (coordinador)
+- **Vista mensual por categoría**: grilla de semanas (lun-dom) con puntito verde en los días con
+  plan; navegación ‹ mes ›. Tocás un día → editor debajo (título/objetivo + ejercicios con minutos
+  + total ⏱ de la sesión).
+- **Replicación** (todo pisa lo existente, avisado en el modal):
+  1. *Duplicar a otros días* — mini-calendario multi-select, misma categoría.
+  2. *Duplicar a otras categorías* — chips multi-select (+ "seleccionar todas"), mismo día.
+  3. *Copiar semana entera* — botón ⧉ al final de cada fila de semana: copia lun→lun, mar→mar
+     a la semana destino elegida (próximas 6).
+- **Autocompletar**: biblioteca de ejercicios del club (todo lo ya guardado, `loadExerciseLibrary`,
+  ordenado por frecuencia). Al enfocar un ejercicio vacío sugiere los 5 más usados; al escribir
+  ≥2 letras filtra; click completa descripción + minutos típicos. Ídem títulos.
+- Data: mismas tablas (`session_plans`/`session_plan_items`); cada copia es independiente y
+  editable por separado. Store: `loadPlansInRange`, `copyPlanTo`, `copyWeek`, `loadExerciseLibrary`.
+- El profe puro NO ve la vista mensual: sigue con su vista simple de solo lectura por día.
+
 ### 6.5 `/asistencia-profes` — Asistencia de profes
 - Lo toma el coordinador
 - Vista del cronograma del día con titular asignado por slot

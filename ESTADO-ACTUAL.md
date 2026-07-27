@@ -3,6 +3,25 @@
 **Última actualización:** 2026-07-23
 **Para:** retomar el trabajo en otra PC.
 
+## Update 2026-07-24 (f) — Plan de entrenamiento MENSUAL con replicación y autocompletar
+- **Pedido de Diego:** el coordinador planifica MENSUALMENTE (mes → semanas → días) y necesita
+  replicar fácil: mismo plan a otros días, a otras categorías, y semanas enteras a otras semanas.
+  Más autocompletar de ejercicios al cargar.
+- **Nuevo `/plan` para coordinador/admin** (el profe puro mantiene su vista simple solo lectura):
+  grilla mensual por semanas con dots, editor de día con total de minutos, y 3 replicaciones
+  (días multi-select / categorías multi-select / semana entera ⧉ respetando día de semana).
+  Detalle completo en BLUEPRINT §6.4c.
+- **Autocompletar**: `loadExerciseLibrary` arma la biblioteca del club desde `session_plan_items`
+  (frecuencia + minutos típicos); sugiere al enfocar (top 5) y al escribir (filtro sin tildes).
+  También títulos. Se re-aprende en cada guardado.
+- **Verificado en dev con login real de Morel** (script `data-import/cdp-verify-plan-mensual.mjs`,
+  sandbox diciembre-2026, datos TEST borrados): guardar ✓, duplicar a 2 días ✓, a categoría 2014 ✓,
+  semana entera ✓ (dots correctos), autocompletar ✓ (requiere focus emulation en headless).
+- **GOTCHAS de testing CDP aprendidos:** (1) `const` en Runtime.evaluate queda en scope global —
+  envolver SIEMPRE en IIFE o el segundo eval tira SyntaxError silencioso; (2) `.fixed` matchea la
+  bottom-nav — usar `.fixed.inset-0` para modales; (3) los eventos de foco en headless requieren
+  `Emulation.setFocusEmulationEnabled`.
+
 ## Update 2026-07-24 (e) — Revisión coordinador + fix próximos partidos + guía coordinador
 - **Revisión del rol coordinador con login real (Morel):** todo funciona — ve los 7 turnos del día
   en asistencia, plan editable, asistencia de profes con titulares/suplentes reales, selector libre
