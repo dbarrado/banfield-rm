@@ -3,6 +3,26 @@
 **Última actualización:** 2026-07-23
 **Para:** retomar el trabajo en otra PC.
 
+## Update 2026-07-24 (h) — Cronograma y profes 100% editables por el coordinador
+- **Pedido de Diego:** el coordinador tiene que poder cambiar profes asignados, horarios, días,
+  canchas y todo lo demás — simple, mínimos pasos, para no-expertos. Borrar SIEMPRE con pantalla
+  de confirmación + buenas prácticas para no perder información.
+- **Diseño de seguridad de datos:** NADA se borra físicamente. "Borrar" = desactivar (soft-delete),
+  con modal de confirmación en criollo que muestra exactamente qué se saca y aclara que se puede
+  volver a activar. Secciones colapsables "Prácticas desactivadas (N)" / "Profes dados de baja (N)"
+  con botón "Volver a activar" de un toque. El historial (asistencias/eventos) nunca se toca.
+- **Cronograma** (`/config/cronograma`): editar práctica ahora PERSISTE (updateTrainingSlot —
+  antes el modal era decorativo para el club real); sacar con confirmación (setTrainingSlotActive);
+  archivo reactivable por día.
+- **Profes** (`/config/profes`): pantalla rehecha simple — tocás el profe → editor con nombre,
+  WhatsApp y grilla de chips tira×categoría (setProfeAssignments reemplaza el set completo;
+  propaga solo a asistencia/convocatoria/fixture/dashboard del profe). Baja con confirmación
+  (updateProfe is_active=false) + reactivación. Alta ahora refresca la lista al instante.
+- **Verificado como Morel:** escrituras bajo RLS probadas con reversión (update slot, des/reactivar,
+  update profe, delete+reinsert assignments — 7→7 pares). UI: confirmación "no se borra nada" ✓,
+  modal editar con titular precargado ✓, editor de Bruno con sus chips 2013-2016 ✓.
+  Gotcha: el ícono Edit2 de lucide renderiza como clase `lucide-pen`.
+
 ## Update 2026-07-24 (g) — Guías v2 con el plan mensual
 - Video del coordinador re-ensamblado (3:32): sección 4 regrabada con la planificación mensual,
   replicación y autocompletar (capturas 40/41 tomadas en PROD como Morel, con planes de muestra

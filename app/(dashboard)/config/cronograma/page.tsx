@@ -10,7 +10,7 @@ import { demoCategories, demoProfes, getCategoriesForClub } from '@/lib/demo-dat
 import { TIRA_LABELS, TIRA_COLORS, type Tira } from '@/types'
 import { useCurrentClub } from '@/lib/use-current-club'
 import { isRealClub } from '@/lib/real-clubs'
-import { createTrainingSlot, loadTrainingSlots, loadProfes } from '@/lib/data/ops-store'
+import { createTrainingSlot, loadTrainingSlots, loadProfes, updateTrainingSlot, setTrainingSlotActive } from '@/lib/data/ops-store'
 
 const COURT_COLORS = ['#7c3aed', '#1d4ed8', '#dc2626', '#16a34a']
 const ALL_TIRAS: Tira[] = ['metro', 'liga1', 'liga2', 'edefi']
@@ -31,8 +31,37 @@ export default function CronogramaPage() {
   }, [club.id])
   const [editingSlot, setEditingSlot] = useState<TrainingSlot | null>(null)
   const [showNew, setShowNew] = useState(false)
+  // Sacar una práctica: SIEMPRE con confirmación (se desactiva, nunca se borra)
+  const [confirmSlot, setConfirmSlot] = useState<TrainingSlot | null>(null)
+  const [showInactive, setShowInactive] = useState(false)
 
   const slotsByDay = slots.filter(s => s.day_of_week === selectedDay && s.is_active).sort((a, b) => a.start_time.localeCompare(b.start_time))
+  const inactiveByDay = slots.filter(s => s.day_of_week === selectedDay && !s.is_active).sort((a, b) => a.start_time.localeCompare(b.start_time))
+
+  function slotResumen(s: TrainingSlot): string {
+    const dia = DAYS_OF_WEEK.find(d => d.num === s.day_of_week)?.full ?? ''
+    const catNames = cats.filter(c => s.category_ids.includes(c.id)).map(c => c.name).join(', ')
+    const tiraNames = s.tiras.map(t => TIRA_LABELS[t]).join(', ')
+    const titular = profesList.find(p => p.id === s.profe_titular_id)?.full_name
+    return `${dia} ${s.start_time}-${s.end_time} · Cancha ${s.court} · Cat. ${catNames} · ${tiraNames}${titular ? ` · ${titular}` : ''}`
+  }
+
+  async function desactivarSlot(s: TrainingSlot) {
+    setSlots(prev => prev.map(x => x.id === s.id ? { ...x, is_active: false } : x))
+    setConfirmSlot(null)
+    if (isRealClub(club.id)) {
+      const r = await setTrainingSlotActive(club.id, s.id, false)
+      if (!r.ok) alert(`No se pudo sacar la práctica: ${r.error}`)
+    }
+  }
+
+  async function reactivarSlot(s: TrainingSlot) {
+    setSlots(prev => prev.map(x => x.id === s.id ? { ...x, is_active: true } : x))
+    if (isRealClub(club.id)) {
+      const r = await setTrainingSlotActive(club.id, s.id, true)
+      if (!r.ok) alert(`No se pudo reactivar: ${r.error}`)
+    }
+  }
 
   // Agrupar por horario para detectar simultáneos
   type TimeGroup = { time_key: string; start: string; end: string; slots: TrainingSlot[] }
@@ -133,7 +162,7 @@ export default function CronogramaPage() {
                           <Edit2 size={12} />
                         </button>
                         <button
-                          onClick={() => setSlots(slots.map(x => x.id === s.id ? { ...x, is_active: false } : x))}
+                          onClick={() => setConfirmSlot(s)}
                           className="p-1 rounded text-red-500 hover:bg-red-50"
                         >
                           <Trash2 size={12} />
@@ -177,6 +206,52 @@ export default function CronogramaPage() {
         </div>
       ))}
 
+      {/* Prácticas desactivadas del día — nada se borra, todo se puede volver a poner */}
+      {inactiveByDay.length > 0 && (
+        <div className="pt-2">
+          <button onClick={() => setShowInactive(v => !v)} className="w-full py-2 rounded-lg border border-dashed text-xs font-semibold text-muted-foreground flex items-center justify-center gap-1 hover:bg-gray-50">
+            {showInactive ? '▾' : '▸'} Prácticas desactivadas de este día ({inactiveByDay.length})
+          </button>
+          {showInactive && (
+            <div className="space-y-1.5 mt-2">
+              {inactiveByDay.map(s => (
+                <Card key={s.id} className="border-0 shadow-sm bg-gray-50 opacity-80">
+                  <CardContent className="p-2.5 flex items-center gap-2">
+                    <p className="text-xs text-muted-foreground flex-1 min-w-0 truncate">{slotResumen(s)}</p>
+                    <button onClick={() => reactivarSlot(s)} className="text-xs font-bold px-2.5 py-1.5 rounded-lg text-white flex-shrink-0" style={{ backgroundColor: 'var(--club-primary, #00843D)' }}>
+                      Volver a activar
+                    </button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Confirmación para sacar una práctica — en criollo y mostrando qué se saca */}
+      {confirmSlot && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-3" onClick={() => setConfirmSlot(null)}>
+          <div onClick={e => e.stopPropagation()} className="bg-white rounded-t-2xl md:rounded-2xl w-full max-w-md p-4 space-y-3">
+            <h3 className="text-lg font-bold" style={{ fontFamily: 'var(--font-barlow)' }}>¿SACAR ESTA PRÁCTICA?</h3>
+            <div className="bg-gray-50 rounded-lg p-3 text-sm font-medium">{slotResumen(confirmSlot)}</div>
+            <p className="text-xs text-muted-foreground">
+              Tranquilo: <b>no se borra nada</b>. La práctica queda guardada en "Prácticas desactivadas",
+              abajo de la lista de ese día, y la podés <b>volver a activar cuando quieras</b>.
+              El historial de asistencias tampoco se toca.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => desactivarSlot(confirmSlot)} className="flex-1 py-3 rounded-xl text-white font-bold text-sm bg-red-600">
+                SÍ, SACARLA
+              </button>
+              <button onClick={() => setConfirmSlot(null)} className="flex-1 py-3 rounded-xl border-2 font-bold text-sm">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal nuevo / editar */}
       {(showNew || editingSlot) && (
         <SlotModal
@@ -188,6 +263,15 @@ export default function CronogramaPage() {
           onSave={(s) => {
             if (editingSlot) {
               setSlots(slots.map(x => x.id === editingSlot.id ? s : x))
+              // PRODUCCIÓN: persistir la edición (club real)
+              if (isRealClub(club.id)) {
+                updateTrainingSlot(club.id, editingSlot.id, {
+                  day_of_week: s.day_of_week, start_time: s.start_time, end_time: s.end_time,
+                  court: s.court ?? null, category_ids: s.category_ids, tiras: s.tiras,
+                  profe_titular_id: s.profe_titular_id ?? null, profe_suplentes_ids: s.profe_suplentes_ids ?? [],
+                  notes: s.notes ?? null,
+                }).then(r => { if (!r.ok) alert(`No se pudo guardar el cambio: ${r.error}`) })
+              }
             } else {
               setSlots([...slots, { ...s, id: `ts-new-${Date.now()}` }])
               // PRODUCCIÓN: persistir nueva práctica del cronograma (club real)

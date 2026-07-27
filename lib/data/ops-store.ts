@@ -62,6 +62,52 @@ export async function loadProfeAssignments(demoClubId: string): Promise<any[] | 
   return data ?? []
 }
 
+// ── Cronograma: editar / desactivar (soft-delete SIEMPRE, nunca borrado físico:
+//    los turnos desactivados quedan de historial y se pueden reactivar) ──────
+export async function updateTrainingSlot(demoClubId: string, slotId: string, patch: Record<string, unknown>): Promise<Res> {
+  const ctx = sbFor(demoClubId); if (!ctx) return { ok: false, error: 'club no real' }
+  try {
+    const { error } = await ctx.supabase.from('training_slots').update(patch).eq('id', slotId).eq('club_id', ctx.sb)
+    if (error) throw error
+    return { ok: true }
+  } catch (e: any) { console.error('[ops] updateSlot', e?.message); return { ok: false, error: e?.message } }
+}
+
+export async function setTrainingSlotActive(demoClubId: string, slotId: string, active: boolean): Promise<Res> {
+  return updateTrainingSlot(demoClubId, slotId, { is_active: active })
+}
+
+// ── Profes: editar datos / activar-desactivar (soft-delete; el historial de
+//    asistencias y turnos que dio queda intacto) ───────────────────────────
+export async function updateProfe(demoClubId: string, profeId: string, patch: Record<string, unknown>): Promise<Res> {
+  const ctx = sbFor(demoClubId); if (!ctx) return { ok: false, error: 'club no real' }
+  try {
+    const { error } = await ctx.supabase.from('profes').update(patch).eq('id', profeId).eq('club_id', ctx.sb)
+    if (error) throw error
+    return { ok: true }
+  } catch (e: any) { console.error('[ops] updateProfe', e?.message); return { ok: false, error: e?.message } }
+}
+
+// ── Asignaciones profe ↔ (categoría × tira): reemplaza el set completo del
+//    profe. Gobierna qué ve cada profe en asistencia/convocatoria/fixture. ──
+export async function setProfeAssignments(
+  demoClubId: string,
+  profeId: string,
+  pairs: { category_id: string; tira: string }[]
+): Promise<Res> {
+  const ctx = sbFor(demoClubId); if (!ctx) return { ok: false, error: 'club no real' }
+  try {
+    const { error: dErr } = await ctx.supabase.from('profe_assignments').delete().eq('profe_id', profeId)
+    if (dErr) throw dErr
+    if (pairs.length) {
+      const rows = pairs.map(p => ({ profe_id: profeId, category_id: p.category_id, tira: p.tira }))
+      const { error: iErr } = await ctx.supabase.from('profe_assignments').insert(rows)
+      if (iErr) throw iErr
+    }
+    return { ok: true }
+  } catch (e: any) { console.error('[ops] setAssignments', e?.message); return { ok: false, error: e?.message } }
+}
+
 // ── Convocatoria ────────────────────────────────────────────────────────
 // Soporta convocatoria "libre" (solo tira + categoría, sin partido) y
 // convocatoria atada a un evento (cuando exista fixture).
