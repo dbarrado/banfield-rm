@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ALL_SPORT_FORMATS, type SportCode } from '@/lib/sports'
+import { ALL_SPORT_FORMATS, getDefaultFormation, type SportCode } from '@/lib/sports'
 import { FieldRenderer } from '@/components/field-renderer'
 import { Trophy } from 'lucide-react'
 
@@ -11,29 +11,17 @@ export default function DeportesPage() {
   const [selected, setSelected] = useState<SportCode>('football_11')
   const format = ALL_SPORT_FORMATS.find(f => f.code === selected)!
 
-  // Generar jugadores demo para el formato
+  // Jugadores demo generados desde la FORMACIÓN estándar del deporte:
+  // la cantidad por posición sale de los slots reales (rugby XV = 3-2-3-2-2-3, etc.)
+  const formation = getDefaultFormation(selected)
   const demoPlayers = format.positions.flatMap((pos, posIdx) => {
-    // Cantidad por posición: distribuir players_on_field entre las posiciones
-    let count = 1
-    if (pos.code.includes('def') || pos.code.includes('zona') || pos.code === 'forward' || pos.code === 'back') {
-      count = format.code === 'football_11' || format.code === 'hockey_field' ? 4 :
-              format.code === 'baby_6' ? 2 : 2
-    }
-    if (pos.code === 'mediocampista' || pos.code === 'volante') {
-      count = format.code === 'football_11' || format.code === 'hockey_field' ? 4 :
-              format.code === 'baby_6' ? 2 : 1
-    }
-    if (pos.code === 'delantero' || pos.code === 'delantera') {
-      count = format.code === 'football_11' || format.code === 'hockey_field' ? 2 :
-              format.code === 'baby_6' ? 1 : (format.code === 'baby_5' ? 2 : 1)
-    }
-    if (pos.code === 'ala') count = 2
+    const count = formation.slots[pos.code] ?? 0
     return Array.from({ length: count }, (_, i) => ({
       id: `${pos.code}-${i}`,
       full_name: `Jugador ${posIdx + 1}.${i + 1}`,
       position_code: pos.code,
     }))
-  }).slice(0, format.players_on_field)
+  })
 
   return (
     <div className="p-3 md:p-6 space-y-3">

@@ -186,12 +186,14 @@ export const SPORT_FORMATS: Record<SportCode, SportFormat> = {
     discipline_cards: VOLLEY_CARDS,
     scoring: 'sets_points',
     positions: [
-      { code: 'zona_4', label: 'Zona 4 (delantera izq)', short_label: 'Z4', color_hex: '#DC2626', default_y: 28, default_x_for_count: () => 25 },
-      { code: 'zona_3', label: 'Zona 3 (delantera centro)', short_label: 'Z3', color_hex: '#DC2626', default_y: 28, default_x_for_count: () => 50 },
-      { code: 'zona_2', label: 'Zona 2 (delantera der)', short_label: 'Z2', color_hex: '#DC2626', default_y: 28, default_x_for_count: () => 75 },
-      { code: 'zona_5', label: 'Zona 5 (zaguera izq)', short_label: 'Z5', color_hex: '#1d4ed8', default_y: 70, default_x_for_count: () => 25 },
-      { code: 'zona_6', label: 'Zona 6 (zaguera centro)', short_label: 'Z6', color_hex: '#1d4ed8', default_y: 70, default_x_for_count: () => 50 },
-      { code: 'zona_1', label: 'Zona 1 (saque)', short_label: 'Z1', color_hex: '#1d4ed8', default_y: 70, default_x_for_count: () => 75 },
+      // Nuestro equipo ocupa la mitad INFERIOR (la red está al 50%): delanteras
+      // entre la red y la línea de 3m, zagueras detrás de la línea de 3m.
+      { code: 'zona_4', label: 'Zona 4 (delantera izq)', short_label: 'Z4', color_hex: '#DC2626', default_y: 59, default_x_for_count: () => 25 },
+      { code: 'zona_3', label: 'Zona 3 (delantera centro)', short_label: 'Z3', color_hex: '#DC2626', default_y: 59, default_x_for_count: () => 50 },
+      { code: 'zona_2', label: 'Zona 2 (delantera der)', short_label: 'Z2', color_hex: '#DC2626', default_y: 59, default_x_for_count: () => 75 },
+      { code: 'zona_5', label: 'Zona 5 (zaguera izq)', short_label: 'Z5', color_hex: '#1d4ed8', default_y: 84, default_x_for_count: () => 25 },
+      { code: 'zona_6', label: 'Zona 6 (zaguera centro)', short_label: 'Z6', color_hex: '#1d4ed8', default_y: 84, default_x_for_count: () => 50 },
+      { code: 'zona_1', label: 'Zona 1 (saque)', short_label: 'Z1', color_hex: '#1d4ed8', default_y: 84, default_x_for_count: () => 75 },
     ],
   },
   basketball: {
@@ -225,9 +227,10 @@ export const SPORT_FORMATS: Record<SportCode, SportFormat> = {
     discipline_cards: RUGBY_CARDS,
     scoring: 'quarters_points',
     positions: [
-      { code: 'forward', label: 'Forward', short_label: 'FW', color_hex: '#1d4ed8', default_y: 70, default_x_for_count: spread },
-      { code: 'medio', label: 'Medio scrum', short_label: 'MED', color_hex: '#00843D', default_y: 50, default_x_for_count: () => 50 },
-      { code: 'back', label: 'Back', short_label: 'BK', color_hex: '#DC2626', default_y: 25, default_x_for_count: spread },
+      // El pack (forwards) va al frente del ataque; los backs, detrás
+      { code: 'forward', label: 'Forward', short_label: 'FW', color_hex: '#1d4ed8', default_y: 30, default_x_for_count: spread },
+      { code: 'medio', label: 'Medio scrum', short_label: 'MED', color_hex: '#00843D', default_y: 52, default_x_for_count: () => 50 },
+      { code: 'back', label: 'Back', short_label: 'BK', color_hex: '#DC2626', default_y: 74, default_x_for_count: spread },
     ],
   },
   rugby_15: {
@@ -242,12 +245,13 @@ export const SPORT_FORMATS: Record<SportCode, SportFormat> = {
     discipline_cards: RUGBY_CARDS,
     scoring: 'quarters_points',
     positions: [
-      { code: 'pilar', label: 'Pilar / Hooker', short_label: 'PIL', color_hex: '#1d4ed8', default_y: 78, default_x_for_count: spread },
-      { code: 'segunda_linea', label: 'Segunda línea', short_label: '2L', color_hex: '#1d4ed8', default_y: 65, default_x_for_count: spread },
-      { code: 'tercera_linea', label: 'Tercera línea / Ala', short_label: '3L', color_hex: '#3b82f6', default_y: 52, default_x_for_count: spread },
-      { code: 'medio_apertura', label: 'Medio scrum / Apertura', short_label: 'MED', color_hex: '#00843D', default_y: 38, default_x_for_count: spread },
-      { code: 'centro', label: 'Centro', short_label: 'CEN', color_hex: '#16a34a', default_y: 25, default_x_for_count: spread },
-      { code: 'wing_fullback', label: 'Wing / Fullback', short_label: 'BK', color_hex: '#DC2626', default_y: 12, default_x_for_count: spread },
+      // El pack adelante (primera línea al frente del ataque), la línea de backs detrás
+      { code: 'pilar', label: 'Pilar / Hooker', short_label: 'PIL', color_hex: '#1d4ed8', default_y: 22, default_x_for_count: spread },
+      { code: 'segunda_linea', label: 'Segunda línea', short_label: '2L', color_hex: '#1d4ed8', default_y: 34, default_x_for_count: spread },
+      { code: 'tercera_linea', label: 'Tercera línea / Ala', short_label: '3L', color_hex: '#3b82f6', default_y: 46, default_x_for_count: spread },
+      { code: 'medio_apertura', label: 'Medio scrum / Apertura', short_label: 'MED', color_hex: '#00843D', default_y: 60, default_x_for_count: spread },
+      { code: 'centro', label: 'Centro', short_label: 'CEN', color_hex: '#16a34a', default_y: 72, default_x_for_count: spread },
+      { code: 'wing_fullback', label: 'Wing / Fullback', short_label: 'BK', color_hex: '#DC2626', default_y: 85, default_x_for_count: spread },
     ],
   },
   handball_7: {

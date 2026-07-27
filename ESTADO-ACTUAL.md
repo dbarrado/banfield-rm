@@ -3,6 +3,28 @@
 **Última actualización:** 2026-07-23
 **Para:** retomar el trabajo en otra PC.
 
+## Update 2026-07-27 — Plan multi-categoría, alta de profe con usuario+mail, deportes arreglados
+- **Plan**: (1) chips "¿Es para varias categorías?" en el editor — un GUARDAR escribe el plan en
+  todas (verificado 3 categorías en base); (2) carga liviana: título del día + ejercicios en UNA
+  línea (Enter agrega la siguiente), minutos al lado, autocompletar intacto.
+- **Alta de profe COMPLETA**: edge function `alta-profe` (v2, idempotente) — verifica que el caller
+  sea coordinador/admin, crea usuario Auth con clave estándar (email confirmado), perfil en
+  `profiles` (FK requerida por user_clubs — gotcha), rol profe en `user_clubs`, ficha en `profes`,
+  y manda mail de bienvenida vía Resend (from "Plantel — Banfield RM <bienvenida@strategic-ia.com>",
+  BCC Diego) con acceso + recordatorio de cambiar clave. Secret RESEND_API_KEY seteado vía
+  Management API. El form de alta pide email obligatorio e invoca la función. Probado E2E como
+  Morel (mail salió; profe de prueba borrado). Decisiones Diego: remitente strategic-ia.com,
+  clave estándar con aviso de cambio.
+- **Deportes**: (1) los jugadores de muestra ahora se generan desde la FORMACIÓN estándar del
+  deporte (antes heurística de fútbol: rugby XV mostraba 6, rugby 7s 5, handball 5); (2) canchas
+  propias para rugby (in-goals, palos H, 22m) y handball (áreas 6m/9m, piso gimnasio) — antes
+  usaban la cancha de fútbol; (3) vóley: nuestras 6 en NUESTRA mitad (delanteras entre red y 3m);
+  (4) rugby: pack al frente del ataque (estaba invertido). Verificado: 6/7/15/7 jugadores.
+- **PENDIENTE (reportado a Diego, sin construir): asignar deporte/modalidad por tira o categoría**
+  — hoy el deporte vive en `categories.sport_format_code` pero NO hay UI para cambiarlo; por TIRA
+  no existe en el modelo (tiras derivan del deporte del club vía SPORT_TIRAS). Propuesta: selector
+  de deporte por categoría en Config (persistir sport_format_code); per-tira = refactor mayor.
+
 ## Update 2026-07-24 (h) — Cronograma y profes 100% editables por el coordinador
 - **Pedido de Diego:** el coordinador tiene que poder cambiar profes asignados, horarios, días,
   canchas y todo lo demás — simple, mínimos pasos, para no-expertos. Borrar SIEMPRE con pantalla

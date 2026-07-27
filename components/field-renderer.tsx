@@ -109,6 +109,52 @@ function FieldBackground({ sportCode }: { sportCode: SportCode }) {
       </div>
     )
   }
+  if (sportCode === 'rugby_7' || sportCode === 'rugby_15') {
+    // Cancha de rugby: in-goals en ambos extremos, línea de mitad, líneas de 22 y palos en H
+    return (
+      <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, #16a34a 0%, #15803d 100%)' }}>
+        <svg viewBox="0 0 200 300" className="w-full h-full" preserveAspectRatio="none">
+          <rect x="5" y="5" width="190" height="290" fill="none" stroke="white" strokeWidth="0.8" opacity="0.7" />
+          {/* In-goals */}
+          <rect x="5" y="5" width="190" height="25" fill="white" opacity="0.12" />
+          <rect x="5" y="270" width="190" height="25" fill="white" opacity="0.12" />
+          <line x1="5" y1="30" x2="195" y2="30" stroke="white" strokeWidth="1.2" opacity="0.85" />
+          <line x1="5" y1="270" x2="195" y2="270" stroke="white" strokeWidth="1.2" opacity="0.85" />
+          {/* Mitad de cancha y líneas de 22 */}
+          <line x1="5" y1="150" x2="195" y2="150" stroke="white" strokeWidth="0.8" opacity="0.7" />
+          <line x1="5" y1="90" x2="195" y2="90" stroke="white" strokeWidth="0.6" strokeDasharray="4,3" opacity="0.6" />
+          <line x1="5" y1="210" x2="195" y2="210" stroke="white" strokeWidth="0.6" strokeDasharray="4,3" opacity="0.6" />
+          {/* Palos en H */}
+          <g stroke="white" strokeWidth="1.4" opacity="0.9">
+            <line x1="90" y1="22" x2="90" y2="36" /><line x1="110" y1="22" x2="110" y2="36" /><line x1="90" y1="30" x2="110" y2="30" />
+            <line x1="90" y1="264" x2="90" y2="278" /><line x1="110" y1="264" x2="110" y2="278" /><line x1="90" y1="270" x2="110" y2="270" />
+          </g>
+        </svg>
+      </div>
+    )
+  }
+  if (sportCode === 'handball_7') {
+    // Cancha de handball: piso de gimnasio, áreas de 6m (semicírculo pleno) y 9m (punteada)
+    return (
+      <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, #2b6cb0 0%, #234e88 100%)' }}>
+        <svg viewBox="0 0 200 300" className="w-full h-full" preserveAspectRatio="none">
+          <rect x="5" y="5" width="190" height="290" fill="none" stroke="white" strokeWidth="0.8" opacity="0.8" />
+          <line x1="5" y1="150" x2="195" y2="150" stroke="white" strokeWidth="0.8" opacity="0.8" />
+          {/* Área de 6m (llena) y 9m (punteada) — arco superior */}
+          <path d="M 40 5 A 60 60 0 0 0 160 5" fill="#f59e0b" opacity="0.25" />
+          <path d="M 40 5 A 60 60 0 0 0 160 5" fill="none" stroke="white" strokeWidth="0.9" opacity="0.85" />
+          <path d="M 18 5 A 82 82 0 0 0 182 5" fill="none" stroke="white" strokeWidth="0.6" strokeDasharray="5,4" opacity="0.6" />
+          {/* Área de 6m y 9m — arco inferior */}
+          <path d="M 40 295 A 60 60 0 0 1 160 295" fill="#f59e0b" opacity="0.25" />
+          <path d="M 40 295 A 60 60 0 0 1 160 295" fill="none" stroke="white" strokeWidth="0.9" opacity="0.85" />
+          <path d="M 18 295 A 82 82 0 0 1 182 295" fill="none" stroke="white" strokeWidth="0.6" strokeDasharray="5,4" opacity="0.6" />
+          {/* Arcos */}
+          <rect x="85" y="3" width="30" height="4" fill="white" opacity="0.9" />
+          <rect x="85" y="293" width="30" height="4" fill="white" opacity="0.9" />
+        </svg>
+      </div>
+    )
+  }
   if (sportCode === 'baby_5' || sportCode === 'baby_6' || sportCode === 'futsal') {
     // Cancha más cuadrada, sin círculo central, áreas chicas
     return (
