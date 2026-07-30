@@ -3,6 +3,24 @@
 **Última actualización:** 2026-07-23
 **Para:** retomar el trabajo en otra PC.
 
+## Update 2026-07-30 — GO-LIVE + auditoría de performance (carga lenta reportada por Diego)
+- **Go-live real:** Diego pasó accesos al coordinador el mar 29-jul. Emmanuel Muñoz entró ese día
+  18:48 y tomó asistencia de 3 categorías (2012: 22 chicos, 2010: 31, 2011: 17 — 70 registros).
+  Bruno Gismondi entró el lun 28. Morel aún no entró solo.
+- **Diego reportó carga lenta → medición en prod (dashboard profe, login Bruno):**
+  ANTES: 6.6s hasta contenido visible, 34 requests a Supabase (solo 51KB — el problema era
+  cascada de round-trips, no ancho de banda). Requests individuales de 1.1-3.1s por contención.
+- **Fixes aplicados:** getSession local en vez de getUser por red (useCurrentProfe/useUserRoles);
+  cache de PROMESA en roles (3 componentes disparaban el mismo request); hidratación+billings en
+  paralelo; `loadPracticeStatsBulk` (2 requests para N categorías, antes 2×N);
+  `loadPlansForDay` (1 request para N planes con items embebidos, antes 2×N);
+  migración 0005 (aplicada): RLS initplan ×3 + índices events(club,cat,type),
+  attendances(event_id), session_plans(club,date).
+- **DESPUÉS: 0.5s hasta contenido visible, 12 requests** (misma pantalla, mismo usuario).
+  Nota honesta: parte de la mejora medida es red caliente del segundo run; lo estructural
+  (34→12 requests, 2 pasos en serie menos) vale en cualquier red, y en WiFi de club con alta
+  latencia pesa más todavía. Script de medición reusable: `data-import/cdp-perf.mjs`.
+
 ## Update 2026-07-27 — Plan multi-categoría, alta de profe con usuario+mail, deportes arreglados
 - **Plan**: (1) chips "¿Es para varias categorías?" en el editor — un GUARDAR escribe el plan en
   todas (verificado 3 categorías en base); (2) carga liviana: título del día + ejercicios en UNA
