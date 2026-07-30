@@ -25,9 +25,11 @@ export function useCurrentProfe(clubId?: string): CurrentProfe {
     }
     let cancelled = false
     ;(async () => {
+      // getSession lee del storage local (0 requests de red); getUser pegaba a
+      // /auth/v1/user en CADA componente que montaba este hook.
       const supabase = createClient()
-      const { data } = await supabase.auth.getUser()
-      const email = data.user?.email?.toLowerCase() ?? null
+      const { data } = await supabase.auth.getSession()
+      const email = data.session?.user?.email?.toLowerCase() ?? null
       if (!email) {
         if (!cancelled) setState({ profeId: null, profeName: null, isLoading: false })
         return

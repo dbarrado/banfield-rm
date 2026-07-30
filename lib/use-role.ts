@@ -18,28 +18,33 @@ const VALID_ROLES: ActiveRole[] = ['admin', 'profe', 'tesorero', 'coordinador', 
 
 // Cache simple en memoria del proceso para no repetir el fetch a Supabase
 // en cada componente que monte el hook durante la misma sesión de navegación.
-let cachedRealRoles: ActiveRole[] | null = null
-let cachedRealRolesClub: string | null = null
+// Se cachea la PROMESA (no solo el resultado): varios componentes montan a la
+// vez y sin esto disparaban el mismo request 3-4 veces en paralelo.
+let rolesPromise: Promise<ActiveRole[]> | null = null
+let rolesPromiseClub: string | null = null
 
-async function fetchRealRoles(demoClubId: string): Promise<ActiveRole[]> {
-  if (cachedRealRolesClub === demoClubId && cachedRealRoles) return cachedRealRoles
-  const sbClubId = realClubId(demoClubId)
-  if (!sbClubId) return []
-  const supabase = createClient()
-  const { data: userData } = await supabase.auth.getUser()
-  if (!userData.user) return []
-  const { data, error } = await supabase
-    .from('user_clubs')
-    .select('roles')
-    .eq('club_id', sbClubId)
-    .eq('user_id', userData.user.id)
-    .eq('is_active', true)
-    .maybeSingle()
-  if (error || !data?.roles) return []
-  const roles = (data.roles as string[]).filter((r): r is ActiveRole => VALID_ROLES.includes(r as ActiveRole))
-  cachedRealRoles = roles
-  cachedRealRolesClub = demoClubId
-  return roles
+function fetchRealRoles(demoClubId: string): Promise<ActiveRole[]> {
+  if (rolesPromiseClub === demoClubId && rolesPromise) return rolesPromise
+  rolesPromiseClub = demoClubId
+  rolesPromise = (async () => {
+    const sbClubId = realClubId(demoClubId)
+    if (!sbClubId) return []
+    const supabase = createClient()
+    // getSession lee del storage local (sin request de red)
+    const { data: sess } = await supabase.auth.getSession()
+    const userId = sess.session?.user?.id
+    if (!userId) return []
+    const { data, error } = await supabase
+      .from('user_clubs')
+      .select('roles')
+      .eq('club_id', sbClubId)
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .maybeSingle()
+    if (error || !data?.roles) return []
+    return (data.roles as string[]).filter((r): r is ActiveRole => VALID_ROLES.includes(r as ActiveRole))
+  })()
+  return rolesPromise
 }
 
 // Club real: roles vienen de `user_clubs.roles` (Supabase, usuario logueado).

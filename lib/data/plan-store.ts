@@ -70,6 +70,36 @@ export async function loadExerciseLibrary(
   return { exercises, titles }
 }
 
+// Planes de VARIAS categorías para un día, en UN solo request (items embebidos).
+// El dashboard del profe hacía 2 requests por categoría con loadPlan.
+export async function loadPlansForDay(
+  demoClubId: string,
+  categoryIds: string[],
+  dateISO: string
+): Promise<Record<string, DayPlan>> {
+  const sb = realClubId(demoClubId)
+  if (!sb || !categoryIds.length) return {}
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('session_plans')
+    .select('id,category_id,title,session_plan_items(position,duration_min,notes)')
+    .eq('club_id', sb)
+    .eq('session_date', dateISO)
+    .in('category_id', categoryIds)
+  if (error) { console.error('[plan-store] loadPlansForDay:', error.message); return {} }
+  const out: Record<string, DayPlan> = {}
+  for (const p of (data ?? []) as any[]) {
+    out[p.category_id] = {
+      planId: p.id,
+      title: p.title ?? '',
+      items: (p.session_plan_items ?? [])
+        .sort((a: any, b: any) => a.position - b.position)
+        .map((i: any) => ({ position: i.position, description: i.notes ?? '', duration_min: i.duration_min })),
+    }
+  }
+  return out
+}
+
 // Días con plan en un rango (para la vista mensual del coordinador).
 export async function loadPlansInRange(
   demoClubId: string,

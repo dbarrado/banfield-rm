@@ -9,8 +9,8 @@ import { CheckCircle2, ClipboardList, AlertTriangle, CalendarDays, ChevronDown, 
 import { getAssignmentsForProfe, getPlayersForClub, getCategoriesForClub, demoEligibilityConfig } from '@/lib/demo-data'
 import { useCurrentProfe } from '@/lib/use-current-profe'
 import { loadTrainingSlots } from '@/lib/data/ops-store'
-import { loadPracticeStats, loadPracticeCategoriesForDate } from '@/lib/data/attendance-store'
-import { loadPlan, type DayPlan } from '@/lib/data/plan-store'
+import { loadPracticeStatsBulk, loadPracticeCategoriesForDate } from '@/lib/data/attendance-store'
+import { loadPlansForDay, type DayPlan } from '@/lib/data/plan-store'
 import { getTiraLabel, getTiraColor } from '@/lib/tiras'
 import type { SportCode } from '@/lib/sports'
 import type { Club } from '@/types'
@@ -61,23 +61,24 @@ export function ProfeDashboard({ club }: { club: Club }) {
         (s.tiras ?? []).some(t => (s.category_ids ?? []).some(c => myAssign.some(a => a.tira === t && a.category_id === c)))
       ).sort((a, b) => a.start_time.localeCompare(b.start_time))
       setSlots(mine)
-      // Plan del día de las categorías que me tocan hoy
+      // Plan del día de las categorías que me tocan hoy — UN solo request
       const todayCats = Array.from(new Set(mine.flatMap(s => s.category_ids ?? []))).filter(c => myCatIds.includes(c))
-      todayCats.forEach(catId => {
-        loadPlan(club.id, catId, dateISO).then(p => {
-          if (!cancelled && p && p.items.some(i => i.description?.trim())) {
-            setPlans(prev => ({ ...prev, [catId]: p }))
-          }
-        })
+      loadPlansForDay(club.id, todayCats, dateISO).then(all => {
+        if (cancelled) return
+        const conContenido = Object.fromEntries(
+          Object.entries(all).filter(([, p]) => p.items.some(i => i.description?.trim()))
+        )
+        setPlans(conContenido)
       })
     })
 
     loadPracticeCategoriesForDate(club.id, dateISO).then(s => { if (!cancelled) setTakenCats(s) })
 
-    // Chicos con baja asistencia en MIS (categoría × tira)
-    Promise.all(myCatIds.map(catId => loadPracticeStats(club.id, catId).then(stats => ({ catId, stats }))))
-      .then(results => {
+    // Chicos con baja asistencia en MIS (categoría × tira) — 2 requests en total (bulk)
+    loadPracticeStatsBulk(club.id, myCatIds)
+      .then(bulk => {
         if (cancelled) return
+        const results = myCatIds.map(catId => ({ catId, stats: bulk?.[catId] ?? null }))
         const th = demoEligibilityConfig.min_practice_percentage
         const out: { id: string; name: string; cat: string; pct: number }[] = []
         for (const { catId, stats } of results) {

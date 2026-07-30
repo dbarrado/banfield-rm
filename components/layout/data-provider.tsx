@@ -115,8 +115,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         return
       }
       try {
-        await hydrateFromSupabase(clubId)
-        await hydrateBillings(clubId, currentPeriod())
+        // En paralelo: eran dos pasos en serie y sumaban un round-trip entero
+        await Promise.all([
+          hydrateFromSupabase(clubId),
+          hydrateBillings(clubId, currentPeriod()),
+        ])
       } catch (e) {
         console.error('[DataProvider] hydrate real club failed:', e)
         hydrateRealClub(clubId, [], [])

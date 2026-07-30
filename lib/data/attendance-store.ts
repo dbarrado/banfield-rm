@@ -81,46 +81,64 @@ export async function loadPracticeCategoriesForDate(demoClubId: string, dateISO:
 // de eventos de la categoría: en categorías multi-tira cada tira firma su propia
 // práctica, y un chico no debe ser penalizado por prácticas de otra tira.
 // Sin registros → total 0 → la convocatoria lo trata como elegible (sin datos no bloquea).
-export async function loadPracticeStats(
+export type PracticeStats = Record<string, { attended: number; justified: number; total: number; percentage: number }>
+
+// Versión BULK: estadísticas de varias categorías en solo 2 requests (antes eran
+// 2 por categoría — el dashboard del profe hacía 8 para 4 categorías).
+export async function loadPracticeStatsBulk(
   demoClubId: string,
-  categoryId: string
-): Promise<Record<string, { attended: number; justified: number; total: number; percentage: number }> | null> {
+  categoryIds: string[]
+): Promise<Record<string, PracticeStats> | null> {
   const sb = realClubId(demoClubId)
   if (!sb) return null
+  if (!categoryIds.length) return {}
   const supabase = createClient()
   try {
     const { data: evs, error: e1 } = await supabase
       .from('events')
-      .select('id')
+      .select('id, category_id')
       .eq('club_id', sb)
-      .eq('category_id', categoryId)
+      .in('category_id', categoryIds)
       .eq('event_type', 'practice')
       .eq('is_suspended', false)
     if (e1) throw e1
-    const ids = (evs ?? []).map((e) => e.id)
-    if (!ids.length) return {}
+    const catByEvent = new Map((evs ?? []).map((e) => [e.id as string, e.category_id as string]))
+    const out: Record<string, PracticeStats> = Object.fromEntries(categoryIds.map((c) => [c, {}]))
+    if (!catByEvent.size) return out
     const { data: atts, error: e2 } = await supabase
       .from('attendances')
-      .select('player_id, status')
-      .in('event_id', ids)
+      .select('player_id, status, event_id')
+      .in('event_id', Array.from(catByEvent.keys()))
     if (e2) throw e2
-    const out: Record<string, { attended: number; justified: number; total: number; percentage: number }> = {}
     for (const a of atts ?? []) {
-      const cur = out[a.player_id as string] ?? { attended: 0, justified: 0, total: 0, percentage: 0 }
+      const catId = catByEvent.get(a.event_id as string)
+      if (!catId) continue
+      const stats = out[catId]
+      const cur = stats[a.player_id as string] ?? { attended: 0, justified: 0, total: 0, percentage: 0 }
       cur.total++
       if (a.status === 'present' || a.status === 'late') cur.attended++
       else if (a.status === 'absent_justified') cur.justified++
-      out[a.player_id as string] = cur
+      stats[a.player_id as string] = cur
     }
-    for (const pid of Object.keys(out)) {
-      const s = out[pid]
-      s.percentage = Math.round((s.attended / Math.max(s.total - s.justified, 1)) * 100)
+    for (const catId of Object.keys(out)) {
+      for (const pid of Object.keys(out[catId])) {
+        const s = out[catId][pid]
+        s.percentage = Math.round((s.attended / Math.max(s.total - s.justified, 1)) * 100)
+      }
     }
     return out
   } catch (e: any) {
-    console.error('[attendance-store] loadPracticeStats:', e?.message ?? e)
+    console.error('[attendance-store] loadPracticeStatsBulk:', e?.message ?? e)
     return null
   }
+}
+
+export async function loadPracticeStats(
+  demoClubId: string,
+  categoryId: string
+): Promise<PracticeStats | null> {
+  const bulk = await loadPracticeStatsBulk(demoClubId, [categoryId])
+  return bulk ? (bulk[categoryId] ?? {}) : null
 }
 
 export async function persistAttendanceUpsert(
