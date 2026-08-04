@@ -184,6 +184,7 @@ export async function savePlan(
   if (!sb) return { ok: false, error: 'club no real' }
   const supabase = createClient()
   try {
+    const { data: { user } } = await supabase.auth.getUser()
     // upsert idempotente: borrar plan previo de esa (cat, fecha) y reinsertar
     const { data: prev } = await supabase
       .from('session_plans')
@@ -196,7 +197,7 @@ export async function savePlan(
 
     const { data: plan, error: pErr } = await supabase
       .from('session_plans')
-      .insert({ club_id: sb, category_id: categoryId, session_date: dateISO, title })
+      .insert({ club_id: sb, category_id: categoryId, session_date: dateISO, title, created_by: user?.id ?? null })
       .select('id')
       .single()
     if (pErr) throw pErr

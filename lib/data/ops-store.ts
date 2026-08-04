@@ -226,9 +226,11 @@ export async function persistProfeAttendance(
 ): Promise<Res> {
   const ctx = sbFor(demoClubId); if (!ctx) return { ok: false, error: 'club no real' }
   try {
+    const { data: { user } } = await ctx.supabase.auth.getUser()
     const rows = args.records.map(r => ({
       club_id: ctx.sb, profe_id: r.profeId, date: args.date, status: r.status,
       replaced_by_id: r.replacedById ?? null, slot_id: r.slotId ?? null,
+      registered_by: user?.id ?? null,
     }))
     const { error } = await ctx.supabase.from('profe_attendance_records').insert(rows)
     if (error) throw error

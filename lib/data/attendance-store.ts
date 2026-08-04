@@ -156,6 +156,7 @@ export async function persistAttendanceUpsert(
   const supabase = createClient()
   try {
     const valid: DbStatus[] = ['present', 'late', 'absent_justified', 'absent_unjustified']
+    const { data: { user } } = await supabase.auth.getUser()
 
     let eventId = args.eventId ?? null
 
@@ -172,6 +173,7 @@ export async function persistAttendanceUpsert(
           category_id: args.categoryId,
           event_type: 'practice',
           scheduled_at: args.scheduledAt,
+          created_by: user?.id ?? null,
         })
         .select('id')
         .single()
@@ -185,6 +187,7 @@ export async function persistAttendanceUpsert(
         event_id: eventId,
         player_id: r.playerId,
         status: r.status as DbStatus,
+        registered_by: user?.id ?? null,
       }))
     if (rows.length > 0) {
       const { error: attErr } = await supabase.from('attendances').insert(rows)
